@@ -1,0 +1,1 @@
+""" Handles email operations like sending, creating drafts, replying, forwarding, deleting and downloading attachments """
