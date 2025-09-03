@@ -1,11 +1,11 @@
-import json
 from datetime import datetime
-from textwrap import dedent
-from typing import Union
+from typing import Union, Optional, List
 
 from google_client.services.gmail import EmailQueryBuilder
 from langchain.tools.base import BaseTool
 from google_client.services.gmail.api_service import GmailApiService
+from langchain_core.tools import ArgsSchema
+from pydantic import BaseModel, Field
 
 
 def build_query(gmail_service: GmailApiService, params: dict) -> EmailQueryBuilder:
@@ -56,64 +56,99 @@ def build_query(gmail_service: GmailApiService, params: dict) -> EmailQueryBuild
     return query_builder
 
 
+class ListEmailsInput(BaseModel):
+    """Input schema for querying emails"""
+    return_type: Optional[str] = Field(default="metadata", description="Level of detail: 'metadata' or 'full'")
+    include_attachments: Optional[bool] = Field(default=False, description="Include attachment metadata in response")
+    include_promotions: Optional[bool] = Field(default=False, description="Include emails from Promotions category")
+    limit: Optional[int] = Field(default=50, description="Maximum number of emails to retrieve")
+    search: Optional[str] = Field(default=None, description="Search query to filter emails")
+    from_sender: Optional[str] = Field(default=None, description="Filter emails from specific sender")
+    to_recipient: Optional[str] = Field(default=None, description="Filter emails to specific recipient")
+    with_subject: Optional[str] = Field(default=None, description="Filter emails with specific subject")
+    with_attachments: Optional[bool] = Field(default=None, description="Filter emails that have attachments")
+    is_read: Optional[bool] = Field(default=None, description="Filter read emails")
+    is_unread: Optional[bool] = Field(default=None, description="Filter unread emails")
+    is_starred: Optional[bool] = Field(default=None, description="Filter starred emails")
+    is_important: Optional[bool] = Field(default=None, description="Filter important emails")
+    in_folder: Optional[str] = Field(default=None, description="Filter emails in specific folder")
+    with_label: Optional[str] = Field(default=None, description="Filter emails with specific label")
+    today: Optional[bool] = Field(default=None, description="Filter emails from today")
+    yesterday: Optional[bool] = Field(default=None, description="Filter emails from yesterday")
+    last_days: Optional[int] = Field(default=None, description="Filter emails from last N days")
+    this_week: Optional[bool] = Field(default=None, description="Filter emails from this week")
+    this_month: Optional[bool] = Field(default=None, description="Filter emails from this month")
+    after_date: Optional[str] = Field(default=None, description="Filter emails after date (YYYY-MM-DD)")
+    before_date: Optional[str] = Field(default=None, description="Filter emails before date (YYYY-MM-DD)")
+    get_body_text: Optional[bool] = Field(default=True, description="Include body text in full return type")
+
+
 class QueryEmailsTool(BaseTool):
     """Tool for querying emails"""
 
     name: str  = "list_emails"
-    description: str  = dedent("""
-    Query and retrieve emails from Gmail based on various filters.
-    You can filter emails using the following parameters:
-    - return_type: "metadata" (default) or "full" to specify the level of detail in the returned emails.
-                    "metadata" returns message_id, subject, from, to, snippet, date_time, labels and has_attachments.
-                    "full" returns all metadata plus body_text and attachments metadata (if any).
-    - include_attachments: Boolean to include attachment metadata in the response (only applicable if return_type is "full")
-    - include_promotions: Boolean to include emails from the "Promotions" category (default is False)
-    - limit: Maximum number of emails to retrieve (default is 50, max is 250)
-    - search: Search query to filter emails
-    - from_sender: Filter emails from a specific sender email address
-    - to_recipient: Filter emails sent to a specific recipient email address
-    - with_subject: Filter emails with a specific subject
-    - with_attachments: Boolean to filter emails that have attachments
-    - is_read: Boolean to filter read emails
-    - is_unread: Boolean to filter unread emails
-    - is_starred: Boolean to filter starred emails
-    - is_important: Boolean to filter important emails
-    - in_folder: Filter emails in a specific folder (e.g., "INBOX", "SENT")
-    - with_label: Filter emails with a specific label
-    - today: Boolean to filter emails from today
-    - yesterday: Boolean to filter emails from yesterday
-    - last_days: Filter emails from the last N days
-    - this_week: Boolean to filter emails from this week
-    - this_month: Boolean to filter emails from this month
-    - after_date: Filter emails after a specific date (format: YYYY-MM-DD)
-    - before_date: Filter emails before a specific date (format: YYYY-MM-DD)    
-    """)
+    description: str  = "Query and retrieve emails from Gmail based on various filters."
+    args_schema: ArgsSchema = ListEmailsInput
 
     gmail_service: GmailApiService
 
     def __init__(self, gmail_service: GmailApiService):
         super().__init__(gmail_service=gmail_service)
 
-    def _run(self, tool_input: Union[str, dict]) -> [list[dict]]:
+    def _run(
+            self,
+            return_type: Optional[str] = "metadata",
+            include_attachments: Optional[bool] = False,
+            include_promotions: Optional[bool] = False,
+            limit: Optional[int] = 50,
+            search: Optional[str] = None,
+            from_sender: Optional[str] = None,
+            to_recipient: Optional[str] = None,
+            with_subject: Optional[str] = None,
+            with_attachments: Optional[bool] = None,
+            is_read: Optional[bool] = None,
+            is_unread: Optional[bool] = None,
+            is_starred: Optional[bool] = None,
+            is_important: Optional[bool] = None,
+            in_folder: Optional[str] = None,
+            with_label: Optional[str] = None,
+            today: Optional[bool] = None,
+            yesterday: Optional[bool] = None,
+            last_days: Optional[int] = None,
+            this_week: Optional[bool] = None,
+            this_month: Optional[bool] = None,
+            after_date: Optional[str] = None,
+            before_date: Optional[str] = None,
+    ) -> Union[dict, List[dict]]:
         """Query and retrieve emails based on filters"""
         try:
-            if isinstance(tool_input, str):
-                try:
-                    params = json.loads(tool_input)
-                except json.JSONDecodeError:
-                    return {
-                        "status": "error",
-                        "error_type": "JSONDecodeError",
-                        "error_message": "Invalid JSON input",
-                        "message": "Invalid input: Please provide a valid JSON."
-                    }
-            else:
-                params = tool_input
+            params = {
+                "include_promotions": include_promotions,
+                "limit": limit,
+                "search": search,
+                "from_sender": from_sender,
+                "to_recipient": to_recipient,
+                "with_subject": with_subject,
+                "with_attachments": with_attachments,
+                "is_read": is_read,
+                "is_unread": is_unread,
+                "is_starred": is_starred,
+                "is_important": is_important,
+                "in_folder": in_folder,
+                "with_label": with_label,
+                "today": today,
+                "yesterday": yesterday,
+                "last_days": last_days,
+                "this_week": this_week,
+                "this_month": this_month,
+                "after_date": after_date,
+                "before_date": before_date
+            }
 
             query = build_query(self.gmail_service, params)
             emails = query.execute()
 
-            if params.get("return_type", "metadata") == "metadata":
+            if return_type == "metadata":
                 return [{
                     "message_id": email.message_id,
                     "subject": email.subject,
@@ -137,12 +172,12 @@ class QueryEmailsTool(BaseTool):
                     "to": email.recipients,
                     "date_time": email.date_time.isoformat(),
                     "snippet": email.snippet,
-                    "body_text": email.body_text if params.get("get_body_text", True) else None,
+                    "body_text": email.body_text,
                     "is_read": email.is_read,
                     "is_starred": email.is_starred,
                     "is_important": email.is_important,
                     "labels": email.labels,
-                    "attachments": [attachment.to_dict() for attachment in email.attachments] if params.get("include_attachments", False) else None
+                    "attachments": [attachment.to_dict() for attachment in email.attachments] if include_attachments else None
                 }
                     for email in emails
                 ]
@@ -156,54 +191,86 @@ class QueryEmailsTool(BaseTool):
             }
 
 
+class ListThreadsInput(BaseModel):
+    """Input schema for querying email threads"""
+    limit: Optional[int] = Field(default=50, description="Maximum number of threads to retrieve")
+    search: Optional[str] = Field(default=None, description="Search query to filter threads")
+    from_sender: Optional[str] = Field(default=None, description="Filter threads from specific sender")
+    to_recipient: Optional[str] = Field(default=None, description="Filter threads to specific recipient")
+    with_subject: Optional[str] = Field(default=None, description="Filter threads with specific subject")
+    with_attachments: Optional[bool] = Field(default=None, description="Filter threads with attachments")
+    is_read: Optional[bool] = Field(default=None, description="Filter threads with read emails")
+    is_unread: Optional[bool] = Field(default=None, description="Filter threads with unread emails")
+    is_starred: Optional[bool] = Field(default=None, description="Filter threads with starred emails")
+    is_important: Optional[bool] = Field(default=None, description="Filter threads with important emails")
+    in_folder: Optional[str] = Field(default=None, description="Filter threads in specific folder")
+    with_label: Optional[str] = Field(default=None, description="Filter threads with specific label")
+    today: Optional[bool] = Field(default=None, description="Filter threads from today")
+    yesterday: Optional[bool] = Field(default=None, description="Filter threads from yesterday")
+    last_days: Optional[int] = Field(default=None, description="Filter threads from last N days")
+    this_week: Optional[bool] = Field(default=None, description="Filter threads from this week")
+    this_month: Optional[bool] = Field(default=None, description="Filter threads from this month")
+    after_date: Optional[str] = Field(default=None, description="Filter threads after date (YYYY-MM-DD)")
+    before_date: Optional[str] = Field(default=None, description="Filter threads before date (YYYY-MM-DD)")
+
+
 class QueryThreadsTool(BaseTool):
     """Tool for querying email threads"""
 
     name: str  = "list_threads"
-    description: str  = dedent("""
-    Query and retrieve email threads from Gmail based on various filters.
-    You can filter threads using the following parameters:
-    - limit: Maximum number of threads to retrieve (default is 50, max is 250)
-    - search: Search query to filter threads
-    - from_sender: Filter threads with emails from a specific sender email address
-    - to_recipient: Filter threads with emails sent to a specific recipient email address
-    - with_subject: Filter threads with emails that have a specific subject
-    - with_attachments: Boolean to filter threads that have emails with attachments
-    - is_read: Boolean to filter threads with read emails
-    - is_unread: Boolean to filter threads with unread emails
-    - is_starred: Boolean to filter threads with starred emails
-    - is_important: Boolean to filter threads with important emails
-    - in_folder: Filter threads in a specific folder (e.g., "INBOX", "SENT")
-    - with_label: Filter threads with a specific label
-    - today: Boolean to filter threads with emails from today
-    - yesterday: Boolean to filter threads with emails from yesterday
-    - last_days: Filter threads with emails from the last N days
-    - this_week: Boolean to filter threads with emails from this week
-    - this_month: Boolean to filter threads with emails from this month
-    - after_date: Filter threads with emails after a specific date (format: YYYY-MM-DD)
-    - before_date: Filter threads with emails before a specific date (format: YYYY-MM-DD)    
-    """)
+    description: str  = "Query and retrieve email threads from Gmail based on various filters"
+    args_schema: ArgsSchema = ListThreadsInput
 
     gmail_service: GmailApiService
 
     def __init__(self, gmail_service: GmailApiService):
         super().__init__(gmail_service=gmail_service)
 
-    def _run(self, tool_input: Union[str, dict]) -> [list[dict]]:
+    def _run(
+            self,
+            limit: Optional[int] = 50,
+            search: Optional[str] = None,
+            from_sender: Optional[str] = None,
+            to_recipient: Optional[str] = None,
+            with_subject: Optional[str] = None,
+            with_attachments: Optional[bool] = None,
+            is_read: Optional[bool] = None,
+            is_unread: Optional[bool] = None,
+            is_starred: Optional[bool] = None,
+            is_important: Optional[bool] = None,
+            in_folder: Optional[str] = None,
+            with_label: Optional[str] = None,
+            today: Optional[bool] = None,
+            yesterday: Optional[bool] = None,
+            last_days: Optional[int] = None,
+            this_week: Optional[bool] = None,
+            this_month: Optional[bool] = None,
+            after_date: Optional[str] = None,
+            before_date: Optional[str] = None
+    ) -> Union[dict, List[dict]]:
         """Query and retrieve email threads based on filters"""
         try:
-            if isinstance(tool_input, str):
-                try:
-                    params = json.loads(tool_input)
-                except json.JSONDecodeError:
-                    return {
-                        "status": "error",
-                        "error_type": "JSONDecodeError",
-                        "error_message": "Invalid JSON input",
-                        "message": "Invalid input: Please provide a valid JSON."
-                    }
-            else:
-                params = tool_input
+            params = {
+                "limit": limit,
+                "search": search,
+                "from_sender": from_sender,
+                "to_recipient": to_recipient,
+                "with_subject": with_subject,
+                "with_attachments": with_attachments,
+                "is_read": is_read,
+                "is_unread": is_unread,
+                "is_starred": is_starred,
+                "is_important": is_important,
+                "in_folder": in_folder,
+                "with_label": with_label,
+                "today": today,
+                "yesterday": yesterday,
+                "last_days": last_days,
+                "this_week": this_week,
+                "this_month": this_month,
+                "after_date": after_date,
+                "before_date": before_date
+            }
 
             query = build_query(self.gmail_service, params)
             threads = query.get_threads()
