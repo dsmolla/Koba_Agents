@@ -14,11 +14,15 @@ from . labels.agent import LabelsAgent
 from . process.agent import ProcessAgent
 from . query.agent import QueryAgent
 
+from langchain_core.globals import set_debug
+set_debug(True)
+
 MEMBERS = ['email_agent', 'labels_agent', 'process_agent', 'query_agent']
 
 
 class State(MessagesState):
     next: str
+    steps: list[dict]
 
 
 class Router(TypedDict):
@@ -59,6 +63,22 @@ class GmailAgent:
             When finished respond with FINISH.
             """
         )
+
+    def planner(self, state:State):
+        query = state["messages"]
+
+        # Call LLM to create a plan
+        plan_prompt = dedent(
+            f"""
+            You are a planner. Break down the task into steps. 
+            Use JSON format like: 
+            [{{"action": "...", "input": "..."}}, ...]
+            Query: {query}
+            """
+        )
+
+        response = self.llm.invoke(plan_prompt)
+        return {"steps": response.content}
 
     def gmail_node(self, state: State) -> Command[Literal[*MEMBERS, "__end__"]]:
         messages = [
