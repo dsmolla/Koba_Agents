@@ -58,8 +58,8 @@ class ListUserLabelsTool(BaseTool):
             }
 
 
-class MarkEmailInput(BaseModel):
-    """Input schema for marking an email with labels"""
+class AddLabelInput(BaseModel):
+    """Input schema for adding labels to emails"""
     message_id: str = Field(description="The Message ID of the email to mark")
     labels: List[str] = Field(description=(
         "A list of labels to apply to the email. Can be one of the system labels "
@@ -68,12 +68,12 @@ class MarkEmailInput(BaseModel):
     ))
 
 
-class MarkEmailTool(BaseTool):
-    """Tool for marking an email with a specific label"""
+class AddLabelTool(BaseTool):
+    """Tool for adding a label to an email"""
 
-    name: str  = "mark_email"
+    name: str  = "add_label"
     description: str  = "Mark an email with a specific label in Gmail."
-    args_schema: ArgsSchema = MarkEmailInput
+    args_schema: ArgsSchema = AddLabelInput
 
     gmail_service: GmailApiService
 
@@ -104,8 +104,8 @@ class MarkEmailTool(BaseTool):
             }
 
 
-class UnmarkEmailInput(BaseModel):
-    """Input schema for unmarking an email with labels"""
+class RemoveLabelInput(BaseModel):
+    """Input schema for removing labels from emails"""
     message_id: str = Field(description="The Message ID of the email to unmark")
     labels: List[str] = Field(description=(
         "A list of labels to remove from the email. Can be one of the following system labels "
@@ -114,13 +114,12 @@ class UnmarkEmailInput(BaseModel):
     ))
 
 
+class RemoveLabelTool(BaseTool):
+    """Tool for removing labels from emails"""
 
-class UnmarkEmailTool(BaseTool):
-    """Tool for unmarking an email with a specific label"""
-
-    name: str  = "unmark_email"
-    description: str  = "Unmark an email with a specific label in Gmail."
-    args_schema: ArgsSchema = UnmarkEmailInput
+    name: str  = "remove_label"
+    description: str  = "Remove labels from an email."
+    args_schema: ArgsSchema = RemoveLabelInput
 
     gmail_service: GmailApiService
 

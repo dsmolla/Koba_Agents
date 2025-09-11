@@ -7,6 +7,41 @@ from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
 
 
+class GetEmailInput(BaseModel):
+    """Input schema for getting full email details"""
+    message_id: str = Field(description="The message_id of the email to retrieve")
+
+
+class GetEmailTool(BaseTool):
+    """Tool for retrieving full email details"""
+    
+    name: str = "get_email"
+    description: str = "Retrieve full email detail"
+    args_schema: ArgsSchema = GetEmailInput
+
+    gmail_service: GmailApiService
+
+    def __init__(self, gmail_service: GmailApiService):
+        super().__init__(gmail_service=gmail_service)
+
+    def _run(self, message_id: str) -> dict:
+        """Retrieve full email detail"""
+        try:
+            email = self.gmail_service.get_email(message_id=message_id)
+            return_dict = {
+                "status": "success"
+            }
+            return return_dict | email.to_dict()
+            
+        except Exception as e:
+            return {
+                "status": "error",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "message": f"Failed to create draft: {str(e)}"
+            }
+
+
 class SendEmailInput(BaseModel):
     """Input schema for sending emails"""
     to: List[str] = Field(description="List of recipient email addresses")
@@ -64,7 +99,7 @@ class SendEmailTool(BaseTool):
             }
 
 
-class CreateDraftInput(BaseModel):
+class DraftEmailInput(BaseModel):
     """Input schema for creating email drafts"""
     to: List[str] = Field(description="List of recipient email addresses")
     subject: Optional[str] = Field(default=None, description="Subject line of the email")
@@ -75,12 +110,12 @@ class CreateDraftInput(BaseModel):
     attachment_paths: Optional[List[str]] = Field(default=None, description="List of file paths to attach")
 
 
-class CreateDraftTool(BaseTool):
+class DraftEmailTool(BaseTool):
     """Tool for creating email drafts"""
 
-    name: str = "create_email_draft"
+    name: str = "draft_email"
     description: str  = "Create an email draft in Gmail"
-    args_schema: ArgsSchema = CreateDraftInput
+    args_schema: ArgsSchema = DraftEmailInput
 
     gmail_service: GmailApiService
 

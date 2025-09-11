@@ -6,7 +6,7 @@ from .agent import (
 
 from .tools import (
     SendEmailTool,
-    CreateDraftTool,
+    DraftEmailTool,
     ReplyEmailTool,
     ForwardEmailTool,
     DeleteEmailTool,
@@ -16,7 +16,7 @@ from .tools import (
 __all__ = [
     "EmailAgent",
     "SendEmailTool",
-    "CreateDraftTool",
+    "DraftEmailTool",
     "ReplyEmailTool",
     "ForwardEmailTool",
     "DeleteEmailTool",

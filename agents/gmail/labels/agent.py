@@ -8,8 +8,8 @@ from textwrap import dedent
 
 from .tools import (
     ListUserLabelsTool,
-    MarkEmailTool,
-    UnmarkEmailTool,
+    AddLabelTool,
+    RemoveLabelTool,
     CreateLabelTool,
     DeleteLabelTool,
     RenameLabelTool
@@ -34,8 +34,8 @@ class LabelsAgent:
     def _get_tools(gmail_service: GmailApiService) -> list:
         return [
             ListUserLabelsTool(gmail_service),
-            MarkEmailTool(gmail_service),
-            UnmarkEmailTool(gmail_service),
+            AddLabelTool(gmail_service),
+            RemoveLabelTool(gmail_service),
             CreateLabelTool(gmail_service),
             DeleteLabelTool(gmail_service),
             RenameLabelTool(gmail_service)

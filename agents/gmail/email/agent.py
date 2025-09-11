@@ -8,8 +8,9 @@ from langchain_anthropic import ChatAnthropic
 from textwrap import dedent
 
 from .tools import (
+    GetEmailTool,
     SendEmailTool,
-    CreateDraftTool,
+    DraftEmailTool,
     ForwardEmailTool,
     DeleteEmailTool,
     ReplyEmailTool,
@@ -34,8 +35,9 @@ class EmailAgent:
     @staticmethod
     def _get_tools(gmail_service: GmailApiService) -> list:
         return [
+            GetEmailTool(gmail_service),
             SendEmailTool(gmail_service),
-            CreateDraftTool(gmail_service),
+            DraftEmailTool(gmail_service),
             ReplyEmailTool(gmail_service),
             ForwardEmailTool(gmail_service),
             DeleteEmailTool(gmail_service),
