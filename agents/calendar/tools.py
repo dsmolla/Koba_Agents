@@ -36,8 +36,8 @@ def query_builder(calendar_service: CalendarApiService, params: dict) -> EventQu
                 builder = builder.next_week()
             case "THIS_MONTH":
                 builder = builder.this_month()
-    if params.get("query"):
-        builder = builder.search(params["query"])
+    if params.get("thread"):
+        builder = builder.search(params["thread"])
     if params.get("by_attendee"):
         builder = builder.by_attendee(params["by_attendee"])
 
@@ -126,7 +126,7 @@ class ListEventsTool(BaseTool):
                 "datetime_min": datetime_min,
                 "datetime_max": datetime_max,
                 "date_filter": date_filter,
-                "query": query,
+                "thread": query,
                 "by_attendee": by_attendee
             }
             builder = query_builder(self.calendar_service, params)

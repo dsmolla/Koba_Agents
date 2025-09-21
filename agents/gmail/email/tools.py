@@ -1,45 +1,222 @@
+from datetime import datetime
+
+from google_client.services.gmail import EmailQueryBuilder
 from langchain.tools import BaseTool
 from google_client.services.gmail.api_service import GmailApiService
-from typing import Optional, List
+from typing import Optional, List, Union, Callable
 import os
 
 from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
 
+from shared.exceptions import ToolException
+
 
 class GetEmailInput(BaseModel):
     """Input schema for getting full email details"""
     message_id: str = Field(description="The message_id of the email to retrieve")
+    get_body_text: Optional[bool] = Field(default=False, description="Include body text in full return type")
+    get_attachments: Optional[bool] = Field(default=False, description="Include attachment metadata in response")
 
 
 class GetEmailTool(BaseTool):
     """Tool for retrieving full email details"""
     
-    name: str = "get_email"
-    description: str = "Retrieve full email detail"
+    name: str = "get_full_email"
+    description: str = "Retrieve full email detail from Gmail by message ID"
     args_schema: ArgsSchema = GetEmailInput
 
     gmail_service: GmailApiService
 
-    def __init__(self, gmail_service: GmailApiService):
+    def __init__(self, gmail_service: GmailApiService, ):
         super().__init__(gmail_service=gmail_service)
 
-    def _run(self, message_id: str) -> dict:
+    def _run(self, message_id: str, get_body_text: bool = False, get_attachments: bool = False) -> dict:
         """Retrieve full email detail"""
         try:
             email = self.gmail_service.get_email(message_id=message_id)
             return_dict = {
                 "status": "success"
             }
-            return return_dict | email.to_dict()
+            email_dict = email.to_dict()
+            if not get_body_text:
+                del email_dict['body']
+            if not get_attachments:
+                del email_dict['attachments']
+
+            return return_dict | email_dict
             
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to create draft: {str(e)}"
+            raise ToolException(
+                message=f"Failed to fetch email: {str(e)}",
+                tool_name=self.name
+            )
+
+
+class SearchEmailsInput(BaseModel):
+    """Input schema for querying emails"""
+    include_attachments: Optional[bool] = Field(default=False, description="Include attachment metadata in response")
+    include_promotions: Optional[bool] = Field(default=False, description="Include emails from Promotions category")
+    limit: Optional[int] = Field(default=50, description="Maximum number of emails to retrieve")
+    search: Optional[str] = Field(default=None, description="Search thread to filter emails")
+    from_sender: Optional[str] = Field(default=None, description="Filter emails from specific sender")
+    to_recipient: Optional[str] = Field(default=None, description="Filter emails to specific recipient")
+    with_subject: Optional[str] = Field(default=None, description="Filter emails with specific subject")
+    with_attachments: Optional[bool] = Field(default=None, description="Filter emails that have attachments")
+    is_read: Optional[bool] = Field(default=None, description="Filter read emails")
+    is_unread: Optional[bool] = Field(default=None, description="Filter unread emails")
+    is_starred: Optional[bool] = Field(default=None, description="Filter starred emails")
+    is_important: Optional[bool] = Field(default=None, description="Filter important emails")
+    in_folder: Optional[str] = Field(default=None, description="Filter emails in specific folder")
+    with_label: Optional[str] = Field(default=None, description="Filter emails with specific label")
+    today: Optional[bool] = Field(default=None, description="Filter emails from today")
+    yesterday: Optional[bool] = Field(default=None, description="Filter emails from yesterday")
+    last_days: Optional[int] = Field(default=None, description="Filter emails from last N days")
+    this_week: Optional[bool] = Field(default=None, description="Filter emails from this week")
+    this_month: Optional[bool] = Field(default=None, description="Filter emails from this month")
+    after_date: Optional[str] = Field(default=None, description="Filter emails after date (YYYY-MM-DD)")
+    before_date: Optional[str] = Field(default=None, description="Filter emails before date (YYYY-MM-DD)")
+    get_body_text: Optional[bool] = Field(default=True, description="Include body text in full return type")
+
+
+class SearchEmailsTool(BaseTool):
+    """Tool for querying emails"""
+
+    name: str = "search_emails"
+    description: str = "Query and retrieve emails from Gmail based on various filters."
+    args_schema: ArgsSchema = SearchEmailsInput
+
+    gmail_service: GmailApiService
+    
+
+    def __init__(self, gmail_service: GmailApiService, ):
+        super().__init__(gmail_service=gmail_service)
+
+    def build_query(self, params: dict) -> EmailQueryBuilder:
+        query_builder = self.gmail_service.query()
+        if params.get("include_promotions") is not True:
+            query_builder = query_builder.without_label('Promotions')
+        if params.get("limit") is not None:
+            query_builder = query_builder.limit(params.get("limit"))
+        if params.get("search") is not None:
+            query_builder = query_builder.search(params.get("search"))
+        if params.get("from_sender") is not None:
+            query_builder = query_builder.from_sender(params.get("from_sender"))
+        if params.get("to_recipient") is not None:
+            query_builder = query_builder.to_recipient(params.get("to_recipient"))
+        if params.get("with_subject") is not None:
+            query_builder = query_builder.with_subject(params.get("with_subject"))
+        if params.get("with_attachments") is True:
+            query_builder = query_builder.with_attachments()
+        if params.get("is_read") is True:
+            query_builder = query_builder.is_read()
+        if params.get("is_unread") is not None:
+            query_builder = query_builder.is_unread()
+        if params.get("is_starred") is not None:
+            query_builder = query_builder.is_starred()
+        if params.get("is_important") is True:
+            query_builder = query_builder.is_important()
+        if params.get("in_folder") is not None:
+            query_builder = query_builder.in_folder(params.get("in_folder"))
+        if params.get("with_label") is not None:
+            query_builder = query_builder.with_label(params.get("with_label"))
+        if params.get("today") is True:
+            query_builder = query_builder.today()
+        if params.get("yesterday") is True:
+            query_builder = query_builder.yesterday()
+        if params.get("last_days") is not None:
+            query_builder = query_builder.last_days(params.get("last_days"))
+        if params.get("this_week") is True:
+            query_builder = query_builder.this_week()
+        if params.get("this_month") is True:
+            query_builder = query_builder.this_month()
+        if params.get("after_date") is not None:
+            after_date = datetime.strptime(params.get("after_date"), "%Y-%m-%d")
+            query_builder = query_builder.after_date(after_date)
+        if params.get("before_date") is not None:
+            before_date = datetime.strptime(params.get("before_date"), "%Y-%m-%d")
+            query_builder = query_builder.before_date(before_date)
+
+        return query_builder
+
+    def _run(
+            self,
+            include_attachments: Optional[bool] = False,
+            include_promotions: Optional[bool] = False,
+            limit: Optional[int] = 50,
+            search: Optional[str] = None,
+            from_sender: Optional[str] = None,
+            to_recipient: Optional[str] = None,
+            with_subject: Optional[str] = None,
+            with_attachments: Optional[bool] = None,
+            is_read: Optional[bool] = None,
+            is_unread: Optional[bool] = None,
+            is_starred: Optional[bool] = None,
+            is_important: Optional[bool] = None,
+            in_folder: Optional[str] = None,
+            with_label: Optional[str] = None,
+            today: Optional[bool] = None,
+            yesterday: Optional[bool] = None,
+            last_days: Optional[int] = None,
+            this_week: Optional[bool] = None,
+            this_month: Optional[bool] = None,
+            after_date: Optional[str] = None,
+            before_date: Optional[str] = None,
+            get_body_text: Optional[bool] = False
+    ) -> Union[dict, List[dict]]:
+        """Query and retrieve emails based on filters"""
+        try:
+            
+            params = {
+                "include_promotions": include_promotions,
+                "limit": limit,
+                "search": search,
+                "from_sender": from_sender,
+                "to_recipient": to_recipient,
+                "with_subject": with_subject,
+                "with_attachments": with_attachments,
+                "is_read": is_read,
+                "is_unread": is_unread,
+                "is_starred": is_starred,
+                "is_important": is_important,
+                "in_folder": in_folder,
+                "with_label": with_label,
+                "today": today,
+                "yesterday": yesterday,
+                "last_days": last_days,
+                "this_week": this_week,
+                "this_month": this_month,
+                "after_date": after_date,
+                "before_date": before_date
             }
+
+            query = self.build_query(params)
+            emails = query.execute()
+
+            return [{
+                "message_id": email.message_id,
+                "thread_id": email.thread_id,
+                "subject": email.subject,
+                "from": email.sender,
+                "to": email.recipients,
+                "date_time": email.date_time.isoformat(),
+                "snippet": email.snippet,
+                "is_read": email.is_read,
+                "is_starred": email.is_starred,
+                "is_important": email.is_important,
+                "labels": email.labels,
+                "has_attachments": email.has_attachments(),
+                "body_text": email.get_plain_text_content() if get_body_text else None,
+            }
+                for email in emails
+            ]
+
+
+        except Exception as e:
+            raise ToolException(
+                message=f"Failed to search emails: {str(e)}",
+                tool_name=self.name
+            )
 
 
 class SendEmailInput(BaseModel):
@@ -60,8 +237,9 @@ class SendEmailTool(BaseTool):
     args_schema: ArgsSchema = SendEmailInput
 
     gmail_service: GmailApiService
+    
 
-    def __init__(self, gmail_service: GmailApiService):
+    def __init__(self, gmail_service: GmailApiService, ):
         super().__init__(gmail_service=gmail_service)
 
     def _run(
@@ -75,6 +253,7 @@ class SendEmailTool(BaseTool):
     ) -> dict:
         """Send an email"""
         try:
+            
             email = self.gmail_service.send_email(
                 to=to,
                 subject=subject,
@@ -91,12 +270,10 @@ class SendEmailTool(BaseTool):
             }
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to send email: {str(e)}"
-            }
+            raise ToolException(
+                message=f"Failed to send email: {str(e)}",
+                tool_name=self.name
+            )
 
 
 class DraftEmailInput(BaseModel):
@@ -118,8 +295,9 @@ class DraftEmailTool(BaseTool):
     args_schema: ArgsSchema = DraftEmailInput
 
     gmail_service: GmailApiService
+    
 
-    def __init__(self, gmail_service: GmailApiService):
+    def __init__(self, gmail_service: GmailApiService, ):
         super().__init__(gmail_service=gmail_service)
 
     def _run(
@@ -134,6 +312,7 @@ class DraftEmailTool(BaseTool):
     ) -> dict:
         """Create an email draft"""
         try:
+            
             draft = self.gmail_service.create_draft(
                 to=to,
                 subject=subject,
@@ -151,12 +330,10 @@ class DraftEmailTool(BaseTool):
             }
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to create draft: {str(e)}"
-            }
+            raise ToolException(
+                message=f"Failed to create draft: {str(e)}",
+                tool_name=self.name
+            )
 
 
 class ReplyEmailInput(BaseModel):
@@ -174,8 +351,9 @@ class ReplyEmailTool(BaseTool):
     args_schema: ArgsSchema = ReplyEmailInput
 
     gmail_service: GmailApiService
+    
 
-    def __init__(self, gmail_service: GmailApiService):
+    def __init__(self, gmail_service: GmailApiService, ):
         super().__init__(gmail_service=gmail_service)
 
     def _run(
@@ -186,6 +364,7 @@ class ReplyEmailTool(BaseTool):
     ) -> dict:
         """Reply to an email"""
         try:
+            
             reply = self.gmail_service.reply(
                 original_email=message_id,
                 body_text=body_text,
@@ -199,12 +378,10 @@ class ReplyEmailTool(BaseTool):
             }
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to send reply: {str(e)}"
-            }
+            raise ToolException(
+                message=f"Failed to send reply: {str(e)}",
+                tool_name=self.name
+            )
 
 
 class ForwardEmailInput(BaseModel):
@@ -222,8 +399,9 @@ class ForwardEmailTool(BaseTool):
     args_schema: ArgsSchema = ForwardEmailInput
 
     gmail_service: GmailApiService
+    
 
-    def __init__(self, gmail_service: GmailApiService):
+    def __init__(self, gmail_service: GmailApiService, ):
         super().__init__(gmail_service=gmail_service)
 
     def _run(
@@ -234,6 +412,7 @@ class ForwardEmailTool(BaseTool):
     ) -> dict:
         """Forward an email"""
         try:
+            
             forward = self.gmail_service.forward(
                 original_email=message_id,
                 to=to,
@@ -247,12 +426,10 @@ class ForwardEmailTool(BaseTool):
             }
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to forward email: {str(e)}"
-            }
+            raise ToolException(
+                message=f"Failed to forward email: {str(e)}",
+                tool_name=self.name
+            )
 
 
 class DeleteEmailInput(BaseModel):
@@ -268,13 +445,15 @@ class DeleteEmailTool(BaseTool):
     args_schema: ArgsSchema = DeleteEmailInput
 
     gmail_service: GmailApiService
+    
 
-    def __init__(self, gmail_service: GmailApiService):
+    def __init__(self, gmail_service: GmailApiService, ):
         super().__init__(gmail_service=gmail_service)
 
     def _run(self, message_id: str) -> dict:
         """Delete an email"""
         try:
+            
             if self.gmail_service.delete_email(
                 email=message_id,
                 permanent=False,
@@ -291,12 +470,10 @@ class DeleteEmailTool(BaseTool):
                 }
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to delete email: {str(e)}"
-            }
+            raise ToolException(
+                message=f"Failed to delete email: {str(e)}",
+                tool_name=self.name
+            )
 
 
 class DownloadAttachmentInput(BaseModel):
@@ -315,13 +492,15 @@ class DownloadAttachmentTool(BaseTool):
     args_schema: ArgsSchema = DownloadAttachmentInput
 
     gmail_service: GmailApiService
+    
 
-    def __init__(self, gmail_service: GmailApiService):
+    def __init__(self, gmail_service: GmailApiService, ):
         super().__init__(gmail_service=gmail_service)
 
     def _run(self, message_id: str, attachment_id: str, filename: str, download_folder: Optional[str] = None) -> dict:
         """Download an email attachment"""
         try:
+            
             if download_folder is None:
                 download_folder = os.path.join(os.path.expanduser("~"), "Downloads", "GmailAttachments")
 
@@ -343,11 +522,8 @@ class DownloadAttachmentTool(BaseTool):
             }
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to download attachment: {str(e)}"
-            }
-
+            raise ToolException(
+                message=f"Failed to download attachment: {str(e)}",
+                tool_name=self.name
+            )
 

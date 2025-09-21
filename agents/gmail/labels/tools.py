@@ -1,5 +1,5 @@
 from textwrap import dedent
-from typing import List
+from typing import List, Callable
 from langchain.tools.base import BaseTool
 from google_client.services.gmail.api_service import GmailApiService
 from langchain_core.tools import ArgsSchema
@@ -35,7 +35,7 @@ class ListUserLabelsTool(BaseTool):
     args_schema: ArgsSchema = ListUserLabelsInput
 
     gmail_service: GmailApiService
-
+    
     def __init__(self, gmail_service: GmailApiService):
         super().__init__(gmail_service=gmail_service)
 
@@ -61,10 +61,10 @@ class ListUserLabelsTool(BaseTool):
 class AddLabelInput(BaseModel):
     """Input schema for adding labels to emails"""
     message_id: str = Field(description="The Message ID of the email to mark")
-    labels: List[str] = Field(description=(
-        "A list of labels to apply to the email. Can be one of the system labels "
+    label_ids: List[str] = Field(description=(
+        "A list of label ids to apply to the email. Can be one of the system labels "
         "[SPAM, UNREAD, STARRED, IMPORTANT, PERSONAL, SOCIAL, PROMOTIONS, UPDATES, FORUMS] "
-        "or a custom user-created label ID"
+        "or a custom user-created label ID which can be found using the list_user_labels tool"
     ))
 
 
@@ -80,19 +80,25 @@ class AddLabelTool(BaseTool):
     def __init__(self, gmail_service: GmailApiService):
         super().__init__(gmail_service=gmail_service)
 
-    def _run(self, message_id: str, labels: List[str]) -> dict:
+    def _run(self, message_id: str, label_ids: List[str]) -> dict:
         """Mark an email with a specific label"""
         try:
-            processed_labels = [SYSTEM_LABELS[label] if label in SYSTEM_LABELS else label for label in labels]
+            processed_labels = [SYSTEM_LABELS[label] if label in SYSTEM_LABELS else label for label in label_ids]
 
-            self.gmail_service.add_label(
+            added = self.gmail_service.add_label(
                 email=message_id,
                 labels=processed_labels,
             )
 
+            if added:
+                return {
+                    "status": "success",
+                    "message": f"Email with Message ID: {message_id} marked with labels: {', '.join(processed_labels)}."
+                }
+
             return {
-                "status": "success",
-                "message": f"Email with Message ID: {message_id} marked with labels: {', '.join(processed_labels)}."
+                "status": "error",
+                "message": "Unable to apply label due to internal error"
             }
 
         except Exception as e:
@@ -107,10 +113,10 @@ class AddLabelTool(BaseTool):
 class RemoveLabelInput(BaseModel):
     """Input schema for removing labels from emails"""
     message_id: str = Field(description="The Message ID of the email to unmark")
-    labels: List[str] = Field(description=(
+    label_ids: List[str] = Field(description=(
         "A list of labels to remove from the email. Can be one of the following system labels "
         "[SPAM, UNREAD, STARRED, IMPORTANT, PERSONAL, SOCIAL, PROMOTIONS, UPDATES, FORUMS] "
-        "or a custom user-created label ID (required)"
+        "or a custom user-created label ID which can be found using the list_user_labels tool"
     ))
 
 
@@ -126,10 +132,12 @@ class RemoveLabelTool(BaseTool):
     def __init__(self, gmail_service: GmailApiService):
         super().__init__(gmail_service=gmail_service)
 
-    def _run(self, message_id: str, labels: List[str]) -> dict:
+    def _run(self, message_id: str, label_ids: List[str]) -> dict:
         """Unmark an email with a specific label"""
         try:
-            processed_labels = [SYSTEM_LABELS[label] if label in SYSTEM_LABELS else label for label in labels]
+            
+
+            processed_labels = [SYSTEM_LABELS[label] if label in SYSTEM_LABELS else label for label in label_ids]
 
             self.gmail_service.remove_label(
                 email=message_id,
@@ -162,6 +170,7 @@ class CreateLabelTool(BaseTool):
     args_schema: ArgsSchema = CreateLabelInput
 
     gmail_service: GmailApiService
+    
 
     def __init__(self, gmail_service: GmailApiService):
         super().__init__(gmail_service=gmail_service)
@@ -169,6 +178,7 @@ class CreateLabelTool(BaseTool):
     def _run(self, name: str) -> dict:
         """Create a new user label"""
         try:
+            
             label = self.gmail_service.create_label(name=name)
             return {
                 "status": "success",
@@ -199,6 +209,7 @@ class DeleteLabelTool(BaseTool):
     args_schema: ArgsSchema = DeleteLabelInput
 
     gmail_service: GmailApiService
+    
 
     def __init__(self, gmail_service: GmailApiService):
         super().__init__(gmail_service=gmail_service)
@@ -206,6 +217,7 @@ class DeleteLabelTool(BaseTool):
     def _run(self, label_id: str) -> dict:
         """Delete a user-created label"""
         try:
+            
             self.gmail_service.delete_label(label=label_id)
 
             return {
@@ -236,6 +248,7 @@ class RenameLabelTool(BaseTool):
     args_schema: ArgsSchema = RenameLabelInput
 
     gmail_service: GmailApiService
+    
 
     def __init__(self, gmail_service: GmailApiService):
         super().__init__(gmail_service=gmail_service)
@@ -243,6 +256,7 @@ class RenameLabelTool(BaseTool):
     def _run(self, label_id: str, new_name: str) -> dict:
         """Rename a user-created label"""
         try:
+            
             label = self.gmail_service.update_label(
                 label=label_id,
                 new_name=new_name,
@@ -259,8 +273,4 @@ class RenameLabelTool(BaseTool):
                 "error_message": str(e),
                 "message": f"Failed to rename label: {str(e)}"
             }
-
-
-
-
 

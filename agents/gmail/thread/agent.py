@@ -12,25 +12,24 @@ from dotenv import load_dotenv
 import uuid
 
 from .tools import (
-    ListUserLabelsTool,
-    AddLabelTool,
-    RemoveLabelTool,
-    CreateLabelTool,
-    DeleteLabelTool,
-    RenameLabelTool
+    SearchThreadsTool,
+    GetThreadDetailsTool,
+    SummarizeThreadTool
 )
 from shared.constants import MODELS
-from shared.exceptions import ToolException, AgentException
+from shared.exceptions import AgentException
+
+
 load_dotenv()
 
 LLM = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash'])
 # LLM = ChatAnthropic(model=MODELS['anthropic']['sonnet'])
 
 
-class LabelsAgent:
-    """Single ReAct Gmail Labels Agent for planning and execution"""
-    name = "LabelsAgent"
-    description = "Agent that can handle complex label operations using Gmail tools"
+class ThreadAgent:
+    """Single ReAct Gmail Thread Agent for planning and execution"""
+    name = "ThreadAgent"
+    description = "Agent that can handle complex thread operations using Gmail tools"
 
     def __init__(
             self,
@@ -52,19 +51,16 @@ class LabelsAgent:
         self.agent = create_react_agent(
             llm,
             self.tools,
-            name="LabelsAgent",
+            name="ThreadAgent",
             prompt=SystemMessage(self.system_prompt)
         )
 
     def _get_tools(self):
-        """Initialize and return Gmail label tools"""
+        """Initialize and return Gmail thread tools"""
         return [
-            ListUserLabelsTool(self.gmail_service),
-            AddLabelTool(self.gmail_service),
-            RemoveLabelTool(self.gmail_service),
-            CreateLabelTool(self.gmail_service),
-            DeleteLabelTool(self.gmail_service),
-            RenameLabelTool(self.gmail_service)
+            SearchThreadsTool(self.gmail_service),
+            GetThreadDetailsTool(self.gmail_service),
+            SummarizeThreadTool(self.gmail_service),
         ]
 
     def _create_system_prompt(self) -> str:
@@ -74,36 +70,38 @@ class LabelsAgent:
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
 
         return dedent(
-            f"""You are a Gmail labels assistant that helps users manage their email labels. You have access to the following Gmail label tools:
+            f"""You are a Gmail thread assistant that helps users manage and analyze email threads. You have access to the following Gmail thread tools:
 
             {', '.join(tool_descriptions)}
 
             When handling user requests:
 
-            1. **THINK STEP BY STEP**: Break down complex requests into individual label operations
+            1. **THINK STEP BY STEP**: Break down complex requests into individual thread operations
             2. **PLAN YOUR APPROACH**: Identify what tools you need and in what order
             3. **EXECUTE SYSTEMATICALLY**: Use tools one by one, checking results before proceeding
-            4. **HANDLE DEPENDENCIES**: When one operation depends on another (like deleting a label after creating it), use the output from the first operation
+            4. **HANDLE DEPENDENCIES**: When one operation depends on another (like summarizing a thread after finding it), use the output from the first operation
             5. **BE THOROUGH**: Make sure to complete all parts of the user's request
             6. **PROVIDE CLEAR UPDATES**: Explain what you're doing and the results
-            7. **LABEL MANAGEMENT**: When working with labels, understand the difference between system labels (SPAM, UNREAD, STARRED, etc.) and user-created labels
-            8. **LABEL SEARCH**: When applying labels to emails, you may need to first get the message ID of the email before applying labels
-            9. **FINAL SUMMARY**: At the end, summarize what actions were taken and their outcomes
-
-            Available system labels that can be used:
-            - SPAM, UNREAD, STARRED, IMPORTANT
-            - PERSONAL, SOCIAL, PROMOTIONS, UPDATES, FORUMS 
+            7. **THREAD ANALYSIS**: When analyzing threads, consider the conversation flow, participants, and key topics
+            8. **THREAD SEARCH**: When searching for threads, if you can't find any matching the criteria, try with relaxed criteria or different search terms
+            9. **FINAL SUMMARY**: At the end, summarize what actions were taken and their outcomes.
+                                    Always include the thread ID's and message ID's of emails along with whatever information or action is requested as the user might need it for another operation.
+                                 
 
             For multi-step operations:
-            - List existing labels first to understand what's available
-            - Create labels before applying them to emails if they don't already exist
-            - When renaming or deleting labels, ensure the label exists first
-            - Check label operations carefully before proceeding
+            - Search for threads first using appropriate filters
+            - Get detailed thread information when needed for analysis
+            - Summarize threads based on user requirements (conversation, key_points, or action_items)
             - Handle errors gracefully and inform the user
 
-            **ALWAYS ASK CONFIRMATION** Before deleting labels or making any irreversible changes, always ask the user for confirmation.
+            **Thread Summary Types Available:**
+            - **conversation**: General overview of the thread discussion
+            - **key_points**: Extract main points and decisions from the thread
+            - **action_items**: Extract tasks, follow-ups, and action items
 
-            Always aim to fully complete the user's request using the available Gmail label tools.
+            **SEARCH CAPABILITIES**: You can search threads by sender, recipient, subject, date ranges, labels, and various filters.
+
+            Always aim to fully complete the user's request using the available Gmail thread tools.
         """)
 
     def get_available_tools(self) -> List[Dict[str, str]]:
