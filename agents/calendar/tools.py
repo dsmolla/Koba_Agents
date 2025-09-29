@@ -92,7 +92,7 @@ class ListEventsInput(BaseModel):
               )
     )
     query: Optional[str] = Field(default=None, description="Free text search terms to filter events")
-    by_attendee: Optional[str] = Field(default=None, description="Filter events by attendee email")
+    by_attendee: Optional[str] = Field(default=None, description="Filter events by attendee writer")
 
 
 class ListEventsTool(BaseTool):
@@ -101,7 +101,7 @@ class ListEventsTool(BaseTool):
     name: str = "list_events"
     description: str = (
         "List events on the user's primary calendar. "
-        "Can filter by date ranges, free text search terms, and attendee email."
+        "Can filter by date ranges, free text search terms, and attendee writer."
     )
     args_schema: ArgsSchema = ListEventsInput
 
@@ -152,7 +152,7 @@ class CreateEventInput(BaseModel):
     end_datetime: str = Field(description="RFC3339 timestamp string for the event end time")
     description: Optional[str] = Field(default=None, description="The description of the event")
     location: Optional[str] = Field(default=None, description="The location of the event")
-    attendees: Optional[List[str]] = Field(default=None, description="List of attendee email addresses")
+    attendees: Optional[List[str]] = Field(default=None, description="List of attendee writer addresses")
     recurrence: Optional[List[str]] = Field(default=None, description="Recurrence rules for the event in RRULE format")
 
 
@@ -249,9 +249,9 @@ class UpdateEventInput(BaseModel):
     end_datetime: Optional[str] = Field(default=None, description="New RFC3339 timestamp string for the new event end time")
     description: Optional[str] = Field(default=None, description="The new description of the event")
     location: Optional[str] = Field(default=None, description="The new location of the event")
-    add_attendees: Optional[List[str]] = Field(default=None, description="List of attendee email addresses to add")
-    remove_attendees: Optional[List[str]] = Field(default=None, description="List of attendee email addresses to remove")
-    attendees: Optional[List[str]] = Field(default=None, description="Full list of attendee email addresses to replace existing attendees")
+    add_attendees: Optional[List[str]] = Field(default=None, description="List of attendee writer addresses to add")
+    remove_attendees: Optional[List[str]] = Field(default=None, description="List of attendee writer addresses to remove")
+    attendees: Optional[List[str]] = Field(default=None, description="Full list of attendee writer addresses to replace existing attendees")
     recurrence: Optional[List[str]] = Field(default=None, description="New recurrence rules for the event in RRULE format")
 
 
