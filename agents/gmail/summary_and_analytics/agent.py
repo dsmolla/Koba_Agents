@@ -53,11 +53,3 @@ class SummaryAndAnalyticsAgent(BaseGmailAgent):
 
         """)
 
-    def get_available_tools(self) -> List[Dict[str, str]]:
-        return [
-            {
-                "name": tool.name,
-                "description": tool.description
-            }
-            for tool in self.tools
-        ]

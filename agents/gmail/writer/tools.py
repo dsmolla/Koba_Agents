@@ -39,6 +39,8 @@ class SendEmailTool(BaseTool):
     ) -> ToolResponse:
         try:
 
+            print(attachment_paths)
+
             email = self.gmail_service.send_email(
                 to=to,
                 subject=subject,
@@ -181,3 +183,4 @@ class ForwardEmailTool(BaseTool):
                 tool_name=self.name,
                 message=f"Failed to forward writer: {e}"
             )
+

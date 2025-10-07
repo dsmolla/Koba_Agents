@@ -56,11 +56,3 @@ class OrganizationAgent(BaseGmailAgent):
 
         """)
 
-    def get_available_tools(self):
-        return [
-            {
-                "name": tool.name,
-                "description": tool.description
-            }
-            for tool in self.tools
-        ]

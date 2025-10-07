@@ -1,58 +1,82 @@
-from google_client.services.drive.api_service import DriveApiService
-from langchain.tools import BaseTool
-from typing import Optional, Union
+from textwrap import dedent
 
-from langchain_core.tools import ArgsSchema
+from langchain_core.messages import HumanMessage
+from langchain_core.tools import BaseTool, ArgsSchema
 from pydantic import BaseModel, Field
-from datetime import datetime
+
+from agents.drive.organization.agent import OrganizationAgent
+from agents.drive.search_and_retrieval.agent import SearchAndRetrievalAgent
+from agents.drive.writer.agent import WriterAgent
 
 
-class SearchFilesInput(BaseModel):
-    """Input schema for searching files"""
-    limit: Optional[int] = Field(default=10, description="Maximum number of files to return")
+class AgentInput(BaseModel):
+    task_description: str = Field(description="A detailed description of the task.")
 
-class SearchFilesTool(BaseTool):
-    """Tool for searching files"""
 
-    name: str = "search_files"
-    description: str = "Search for files in Google Drive based on multiple criteria"
-    args_schema: ArgsSchema = SearchFilesInput
+class OrganizationTool(BaseTool):
+    name: str = "organization_agent_tool"
+    description: str = dedent(
+        f"""
+        Handles the following google drive operations:
+            - move file or folder to different location
+            - rename file or folder
+            - delete file or folder
+        """
+    )
+    args_schema: ArgsSchema = AgentInput
 
-    drive_service: DriveApiService
+    organization_agent: OrganizationAgent
 
-    def __init__(self, drive_service: DriveApiService):
-        super().__init__(drive_service=drive_service)
+    def __init__(self, organization_agent: OrganizationAgent):
+        super().__init__(organization_agent=organization_agent)
 
-    def _run(
-            self,
-            title: str,
-            notes: Optional[str] = None,
-            due: Optional[str] = None,
-            task_list_id: str = "@default",
-    ) -> dict:
-        """Create a new task"""
-        try:
-            task = self.tasks_service.create_task(
-                title=title,
-                notes=notes,
-                due=due,
-                task_list_id=task_list_id
-            )
-            return_dict = {
-                "status": "success",
-                "task_id": task.task_id,
-            }
-            return return_dict | {
-                "title": task.title,
-                "due": task.due.strftime("%A, %b %d, %Y"),
-                "notes": task.notes,
-            }
+    def _run(self, task_description: str) -> str:
+        response = self.organization_agent.execute([HumanMessage(task_description)])
+        return response.messages[-1].content
 
-        except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to find event: {str(e)}"
-            }
+
+class SearchAndRetrievalTool(BaseTool):
+    name: str = "search_and_retrieval_agent_tool"
+    description: str = dedent(
+        f"""
+        Handles the following google drive operations:
+            - search for files and folders
+            - get detailed file information
+            - download file content
+            - list folder contents
+            - get file permissions
+        """
+    )
+    args_schema: ArgsSchema = AgentInput
+
+    search_and_retrieval_agent: SearchAndRetrievalAgent
+
+    def __init__(self, search_and_retrieval_agent: SearchAndRetrievalAgent):
+        super().__init__(search_and_retrieval_agent=search_and_retrieval_agent)
+
+    def _run(self, task_description: str) -> str:
+        response = self.search_and_retrieval_agent.execute([HumanMessage(task_description)])
+        return response.messages[-1].content
+
+
+class WriterTool(BaseTool):
+    name: str = "writer_agent_tool"
+    description: str = dedent(
+        f"""
+        Handles the following google drive operations:
+            - upload file to Drive
+            - create new folder
+            - share file or folder with others
+        """
+    )
+    args_schema: ArgsSchema = AgentInput
+
+    writer_agent: WriterAgent
+
+    def __init__(self, writer_agent: WriterAgent):
+        super().__init__(writer_agent=writer_agent)
+
+    def _run(self, task_description: str) -> str:
+        response = self.writer_agent.execute([HumanMessage(task_description)])
+        return response.messages[-1].content
 

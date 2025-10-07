@@ -50,13 +50,10 @@ class GetEmailTool(BaseTool):
 
 
 class GetThreadDetailsInput(BaseModel):
-    """Input schema for getting thread details"""
     thread_id: str = Field(description="The ID of the thread to retrieve details for")
 
 
 class GetThreadDetailsTool(BaseTool):
-    """Tool for getting detailed information about a specific thread"""
-
     name: str = "get_thread_details"
     description: str = "Get detailed information about a specific writer thread including all messages"
     args_schema: ArgsSchema = GetThreadDetailsInput
@@ -284,9 +281,7 @@ class DownloadAttachmentTool(BaseTool):
     def _run(self, message_id: str, attachment_id: Optional[str] = None,
              download_folder: Optional[str] = None) -> ToolResponse:
         try:
-            if download_folder is None:
-                download_folder = os.path.join(os.path.expanduser("~"), "Downloads", "GmailAttachments")
-                print(f"Download folder: {download_folder}")
+            download_folder = os.path.join(os.path.expanduser("~"), "Downloads", "GmailAttachments")
 
             email = self.email_cache.retrieve(message_id)
             if email is None:
@@ -303,11 +298,11 @@ class DownloadAttachmentTool(BaseTool):
                         "filename": attachment["filename"],
                     }
 
-                    self.gmail_service.download_attachment(
+                    downloaded_path = self.gmail_service.download_attachment(
                         attachment=attachment_data,
                         download_folder=download_folder
                     )
-                    attachments_downloaded.append(attachment['filename'])
+                    attachments_downloaded.append(downloaded_path)
 
             else:
                 filename = ""
@@ -322,15 +317,15 @@ class DownloadAttachmentTool(BaseTool):
                     "filename": filename,
                 }
 
-                self.gmail_service.download_attachment(
+                downloaded_path = self.gmail_service.download_attachment(
                     attachment=attachment_data,
                     download_folder=download_folder
                 )
-                attachments_downloaded.append(filename)
+                attachments_downloaded.append(downloaded_path)
 
             return ToolResponse(
                 status="success",
-                message=f"Downloaded {', '.join(attachments_downloaded)} to {download_folder}",
+                message=f"Downloaded attachments: {', '.join(attachments_downloaded)}",
             )
 
         except Exception as e:

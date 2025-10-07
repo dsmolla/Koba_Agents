@@ -51,17 +51,11 @@ class SearchAndRetrievalAgent(BaseGmailAgent):
             * Think step-by-step: Break down requests into smaller requests for each tool.
             * Plan your approach: Identify the tools you need and in what order.
             * Check tool responses: Always verify results before returning to user.
-            * Final response: At the end, respond with results of the tool_calls. Make sure to always include message_ids in your response.
+            * Final response: At the end, respond with results of the tool_calls.
+            * Always include message_ids in your response.
+            * Always include FULL FILE PATHS in your response when downloading attachments.
 
             CURRENT DATE AND TIME: {datetime.now().strftime("%Y-%m-%d %H:%M")}
 
         """)
 
-    def get_available_tools(self):
-        return [
-            {
-                "name": tool.name,
-                "description": tool.description
-            }
-            for tool in self.tools
-        ]

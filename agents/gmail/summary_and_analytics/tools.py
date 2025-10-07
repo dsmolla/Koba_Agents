@@ -37,22 +37,15 @@ class SummarizeEmailsTool(BaseTool):
         try:
             emails = []
             for message_id in message_ids:
-                if email := self.email_cache.retrieve(message_id):
-                    email = email.copy()
-                    del email["message_id"]
-                    del email["thread_id"]
-                    del email["snippet"]
-                    del email["label_ids"]
-                    del email["has_attachments"]
-                    emails.append(email)
+                if self.email_cache.retrieve(message_id):
+                    email = self.email_cache.retrieve(message_id).copy()
                 else:
                     email = self.email_cache.save(self.gmail_service.get_email(message_id)).copy()
-                    del email["message_id"]
-                    del email["thread_id"]
-                    del email["snippet"]
-                    del email["label_ids"]
-                    del email["has_attachments"]
-                    emails.append(email)
+
+                keys_to_remove = ['message_id', 'thread_id', 'snippet', 'label_ids', 'has_attachments']
+                for key in keys_to_remove:
+                    email.pop(key, None)
+                emails.append(email)
 
             system_prompt = dedent(
                 """

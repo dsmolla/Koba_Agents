@@ -53,11 +53,3 @@ class WriterAgent(BaseGmailAgent):
             CURRENT DATE AND TIME: {datetime.now().strftime("%Y-%m-%d %H:%M")}
         """)
 
-    def get_available_tools(self):
-        return [
-            {
-                "name": tool.name,
-                "description": tool.description
-            }
-            for tool in self.tools
-        ]

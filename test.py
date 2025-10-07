@@ -1,16 +1,23 @@
-from agents.gmail.agent import GmailAgent
+import os
+
+from dotenv import load_dotenv
+
+from agents.agent import GoogleAgent
 from google_client.user_client import UserClient
 from langchain_core.messages import HumanMessage
 from shared.llm_models import MODELS
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+load_dotenv()
 
-token_path = r"C:\Users\dagms\Projects\Credentials\token-1.json"
-creds_path = r"C:\Users\dagms\Projects\Credentials\credentials.json"
+token_path = os.getenv("TOKEN_PATH")
+creds_path = os.getenv("CREDS_PATH")
 
-user = UserClient.from_file(token_path, creds_path)
-llm = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash_lite'])
-agent = GmailAgent(user.gmail, llm, print_steps=False)
+print(token_path, creds_path)
+
+google_service = UserClient.from_file(token_path, creds_path)
+llm = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash'])
+agent = GoogleAgent(google_service, llm, print_steps=True)
 
 def run(messages=None):
     if messages is None:
@@ -25,3 +32,6 @@ def run(messages=None):
         print("AI:", response.messages[-1].content)
 
     return messages
+
+if __name__ == "__main__":
+    run()

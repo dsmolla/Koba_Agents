@@ -49,9 +49,14 @@ class BaseAgent(ABC):
     def system_prompt(self) -> str:
         pass
 
-    @abstractmethod
     def get_available_tools(self) -> list[dict[str, str]]:
-        pass
+        return [
+            {
+                "name": tool.name,
+                "description": tool.description
+            }
+            for tool in self.tools
+        ]
 
     def _create_agent(self) -> CompiledStateGraph:
         return create_react_agent(
@@ -60,6 +65,7 @@ class BaseAgent(ABC):
             name=self.name,
             prompt=SystemMessage(self.system_prompt())
         )
+
 
     def execute(self, messages: list[BaseMessage]) -> AgentResponse:
         return agent_executor.execute(

@@ -1,57 +1,29 @@
-from google_client.services.calendar import EventQueryBuilder, Attendee
-from langchain.tools import BaseTool
-from google_client.services.calendar.api_service import CalendarApiService
+import json
+from datetime import datetime
 from typing import Optional, List, Literal
 
+from google_client.services.calendar import EventQueryBuilder, Attendee
+from google_client.services.calendar.api_service import CalendarApiService
+from langchain.tools.base import BaseTool
 from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
-from datetime import datetime
+
+from shared.exceptions import ToolException
+from shared.response import ToolResponse
+
 
 def parse_rfc3339(date_str: str) -> datetime:
-    """Parse RFC3339 date string to datetime object"""
     try:
-        return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return datetime.fromisoformat(date_str.replace("Z", ""))
     except ValueError as e:
-        raise ValueError(f"Invalid RFC3339 date string: {date_str}")
-
-
-def query_builder(calendar_service: CalendarApiService, params: dict) -> EventQueryBuilder:
-
-    builder = calendar_service.query()
-    if params.get("max_results"):
-        builder = builder.limit(params["max_results"])
-    if params.get("datetime_min"):
-        builder = builder.from_date(parse_rfc3339(params["datetime_min"]))
-    if params.get("datetime_max"):
-        builder = builder.to_date(parse_rfc3339(params["datetime_max"]))
-    if params.get("date_filter"):
-        match params["date_filter"]:
-            case "TODAY":
-                builder = builder.today()
-            case "TOMORROW":
-                builder = builder.tomorrow()
-            case "THIS_WEEK":
-                builder = builder.this_week()
-            case "NEXT_WEEK":
-                builder = builder.next_week()
-            case "THIS_MONTH":
-                builder = builder.this_month()
-    if params.get("thread"):
-        builder = builder.search(params["thread"])
-    if params.get("by_attendee"):
-        builder = builder.by_attendee(params["by_attendee"])
-
-    return builder
+        raise ValueError(f"Invalid RFC3339 date string: {e}")
 
 
 class GetEventsInput(BaseModel):
-    """Input schema for getting full calendar details"""
     event_id: str = Field(description="The event_id of the event to retrieve")
 
 
 class GetEventsTool(BaseTool):
-    """Tool for retrieving full event details"""
-
     name: str = "get_event"
     description: str = "Retrieve full event detail"
     args_schema: ArgsSchema = GetEventsInput
@@ -61,34 +33,33 @@ class GetEventsTool(BaseTool):
     def __init__(self, calendar_service: CalendarApiService):
         super().__init__(calendar_service=calendar_service)
 
-    def _run(self, event_id: str) -> dict:
-        """Retrieve full event detail"""
+    def _run(self, event_id: str) -> ToolResponse:
         try:
             event = self.calendar_service.get_event(event_id=event_id)
-            return_dict = {
-                "status": "success"
-            }
-            return return_dict | event.to_dict()
+            event_dict = event.to_dict()
+            return ToolResponse(
+                status="success",
+                message=json.dumps(event_dict)
+            )
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to find event: {str(e)}"
-            }
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to find event: {str(e)}"
+            )
 
 
 class ListEventsInput(BaseModel):
-    """Input schema for listing events"""
     max_results: Optional[int] = Field(default=10, description="Maximum number of events to return")
-    datetime_min: Optional[str] = Field(default=None, description="RFC3339 timestamp string to filter events starting from")
-    datetime_max: Optional[str] = Field(default=None, description="RFC3339 timestamp string to filter events ending by")
+    datetime_min: Optional[str] = Field(default=None,
+                                        description="RFC3339 timestamp string to filter events starting from. Defaults to today")
+    datetime_max: Optional[str] = Field(default=None,
+                                        description="RFC3339 timestamp string to filter events ending by. Defaults to 30 days after datetime_min")
     date_filter: Optional[Literal["TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "THIS_MONTH"]] = (
-        Field("ThIS_WEEK",
-              description=("Predefined date filters to filter events. "
-                           "Overrides datetime_min and datetime_max if provided. "
-                           "Options are: TODAY, TOMORROW, THIS_WEEK, NEXT_WEEK, THIS_MONTH")
+        Field(None, description=("Predefined date filters to filter events. "
+                                 "Overrides datetime_min and datetime_max if provided. "
+                                 "Options are: TODAY, TOMORROW, THIS_WEEK, NEXT_WEEK, THIS_MONTH"
+                                 )
               )
     )
     query: Optional[str] = Field(default=None, description="Free text search terms to filter events")
@@ -96,8 +67,6 @@ class ListEventsInput(BaseModel):
 
 
 class ListEventsTool(BaseTool):
-    """Tool for listing events"""
-
     name: str = "list_events"
     description: str = (
         "List events on the user's primary calendar. "
@@ -118,8 +87,7 @@ class ListEventsTool(BaseTool):
             date_filter: Optional[Literal["TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "THIS_MONTH"]] = "THIS_WEEK",
             query: Optional[str] = None,
             by_attendee: Optional[str] = None
-    ) -> dict:
-        """List events on the user's primary calendar"""
+    ) -> ToolResponse:
         try:
             params = {
                 "max_results": max_results,
@@ -129,24 +97,49 @@ class ListEventsTool(BaseTool):
                 "thread": query,
                 "by_attendee": by_attendee
             }
-            builder = query_builder(self.calendar_service, params)
+            builder = self.query_builder(params)
             events = builder.execute()
-            return {
-                "status": "success",
-                "events": [event.to_dict() for event in events]
-            }
+            events_data = [event.to_dict() for event in events]
+            return ToolResponse(
+                status="success",
+                message=json.dumps(events_data)
+            )
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to list events: {str(e)}"
-            }
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to list events: {str(e)}"
+            )
+
+    def query_builder(self, params: dict) -> EventQueryBuilder:
+        builder = self.calendar_service.query()
+        if params.get("max_results"):
+            builder = builder.limit(params["max_results"])
+        if params.get("datetime_min"):
+            builder = builder.from_date(parse_rfc3339(params["datetime_min"]))
+        if params.get("datetime_max"):
+            builder = builder.to_date(parse_rfc3339(params["datetime_max"]))
+        if params.get("date_filter"):
+            match params["date_filter"]:
+                case "TODAY":
+                    builder = builder.today()
+                case "TOMORROW":
+                    builder = builder.tomorrow()
+                case "THIS_WEEK":
+                    builder = builder.this_week()
+                case "NEXT_WEEK":
+                    builder = builder.next_week()
+                case "THIS_MONTH":
+                    builder = builder.this_month()
+        if params.get("thread"):
+            builder = builder.search(params["thread"])
+        if params.get("by_attendee"):
+            builder = builder.by_attendee(params["by_attendee"])
+
+        return builder
 
 
 class CreateEventInput(BaseModel):
-    """Input schema for creating a new calendar event"""
     summary: str = Field(description="The summary or title of the event")
     start_datetime: str = Field(description="RFC3339 timestamp string for the event start time")
     end_datetime: str = Field(description="RFC3339 timestamp string for the event end time")
@@ -157,8 +150,6 @@ class CreateEventInput(BaseModel):
 
 
 class CreateEventTool(BaseTool):
-    """Tool for creating a new calendar event"""
-
     name: str = "create_event"
     description: str = "Create a new event on the user's primary calendar"
     args_schema: ArgsSchema = CreateEventInput
@@ -177,8 +168,7 @@ class CreateEventTool(BaseTool):
             location: Optional[str] = None,
             attendees: Optional[List[str]] = None,
             recurrence: Optional[List[str]] = None
-    ) -> dict:
-        """Create a new event on the user's primary calendar"""
+    ) -> ToolResponse:
         try:
             event = self.calendar_service.create_event(
                 start=parse_rfc3339(start_datetime),
@@ -189,31 +179,23 @@ class CreateEventTool(BaseTool):
                 attendees=attendees,
                 recurrence=recurrence
             )
-            return {
-                "status": "success",
-                "event_id": event.id,
-                "summary": event.summary,
-                "link": event.html_link,
-                "message": f"Event created successfully with ID: {event.id} and Summary: {event.summary}"
-            }
+            return ToolResponse(
+                status="success",
+                message=f"Event created successfully. event_id: {event.event_id}",
+            )
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to create event: {str(e)}"
-            }
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to create event: {str(e)}"
+            )
 
 
 class DeleteEventInput(BaseModel):
-    """Input schema for deleting a calendar event"""
     event_id: str = Field(description="The event_id of the event to delete")
 
 
 class DeleteEventTool(BaseTool):
-    """Tool for deleting a calendar event"""
-
     name: str = "delete_event"
     description: str = "Delete an event from the user's primary calendar"
     args_schema: ArgsSchema = DeleteEventInput
@@ -223,41 +205,45 @@ class DeleteEventTool(BaseTool):
     def __init__(self, calendar_service: CalendarApiService):
         super().__init__(calendar_service=calendar_service)
 
-    def _run(self, event_id: str) -> dict:
-        """Delete an event from the user's primary calendar"""
+    def _run(self, event_id: str) -> ToolResponse:
         try:
-            self.calendar_service.delete_event(event=event_id)
-            return {
-                "status": "success",
-                "message": f"Event with ID: {event_id} deleted successfully"
-            }
+            if self.calendar_service.delete_event(event=event_id):
+                return ToolResponse(
+                    status="success",
+                    message=f"Event deleted successfully. event_id: {event_id}"
+                )
+            else:
+                return ToolResponse(
+                    status="error",
+                    message=f"Failed to delete event: {event_id}"
+                )
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to delete event: {str(e)}"
-            }
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to delete event: {str(e)}"
+            )
 
 
 class UpdateEventInput(BaseModel):
-    """Input schema for updating a calendar event"""
     event_id: str = Field(description="The event_id of the event to update")
     summary: Optional[str] = Field(default=None, description="The new summary or title of the event")
-    start_datetime: Optional[str] = Field(default=None, description="New RFC3339 timestamp string for the new event start time")
-    end_datetime: Optional[str] = Field(default=None, description="New RFC3339 timestamp string for the new event end time")
+    start_datetime: Optional[str] = Field(default=None,
+                                          description="New RFC3339 timestamp string for the new event start time")
+    end_datetime: Optional[str] = Field(default=None,
+                                        description="New RFC3339 timestamp string for the new event end time")
     description: Optional[str] = Field(default=None, description="The new description of the event")
     location: Optional[str] = Field(default=None, description="The new location of the event")
     add_attendees: Optional[List[str]] = Field(default=None, description="List of attendee writer addresses to add")
-    remove_attendees: Optional[List[str]] = Field(default=None, description="List of attendee writer addresses to remove")
-    attendees: Optional[List[str]] = Field(default=None, description="Full list of attendee writer addresses to replace existing attendees")
-    recurrence: Optional[List[str]] = Field(default=None, description="New recurrence rules for the event in RRULE format")
+    remove_attendees: Optional[List[str]] = Field(default=None,
+                                                  description="List of attendee writer addresses to remove")
+    attendees: Optional[List[str]] = Field(default=None,
+                                           description="Full list of attendee writer addresses to replace existing attendees")
+    recurrence: Optional[List[str]] = Field(default=None,
+                                            description="New recurrence rules for the event in RFC 5545 format")
 
 
 class UpdateEventTool(BaseTool):
-    """Tool for updating a calendar event"""
-
     name: str = "update_event"
     description: str = "Update an event on the user's primary calendar"
     args_schema: ArgsSchema = UpdateEventInput
@@ -266,7 +252,6 @@ class UpdateEventTool(BaseTool):
 
     def __init__(self, calendar_service: CalendarApiService):
         super().__init__(calendar_service=calendar_service)
-
 
     def _run(
             self,
@@ -280,8 +265,7 @@ class UpdateEventTool(BaseTool):
             remove_attendees: Optional[List[str]] = None,
             attendees: Optional[List[str]] = None,
             recurrence: Optional[List[str]] = None
-    ) -> dict:
-        """Update an event on the user's primary calendar"""
+    ) -> ToolResponse:
         try:
             event = self.calendar_service.get_event(event_id=event_id)
             if summary:
@@ -306,33 +290,25 @@ class UpdateEventTool(BaseTool):
                 event.recurrence = recurrence
 
             updated_event = self.calendar_service.update_event(event=event)
-            return {
-                "status": "success",
-                "event_id": updated_event.id,
-                "summary": updated_event.summary,
-                "link": updated_event.html_link,
-                "message": f"Event with ID: {updated_event.id} updated successfully to Summary: {updated_event.summary}"
-            }
+            return ToolResponse(
+                status="success",
+                message=f"Event updated successfully. event_id: {updated_event.event_id}",
+            )
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to update event: {str(e)}"
-            }
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to update event: {str(e)}"
+            )
 
 
 class FindFreeSlotsInput(BaseModel):
-    """Input schema for finding free time slots"""
     duration_minutes: int = Field(description="Minimum duration for free slots in minutes")
     datetime_min: Optional[str] = Field(default=None, description="RFC3339 timestamp string to start searching from")
     datetime_max: Optional[str] = Field(default=None, description="RFC3339 timestamp string to end searching by")
 
 
 class FindFreeSlotsTool(BaseTool):
-    """Tool for finding free time slots on the user's primary calendar"""
-
     name: str = "find_free_slots"
     description: str = "Find free time slots on the user's primary calendar"
     args_schema: ArgsSchema = FindFreeSlotsInput
@@ -342,31 +318,30 @@ class FindFreeSlotsTool(BaseTool):
     def __init__(self, calendar_service: CalendarApiService):
         super().__init__(calendar_service=calendar_service)
 
-
     def _run(
             self,
             duration_minutes: int,
             datetime_min: Optional[str] = None,
             datetime_max: Optional[str] = None
-    ) -> dict:
-        """Find free time slots on the user's primary calendar"""
+    ) -> ToolResponse:
         try:
             free_slots = self.calendar_service.find_free_slots(
                 duration_minutes=duration_minutes,
                 start=parse_rfc3339(datetime_min) if datetime_min else None,
                 end=parse_rfc3339(datetime_max) if datetime_max else None
             )
+            slots_data = [str(slot) for slot in free_slots]
 
-            return {
-                "status": "success",
-                "free_slots": [slot.to_dict() for slot in free_slots]
-            }
+            self.calendar_service.list_events()
+
+            return ToolResponse(
+                status="success",
+                message=json.dumps(slots_data)
+            )
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "message": f"Failed to find free slots: {str(e)}"
-            }
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to find free slots: {str(e)}"
+            )
 
