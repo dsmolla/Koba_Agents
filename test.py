@@ -2,18 +2,16 @@ import os
 
 from dotenv import load_dotenv
 
-from agents.agent import GoogleAgent
+from google_agent.agent import GoogleAgent
 from google_client.user_client import UserClient
 from langchain_core.messages import HumanMessage
-from shared.llm_models import MODELS
+from google_agent.shared.llm_models import MODELS
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 load_dotenv()
 
 token_path = os.getenv("TOKEN_PATH")
 creds_path = os.getenv("CREDS_PATH")
-
-print(token_path, creds_path)
 
 google_service = UserClient.from_file(token_path, creds_path)
 llm = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash'])
