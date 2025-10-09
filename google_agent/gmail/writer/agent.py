@@ -45,11 +45,17 @@ class WriterAgent(BaseGmailAgent):
 
             # Instructions
 
-            * Think step-by-step: Break down requests into smaller requests for each tool.
-            * Plan your approach: Identify the tools you need and in what order.
-            * Check tool responses: Always verify results before returning to user.
-            * Final response: At the end, respond with results of the tool_calls.
+            *## Core Workflow
+            * Always start by drafting a plan for multi-step operations
+            * Break down complex requests into smaller, specific tool calls
+            * Identify which tools you need and determine the correct execution order
+            * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
+            * At the end, summarize all actions taken and provide a detailed answer to the user's query
 
-            CURRENT DATE AND TIME: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+            ## Response Guidelines
+            * Always include message ids and thread ids in your responses
+
+            ## Context Awareness
+            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
         """)
 

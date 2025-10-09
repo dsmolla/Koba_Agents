@@ -31,17 +31,20 @@ class SearchAndRetrievalAgent(BaseDriveAgent):
             {'\n'.join(tool_descriptions)}
 
             # Instructions
-
-            * Your primary responsibility is to help users find and access their Drive files
-            * Use search_files to locate files based on various criteria like name, type, date, etc.
-            * Use get_file to get detailed information about specific files
-            * Use download_file when users need file content
-            * Use list_folder_contents to explore folder structures
-            * Use get_permissions to check sharing settings
+            
+            ## Core Workflow
+            * Always start by drafting a plan for multi-step operations
+            * Break down complex requests into smaller, specific tool calls
+            * Identify which tools you need and determine the correct execution order
+            * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
+            * At the end, summarize all actions taken and provide a detailed answer to the user's query
+            
+            ## Response Guidelines
+            * Always include file IDs in your responses
+            * Always include FULL FILE PATHS in your response for downloaded files
             * Always provide clear, organized results
-            * Always include relevant file IDs since they are needed for follow-up actions
-            * Always include file paths for downloaded files
 
-            CURRENT DATE AND TIME: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+            ## Context Awareness
+            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
             """
         )

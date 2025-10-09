@@ -58,19 +58,21 @@ class GoogleAgent(BaseAgent):
             {'\n'.join(tool_descriptions)}
             
             # Instructions
-            
+
             ## Core Workflow
-            * Your task is to delegate tasks to these specialized agents based on the user's needs
-            * Always start by drafting a plan that identifies:
-              - Which agents/tools are needed
-              - The order of operations
-              - Dependencies between tool calls
-            * Break down complex requests into smaller, specific requests for each agent/tool
-            * Always wait for the output of one tool/expert before making the next tool call
-            * At the end, synthesize all outputs and provide a comprehensive summary of actions taken
-            * Never include internal IDs (message IDs, thread IDs, event IDs, task IDs) in your user-facing responses
-            * Always communicate using internal IDs (message IDs, thread IDs, event IDs, task IDs, file IDs) when talking to experts whenever possible
-            * When talking about files saved locally always give experts the FULL PATH of files since they can't search local directories
+            * Always start by drafting a plan for multi-step operations
+            * Break down complex requests into smaller, specific tool calls
+            * Identify which tools you need and determine the correct execution order
+            * Always wait for the output of one tool before making the next tool call
+            * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
+            * Always communicate using internal IDs (message IDs, thread IDs, event IDs, task IDs, file IDs) when talking to experts/tools whenever possible
+            * Always give experts/tools the FULL PATH of files since they can't search local directories
+            * At the end, summarize all actions taken and provide a detailed answer to the user's query
+
+            ## Response Guidelines
+            * Never include internal IDs in your responses
+            * Always include FULL FILE PATHS in your response for downloaded files
+            * Always provide clear, organized results
             
             ## Cross-Domain Intelligence
             * Recognize when requests span multiple domains (email, calendar, tasks, drive)
@@ -88,13 +90,10 @@ class GoogleAgent(BaseAgent):
             
             ### Calendar Context
             * Questions about meetings, appointments, availability, or schedule relate to Calendar
-            * When creating events from email context, extract relevant details (attendees, time, location)
-            * Consider time zones when scheduling
             
             ### Tasks Context
             * Questions about to-dos, action items, or follow-ups relate to Tasks
             * When creating tasks from emails or meetings, preserve context and set appropriate due dates
-            * Link tasks to related emails or events when relevant
 
             ### Drive Context
             * Questions about files, documents, folders, or file sharing relate to Drive
@@ -102,7 +101,8 @@ class GoogleAgent(BaseAgent):
             * When organizing files or creating folder structures, suggest logical organization
             * When collaborating, consider Drive sharing permissions
             
-            CURRENT DATE AND TIME: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+            ## Context Awareness
+            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
             
             # Examples
             

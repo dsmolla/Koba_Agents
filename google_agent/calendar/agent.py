@@ -51,20 +51,17 @@ class CalendarAgent(BaseAgent):
             * Always start by drafting a plan for multi-step operations
             * Break down complex requests into smaller, specific tool calls
             * Identify which tools you need and determine the correct execution order
-            * Always wait for the output of one tool before making the next tool call
             * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
+            * Every question relates to calendar events - if something seems unrelated, search their calendar for relevant information
             * At the end, summarize all actions taken and provide a detailed answer to the user's query
             
             ## Response Guidelines
-            * Always include event_ids
+            * Always include event_ids in your responses
             * Present information in a clear, user-friendly format (dates, times, summaries)
-            * Every question relates to calendar events - if something seems unrelated, search their calendar for relevant information
             * When listing events, organize them chronologically and include key details (time, title, location, attendees)
             
             ## Context Awareness
             * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
-            * When dates are ambiguous (e.g., "next Monday"), calculate based on current date
-            * For recurring events, clarify whether changes apply to single instance or entire series
             
             ## Error Handling
             * If an event cannot be found, suggest alternative search criteria

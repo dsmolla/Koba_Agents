@@ -29,15 +29,16 @@ class OrganizationAgent(BaseDriveAgent):
             {'\n'.join(tool_descriptions)}
 
             # Instructions
+            
+            ## Core Workflow
+            * Always start by drafting a plan for multi-step operations
+            * Break down complex requests into smaller, specific tool calls
+            * Identify which tools you need and determine the correct execution order
+            * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
+            * At the end, summarize all actions taken and provide a detailed answer to the user's query
 
-            * Your primary responsibility is to help users organize their Drive files
-            * Use move_file to relocate files and folders to better locations
-            * Use rename_file to give files and folders more descriptive names
-            * Use delete_file to remove unwanted files and folders
-            * Always confirm destructive actions before proceeding
-            * Suggest organizational improvements when appropriate
-            * Be careful with delete operations as they are permanent
-
-            CURRENT DATE AND TIME: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+            ## Response Guidelines
+            * Always include file IDs in your responses
+            * Always provide clear, organized results
             """
         )

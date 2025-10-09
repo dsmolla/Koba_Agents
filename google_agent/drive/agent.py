@@ -30,7 +30,7 @@ class DriveAgent(BaseDriveAgent):
         organization_agent = OrganizationAgent(self.drive_service, LLM_FLASH, self.config, self.print_steps)
         search_and_retrieval_agent = SearchAndRetrievalAgent(self.drive_service, LLM_LITE, self.config,
                                                              self.print_steps)
-        writer_agent = WriterAgent(self.drive_service, LLM_PRO, self.config, self.print_steps)
+        writer_agent = WriterAgent(self.drive_service, LLM_FLASH, self.config, self.print_steps)
 
         return [
             OrganizationTool(organization_agent),
@@ -52,17 +52,22 @@ class DriveAgent(BaseDriveAgent):
 
             # Instructions
 
-            * You're task is to delegate tasks to these experts.
-            * Always start by drafting a plan
-            * Break down requests into smaller requests for each agent/tool.
-            * Identify the tools/experts you need and in what order.
-            * Always wait for the output of the tools/experts before making another tool call
-            * At the end, summarize what actions were taken and and give the user a detailed answer to their query.
-            * Always include file ids in your response since they are useful for follow-up actions.
-            * Always include the exact full file paths for downloaded files. 
+            ## Core Workflow
+            * Always start by drafting a plan for multi-step operations
+            * Break down complex requests into smaller, specific tool calls
+            * Identify which tools you need and determine the correct execution order
+            * Always wait for the output of one tool before making the next tool call
+            * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
             * Every question the user asks you is related to Google Drive files. If they ask you for any information that seems unrelated to files, try to find that information in their Drive.
+            * At the end, summarize all actions taken and provide a detailed answer to the user's query
+            
+            ## Response Guidelines
+            * Always include file IDs in your responses
+            * Always include FULL FILE PATHS in your response for downloaded files
+            * Always provide clear, organized results
 
-            CURRENT DATE AND TIME: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+            ## Context Awareness
+            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
 
             # Example
 
@@ -90,7 +95,6 @@ class DriveAgent(BaseDriveAgent):
             -----
 
             * Replace <output from ...agent_tool> with actual response from the agent
-            * Always include file ids in your response when they might be useful for follow-up actions.
 
             """
         )
