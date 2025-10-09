@@ -14,7 +14,8 @@ from google_agent.shared.response import ToolResponse
 
 def parse_rfc3339(date_str: str) -> datetime:
     try:
-        return datetime.fromisoformat(date_str.replace("Z", ""))
+        date_time = datetime.fromisoformat(date_str.replace('Z', ""))
+        return date_time
     except ValueError as e:
         raise ValueError(f"Invalid RFC3339 date string: {e}")
 
@@ -50,7 +51,7 @@ class GetEventsTool(BaseTool):
 
 
 class ListEventsInput(BaseModel):
-    max_results: Optional[int] = Field(default=10, description="Maximum number of events to return")
+    max_results: Optional[int] = Field(default=50, description="Maximum number of events to return")
     datetime_min: Optional[str] = Field(default=None,
                                         description="RFC3339 timestamp string to filter events starting from. Defaults to today")
     datetime_max: Optional[str] = Field(default=None,
@@ -81,7 +82,7 @@ class ListEventsTool(BaseTool):
 
     def _run(
             self,
-            max_results: Optional[int] = 10,
+            max_results: Optional[int] = 50,
             datetime_min: Optional[str] = None,
             datetime_max: Optional[str] = None,
             date_filter: Optional[Literal["TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "THIS_MONTH"]] = "THIS_WEEK",
@@ -94,7 +95,7 @@ class ListEventsTool(BaseTool):
                 "datetime_min": datetime_min,
                 "datetime_max": datetime_max,
                 "date_filter": date_filter,
-                "thread": query,
+                "search": query,
                 "by_attendee": by_attendee
             }
             builder = self.query_builder(params)
@@ -131,8 +132,8 @@ class ListEventsTool(BaseTool):
                     builder = builder.next_week()
                 case "THIS_MONTH":
                     builder = builder.this_month()
-        if params.get("thread"):
-            builder = builder.search(params["thread"])
+        if params.get("search"):
+            builder = builder.search(params["search"])
         if params.get("by_attendee"):
             builder = builder.by_attendee(params["by_attendee"])
 

@@ -39,7 +39,7 @@ def execute(
 
         except Exception as e:
             raise AgentException(message=f"Agent execution failed: {str(e)}", agent_name=agent.name)
-
-    print(f"Time taken: {round(time.time() - start, 3)}s")
+    if print_steps:
+        print(f"Time taken: {round(time.time() - start, 3)}s")
 
     return AgentResponse(name=agent.name, messages=message_history)

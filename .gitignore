@@ -1,5 +1,6 @@
 .ipynb
 .env
-test.py
+.idea
+.venv
 nul
 __pycache__

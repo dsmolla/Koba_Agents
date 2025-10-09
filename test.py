@@ -11,8 +11,6 @@ from argparse import ArgumentParser
 
 load_dotenv()
 
-set_debug(True)
-
 def run(messages=None, llm=LLM_FLASH, print_steps=False):
     token_path = os.getenv("TOKEN_PATH")
     creds_path = os.getenv("CREDS_PATH")
