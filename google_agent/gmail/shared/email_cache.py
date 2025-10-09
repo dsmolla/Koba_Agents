@@ -27,9 +27,9 @@ class EmailCache(OrderedDict):
             "date_time": save_format["date_time"],
             "subject": save_format["subject"],
             "label_ids": save_format["labels"],
-            "snippet": re.sub(r'(\s)\s+', r'\1', save_format["snippet"].encode("ascii", "ignore").decode("ascii")),
+            "snippet": re.sub(r'(\s)\s+', r'\1', save_format["snippet"]),
             "has_attachments": email.has_attachments(),
-            "body": re.sub(r'(\s)\s+', r'\1', save_format["body"].encode("ascii", "ignore").decode("ascii")),
+            "body": re.sub(r'(\s)\s+', r'\1', save_format["body"]),
             "attachments": save_format["attachments"],
         }
 

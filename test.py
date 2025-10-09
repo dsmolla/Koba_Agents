@@ -1,23 +1,24 @@
 import os
 
 from dotenv import load_dotenv
+from langchain.globals import set_debug
 
 from google_agent.agent import GoogleAgent
 from google_client.user_client import UserClient
 from langchain_core.messages import HumanMessage
-from google_agent.shared.llm_models import MODELS
-from langchain_google_genai import ChatGoogleGenerativeAI
+from google_agent.shared.llm_models import LLM_FLASH
+from argparse import ArgumentParser
 
 load_dotenv()
 
-token_path = os.getenv("TOKEN_PATH")
-creds_path = os.getenv("CREDS_PATH")
+set_debug(True)
 
-google_service = UserClient.from_file(token_path, creds_path)
-llm = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash'])
-agent = GoogleAgent(google_service, llm, print_steps=True)
+def run(messages=None, llm=LLM_FLASH, print_steps=False):
+    token_path = os.getenv("TOKEN_PATH")
+    creds_path = os.getenv("CREDS_PATH")
+    google_service = UserClient.from_file(token_path, creds_path)
+    agent = GoogleAgent(google_service, llm, print_steps=print_steps)
 
-def run(messages=None):
     if messages is None:
         messages = []
     while True:
@@ -32,4 +33,8 @@ def run(messages=None):
     return messages
 
 if __name__ == "__main__":
-    run()
+    parser = ArgumentParser()
+    parser.add_argument("--print_steps", type=bool, default=False)
+    args = parser.parse_args()
+    print_steps = args.print_steps
+    run(print_steps=print_steps)
