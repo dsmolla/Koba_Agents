@@ -4,3 +4,11 @@
 .venv
 nul
 __pycache__
+
+# Telegram bot user data
+user_tokens/
+user_sessions/
+
+# Bot logs
+bot.log
+*.log

@@ -15,6 +15,7 @@ Google Agent is a hierarchical multi-agent system that acts as a supervisor coor
 - **Drive Operations**: Search, organize, and manage files and folders
 - **Cross-Domain Intelligence**: Automatically coordinates between services (e.g., creating tasks from emails, scheduling based on email content)
 - **Natural Language Interface**: Conversational interface powered by Google's Gemini models
+- **🤖 Telegram Bot Interface**: Interact with your Google Workspace directly from Telegram (see [TELEGRAM_BOT_README.md](TELEGRAM_BOT_README.md))
 
 ## Architecture
 
@@ -107,9 +108,19 @@ GOOGLE_API_KEY=your_google_api_key for Gemini
 
 ## Usage
 
-### Basic Usage
+### Telegram Bot (Recommended)
 
-Run the interactive agent:
+The easiest way to use Google Agent is through the Telegram bot interface:
+
+```bash
+python run_bot.py
+```
+
+Then open Telegram and chat with your bot! See the complete setup guide in [TELEGRAM_BOT_README.md](TELEGRAM_BOT_README.md).
+
+### Command Line Interface
+
+Run the interactive agent in your terminal:
 
 ```bash
 python test.py
