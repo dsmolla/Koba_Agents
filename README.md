@@ -15,7 +15,6 @@ Google Agent is a hierarchical multi-agent system that acts as a supervisor coor
 - **Drive Operations**: Search, organize, and manage files and folders
 - **Cross-Domain Intelligence**: Automatically coordinates between services (e.g., creating tasks from emails, scheduling based on email content)
 - **Natural Language Interface**: Conversational interface powered by Google's Gemini models
-- **🤖 Telegram Bot Interface**: Interact with your Google Workspace directly from Telegram (see [TELEGRAM_BOT_README.md](TELEGRAM_BOT_README.md))
 
 ## Architecture
 
