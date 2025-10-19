@@ -11,10 +11,17 @@ from argparse import ArgumentParser
 
 load_dotenv()
 
+scopes = [
+    'https://www.googleapis.com/auth/calendar',
+    'https://mail.google.com/',
+    'https://www.googleapis.com/auth/tasks',
+    'https://www.googleapis.com/auth/drive'
+]
+
 def run(messages=None, llm=LLM_FLASH, print_steps=False):
     token_path = os.getenv("TOKEN_PATH")
     creds_path = os.getenv("CREDS_PATH")
-    google_service = UserClient.from_file(token_path, creds_path)
+    google_service = UserClient.from_file(token_path, creds_path, scopes=scopes)
     agent = GoogleAgent(google_service, llm, print_steps=print_steps)
 
     if messages is None:
