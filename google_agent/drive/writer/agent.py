@@ -11,9 +11,9 @@ class WriterAgent(BaseDriveAgent):
 
     def _get_tools(self):
         return [
-            UploadFileTool(self.drive_service),
-            CreateFolderTool(self.drive_service),
-            ShareFileTool(self.drive_service),
+            UploadFileTool(self.google_service),
+            CreateFolderTool(self.google_service),
+            ShareFileTool(self.google_service),
         ]
 
     def system_prompt(self):

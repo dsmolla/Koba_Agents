@@ -26,6 +26,10 @@ class GmailTool(BaseTool):
         response = self.gmail_agent.execute([HumanMessage(task_description)])
         return response.messages[-1].content
 
+    async def _arun(self, task_description: str) -> str:
+        response = await self.gmail_agent.aexecute([HumanMessage(task_description)])
+        return response.messages[-1].content
+
 
 class TasksTool(BaseTool):
     name: str = "tasks_agent_tool"
@@ -39,6 +43,10 @@ class TasksTool(BaseTool):
 
     def _run(self, task_description: str) -> str:
         response = self.tasks_agent.execute([HumanMessage(task_description)])
+        return response.messages[-1].content
+
+    async def _arun(self, task_description: str) -> str:
+        response = await self.tasks_agent.aexecute([HumanMessage(task_description)])
         return response.messages[-1].content
 
 
@@ -56,6 +64,10 @@ class CalendarTool(BaseTool):
         response = self.calendar_agent.execute([HumanMessage(task_description)])
         return response.messages[-1].content
 
+    async def _arun(self, task_description: str) -> str:
+        response = await self.calendar_agent.aexecute([HumanMessage(task_description)])
+        return response.messages[-1].content
+
 
 class DriveTool(BaseTool):
     name: str = "drive_agent_tool"
@@ -69,4 +81,8 @@ class DriveTool(BaseTool):
 
     def _run(self, task_description: str) -> str:
         response = self.drive_agent.execute([HumanMessage(task_description)])
+        return response.messages[-1].content
+
+    async def _arun(self, task_description: str) -> str:
+        response = await self.drive_agent.aexecute([HumanMessage(task_description)])
         return response.messages[-1].content

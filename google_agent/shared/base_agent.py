@@ -73,3 +73,12 @@ class BaseAgent(ABC):
             print_steps=self.print_steps,
             config=self.config,
         )
+
+    async def aexecute(self, messages: list[BaseMessage]) -> AgentResponse:
+        """Async version of execute() method."""
+        return await agent_executor.aexecute(
+            agent=self.agent,
+            messages=messages,
+            print_steps=self.print_steps,
+            config=self.config,
+        )

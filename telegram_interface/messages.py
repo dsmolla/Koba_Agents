@@ -38,9 +38,7 @@ Please follow these steps:
 
 3️⃣ After authorizing, return to this bot
 
-⏰ This authorization link will expire in 10 minutes.
-
-{link}
+⏰ This authorization [link]({link}) will expire in 10 minutes.
 """
 
 AUTH_FLOW_ERROR_MESSAGE = "❌ Sorry, there was an error generating the authentication link. Please try again later."

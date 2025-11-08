@@ -2,7 +2,7 @@ from datetime import datetime
 from textwrap import dedent
 from typing import Optional
 
-from google_client.services.gmail.api_service import GmailApiService
+from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
@@ -16,19 +16,19 @@ class WriterAgent(BaseGmailAgent):
 
     def __init__(
             self,
-            gmail_service: GmailApiService,
+            google_service: APIServiceLayer,
             llm: BaseChatModel,
             config: Optional[RunnableConfig] = None,
             print_steps: Optional[bool] = False,
     ):
-        super().__init__(gmail_service, llm, config, print_steps)
+        super().__init__(google_service, llm, config, print_steps)
 
     def _get_tools(self):
         return [
-            SendEmailTool(self.gmail_service),
-            DraftEmailTool(self.gmail_service),
-            ReplyEmailTool(self.gmail_service),
-            ForwardEmailTool(self.gmail_service)
+            SendEmailTool(self.google_service),
+            DraftEmailTool(self.google_service),
+            ReplyEmailTool(self.google_service),
+            ForwardEmailTool(self.google_service)
         ]
 
     def system_prompt(self):

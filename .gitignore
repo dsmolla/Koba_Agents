@@ -7,3 +7,5 @@ __pycache__
 
 *.log
 data/
+
+google_client/

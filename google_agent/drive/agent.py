@@ -1,11 +1,11 @@
 from datetime import datetime
 from textwrap import dedent
 
-from google_client.services.drive import DriveApiService
+from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
-from google_agent.drive.shared.base_agent import BaseDriveAgent
+from google_agent.shared.base_agent import BaseAgent
 from google_agent.shared.llm_models import LLM_LITE, LLM_FLASH, LLM_PRO
 from .organization.agent import OrganizationAgent
 from .search_and_retrieval.agent import SearchAndRetrievalAgent
@@ -13,24 +13,30 @@ from .tools import OrganizationTool, SearchAndRetrievalTool, WriterTool
 from .writer.agent import WriterAgent
 
 
-class DriveAgent(BaseDriveAgent):
+class DriveAgent(BaseAgent):
     name: str = "DriveAgent"
     description: str = "A Google Drive expert that can handle complex tasks and queries related to Google Drive file management"
 
     def __init__(
             self,
-            drive_service: DriveApiService,
+            google_service: APIServiceLayer,
             llm: BaseChatModel,
             config: RunnableConfig = None,
             print_steps: bool = False,
     ):
-        super().__init__(drive_service, llm, config, print_steps)
+        self.google_service = google_service
+        super().__init__(llm, config, print_steps)
 
     def _get_tools(self):
-        organization_agent = OrganizationAgent(self.drive_service, LLM_FLASH, self.config, self.print_steps)
-        search_and_retrieval_agent = SearchAndRetrievalAgent(self.drive_service, LLM_LITE, self.config,
-                                                             self.print_steps)
-        writer_agent = WriterAgent(self.drive_service, LLM_FLASH, self.config, self.print_steps)
+        organization_agent = OrganizationAgent(
+            self.google_service, LLM_FLASH, self.config, self.print_steps
+        )
+        search_and_retrieval_agent = SearchAndRetrievalAgent(
+            self.google_service, LLM_LITE, self.config, self.print_steps
+        )
+        writer_agent = WriterAgent(
+            self.google_service, LLM_FLASH, self.config, self.print_steps
+        )
 
         return [
             OrganizationTool(organization_agent),
@@ -60,7 +66,7 @@ class DriveAgent(BaseDriveAgent):
             * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
             * Every question the user asks you is related to Google Drive files. If they ask you for any information that seems unrelated to files, try to find that information in their Drive.
             * At the end, summarize all actions taken and provide a detailed answer to the user's query
-            
+
             ## Response Guidelines
             * Always include file IDs in your responses
             * Always include FULL FILE PATHS in your response for downloaded files

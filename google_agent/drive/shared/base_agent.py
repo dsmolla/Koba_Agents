@@ -1,4 +1,4 @@
-from google_client.services.drive import DriveApiService
+from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
@@ -10,10 +10,10 @@ class BaseDriveAgent(BaseAgent):
 
     def __init__(
         self,
-        drive_service: DriveApiService,
+        google_service: APIServiceLayer,
         llm: BaseChatModel,
         config: RunnableConfig = None,
         print_steps: bool = False,
     ):
-        self.drive_service = drive_service
+        self.google_service = google_service
         super().__init__(llm, config, print_steps)

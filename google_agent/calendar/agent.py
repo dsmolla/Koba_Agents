@@ -1,11 +1,14 @@
 from datetime import datetime
 from textwrap import dedent
+from typing import Optional, Union
 
+from google_client.api_service import APIServiceLayer
 from google_client.services.calendar import CalendarApiService
+from google_client.services.calendar.async_api_service import AsyncCalendarApiService
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
-from .tools import GetEventsTool, ListEventsTool, CreateEventTool, DeleteEventTool, UpdateEventTool, FindFreeSlotsTool
+from .tools import *
 from google_agent.shared.base_agent import BaseAgent
 
 
@@ -15,22 +18,25 @@ class CalendarAgent(BaseAgent):
 
     def __init__(
             self,
-            calendar_service: CalendarApiService,
+            google_service: APIServiceLayer,
             llm: BaseChatModel,
             config: RunnableConfig = None,
             print_steps: bool = False,
     ):
-        self.calendar_service = calendar_service
+        self.google_service = google_service
         super().__init__(llm, config, print_steps)
 
     def _get_tools(self):
         return [
-            GetEventsTool(self.calendar_service),
-            ListEventsTool(self.calendar_service),
-            CreateEventTool(self.calendar_service),
-            DeleteEventTool(self.calendar_service),
-            UpdateEventTool(self.calendar_service),
-            FindFreeSlotsTool(self.calendar_service),
+            ListCalendarsTool(self.google_service),
+            CreateCalendarTool(self.google_service),
+            DeleteCalendarTool(self.google_service),
+            GetEventsTool(self.google_service),
+            ListEventsTool(self.google_service),
+            CreateEventTool(self.google_service),
+            DeleteEventTool(self.google_service),
+            UpdateEventTool(self.google_service),
+            FindFreeSlotsTool(self.google_service),
         ]
 
     def system_prompt(self):
@@ -56,7 +62,7 @@ class CalendarAgent(BaseAgent):
             * At the end, summarize all actions taken and provide a detailed answer to the user's query
             
             ## Response Guidelines
-            * Always include event_ids in your responses
+            * Always include event_ids and calendar_ids in your responses
             * Present information in a clear, user-friendly format (dates, times, summaries)
             * When listing events, organize them chronologically and include key details (time, title, location, attendees)
             

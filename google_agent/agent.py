@@ -1,7 +1,7 @@
 from datetime import datetime
 from textwrap import dedent
 
-from google_client.user_client import UserClient
+from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
@@ -20,23 +20,40 @@ class GoogleAgent(BaseAgent):
 
     def __init__(
             self,
-            google_service: UserClient,
+            google_service: APIServiceLayer,
             llm: BaseChatModel,
             config: RunnableConfig = None,
             print_steps: bool = False,
     ):
-        self.gmail_service = google_service.gmail
-        self.tasks_service = google_service.tasks
-        self.calendar_service = google_service.calendar
-        self.drive_service = google_service.drive
-
+        self.google_service = google_service
         super().__init__(llm, config, print_steps)
 
     def _get_tools(self):
-        gmail_agent = GmailAgent(self.gmail_service, LLM_FLASH, self.config, self.print_steps)
-        calendar_agent = CalendarAgent(self.calendar_service, LLM_FLASH, self.config, self.print_steps)
-        tasks_agent = TasksAgent(self.tasks_service, LLM_FLASH, self.config, self.print_steps)
-        drive_agent = DriveAgent(self.drive_service, LLM_FLASH, self.config, self.print_steps)
+        gmail_agent = GmailAgent(
+            self.google_service,
+            LLM_FLASH,
+            self.config,
+            self.print_steps
+
+        )
+        calendar_agent = CalendarAgent(
+            self.google_service,
+            LLM_FLASH,
+            self.config,
+            self.print_steps
+        )
+        tasks_agent = TasksAgent(
+            self.google_service,
+            LLM_FLASH,
+            self.config,
+            self.print_steps
+        )
+        drive_agent = DriveAgent(
+            self.google_service,
+            LLM_FLASH,
+            self.config,
+            self.print_steps
+        )
 
         return [
             GmailTool(gmail_agent),

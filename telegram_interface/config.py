@@ -24,8 +24,9 @@ class Config:
         'https://www.googleapis.com/auth/tasks',
         'https://www.googleapis.com/auth/drive'
     ]
-    OAUTH_REDIRECT_URI = "http://localhost:8080/callback"
-    PRINT_STEPS = True
+    OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI")
+    PRINT_STEPS = False
+    DEBUG = True
 
 
     @classmethod

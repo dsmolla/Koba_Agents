@@ -11,11 +11,11 @@ class SearchAndRetrievalAgent(BaseDriveAgent):
 
     def _get_tools(self):
         return [
-            SearchFilesTool(self.drive_service),
-            GetFileTool(self.drive_service),
-            DownloadFileTool(self.drive_service),
-            ListFolderContentsTool(self.drive_service),
-            GetPermissionsTool(self.drive_service),
+            SearchFilesTool(self.google_service),
+            GetFileTool(self.google_service),
+            DownloadFileTool(self.google_service),
+            ListFolderContentsTool(self.google_service),
+            GetPermissionsTool(self.google_service),
         ]
 
     def system_prompt(self):

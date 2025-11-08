@@ -1,7 +1,7 @@
 from datetime import datetime
 from textwrap import dedent
 
-from google_client.services.tasks import TasksApiService
+from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
@@ -17,25 +17,25 @@ class TasksAgent(BaseAgent):
 
     def __init__(
             self,
-            tasks_service: TasksApiService,
+            google_service: APIServiceLayer,
             llm: BaseChatModel,
             config: RunnableConfig = None,
             print_steps: bool = False,
     ):
-        self.tasks_service = tasks_service
+        self.google_service = google_service
         self.task_list_cache = TaskListCache()
         super().__init__(llm, config, print_steps)
 
     def _get_tools(self):
         return [
-            CreateTaskTool(self.tasks_service),
-            ListTasksTool(self.tasks_service),
-            DeleteTaskTool(self.tasks_service),
-            CompleteTaskTool(self.tasks_service),
-            ReopenTaskTool(self.tasks_service),
-            UpdateTaskTool(self.tasks_service),
-            CreateTaskListTool(self.tasks_service, self.task_list_cache),
-            ListTaskListsTool(self.tasks_service, self.task_list_cache),
+            CreateTaskTool(self.google_service),
+            ListTasksTool(self.google_service),
+            DeleteTaskTool(self.google_service),
+            CompleteTaskTool(self.google_service),
+            ReopenTaskTool(self.google_service),
+            UpdateTaskTool(self.google_service),
+            CreateTaskListTool(self.google_service, self.task_list_cache),
+            ListTaskListsTool(self.google_service, self.task_list_cache),
         ]
 
     def system_prompt(self):

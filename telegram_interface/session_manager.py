@@ -2,15 +2,17 @@ import json
 import time
 from typing import Optional
 
-from google_auth_oauthlib.flow import Flow
+import google.auth.exceptions
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from langchain_core.globals import set_debug
 
 from google_agent.agent import GoogleAgent
 from google_agent.shared.llm_models import LLM_FLASH
-from google_client.user_client import UserClient
-from .auth import AuthManager
+from google_client.auth import GoogleOAuthManager
+from google_client.api_service import APIServiceLayer
 
+from .user_tokens_db import UserTokensDB
 from .config import Config
 
 
@@ -67,10 +69,26 @@ class UserSession:
 
 
 class SessionManager:
-    def __init__(self) -> None:
+    def __init__(self, redirect_uri: str) -> None:
         self.sessions: dict[int, UserSession] = {}
-        self.auth_manager = AuthManager()
+        self.auth_manager = GoogleOAuthManager(self._get_client_secret(), redirect_uri=redirect_uri)
+        self.user_tokens_db = UserTokensDB()
         self.auth_flows: dict[str, int] = {}
+
+        set_debug(Config.DEBUG)
+
+    def _get_client_secret(self) -> dict:
+        with open(Config.CREDS_PATH, 'r') as f:
+            return json.load(f)
+
+    def is_user_authenticated(self, telegram_id: int) -> bool:
+        if user_token := self.user_tokens_db.get_user_token(telegram_id):
+            try:
+                self.auth_manager.refresh_user_token(user_token)
+                return True
+            except google.auth.exceptions.RefreshError:
+                return False
+        return False
 
     def get_session(self, telegram_id: int) -> UserSession:
         if telegram_id in self.sessions:
@@ -87,28 +105,21 @@ class SessionManager:
         return session
 
     def create_agent(self, telegram_id: int) -> Optional[GoogleAgent]:
-        if not self.auth_manager.user_authenticated(telegram_id):
-            return None
-
-        google_token = self.auth_manager.user_tokens_db.get_user_token(
-            telegram_id)
-
-        if Config.CREDS_PATH is None:
-            raise ValueError("Environment Variable CREDS_PATH not set")
-
-        with open(Config.CREDS_PATH, 'r') as f:
-            creds_data = json.loads(f.read())
-
-        google_client = UserClient.from_credentials_info(
-            creds_data, google_token, scopes=Config.OAUTH_SCOPES)
-
-        agent = GoogleAgent(
-            google_service=google_client[0],
-            llm=LLM_FLASH,
-            print_steps=Config.PRINT_STEPS
-        )
+        if user_token := self.user_tokens_db.get_user_token(telegram_id):
+            timezone = self.user_tokens_db.get_timezone(telegram_id)
+            try:
+                google_service = APIServiceLayer(user_token, timezone)
+                self.user_tokens_db.update_token(telegram_id, google_service.refresh_token())   # Will raise error if token invalid
+                return GoogleAgent(
+                    google_service=google_service,
+                    llm=LLM_FLASH,
+                    print_steps=Config.PRINT_STEPS
+                )
+            except google.auth.exceptions.RefreshError:
+                self.user_tokens_db.delete_token(telegram_id)
+                return None
         
-        return agent
+        return None
 
     def save_session_to_disk(self, telegram_id: int) -> bool:
         session = self.sessions.get(telegram_id)

@@ -34,6 +34,10 @@ class OrganizationTool(BaseTool):
         response = self.organization_agent.execute([HumanMessage(task_description)])
         return response.messages[-1].content
 
+    async def _arun(self, task_description: str) -> str:
+        response = await self.organization_agent.aexecute([HumanMessage(task_description)])
+        return response.messages[-1].content
+
 
 class SearchAndRetrievalTool(BaseTool):
     name: str = "search_and_retrieval_agent_tool"
@@ -58,6 +62,10 @@ class SearchAndRetrievalTool(BaseTool):
         response = self.search_and_retrieval_agent.execute([HumanMessage(task_description)])
         return response.messages[-1].content
 
+    async def _arun(self, task_description: str) -> str:
+        response = await self.search_and_retrieval_agent.aexecute([HumanMessage(task_description)])
+        return response.messages[-1].content
+
 
 class WriterTool(BaseTool):
     name: str = "writer_agent_tool"
@@ -78,4 +86,8 @@ class WriterTool(BaseTool):
 
     def _run(self, task_description: str) -> str:
         response = self.writer_agent.execute([HumanMessage(task_description)])
+        return response.messages[-1].content
+
+    async def _arun(self, task_description: str) -> str:
+        response = await self.writer_agent.aexecute([HumanMessage(task_description)])
         return response.messages[-1].content

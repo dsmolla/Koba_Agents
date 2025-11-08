@@ -11,9 +11,9 @@ class OrganizationAgent(BaseDriveAgent):
 
     def _get_tools(self):
         return [
-            MoveFileTool(self.drive_service),
-            RenameFileTool(self.drive_service),
-            DeleteFileTool(self.drive_service),
+            MoveFileTool(self.google_service),
+            RenameFileTool(self.google_service),
+            DeleteFileTool(self.google_service),
         ]
 
     def system_prompt(self):

@@ -1,6 +1,6 @@
 from typing import Optional, List
 
-from google_client.services.gmail.api_service import GmailApiService
+from google_client.api_service import APIServiceLayer
 from langchain.tools import BaseTool
 from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
@@ -23,10 +23,10 @@ class SendEmailTool(BaseTool):
     description: str = "Send an email through Gmail to one or more recipients"
     args_schema: ArgsSchema = WriteEmailInput
 
-    gmail_service: GmailApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, gmail_service: GmailApiService, ):
-        super().__init__(gmail_service=gmail_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(
             self,
@@ -41,7 +41,39 @@ class SendEmailTool(BaseTool):
 
             print(attachment_paths)
 
-            email = self.gmail_service.send_email(
+            email = self.google_service.gmail.send_email(
+                to=to,
+                subject=subject,
+                body_text=body_text,
+                cc=cc,
+                bcc=bcc,
+                attachment_paths=attachment_paths,
+            )
+            return ToolResponse(
+                status="success",
+                message=f"Email sent successfully. message_id: {email.message_id}, thread_id: {email.thread_id}",
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to send writer: {e}"
+            )
+
+    async def _arun(
+            self,
+            to: List[str],
+            subject: Optional[str] = None,
+            body_text: Optional[str] = None,
+            cc: Optional[List[str]] = None,
+            bcc: Optional[List[str]] = None,
+            attachment_paths: Optional[List[str]] = None
+    ) -> ToolResponse:
+        try:
+
+            print(attachment_paths)
+
+            email = await self.google_service.async_gmail.send_email(
                 to=to,
                 subject=subject,
                 body_text=body_text,
@@ -66,10 +98,10 @@ class DraftEmailTool(BaseTool):
     description: str = "Create an email draft in Gmail"
     args_schema: ArgsSchema = WriteEmailInput
 
-    gmail_service: GmailApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, gmail_service: GmailApiService, ):
-        super().__init__(gmail_service=gmail_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(
             self,
@@ -83,7 +115,39 @@ class DraftEmailTool(BaseTool):
     ) -> ToolResponse:
         try:
 
-            draft = self.gmail_service.create_draft(
+            draft = self.google_service.gmail.create_draft(
+                to=to,
+                subject=subject,
+                body_text=body_text,
+                body_html=body_html,
+                cc=cc,
+                bcc=bcc,
+                attachment_paths=attachment_paths,
+            )
+            return ToolResponse(
+                status="success",
+                message=f"Draft created successfully. message_id: {draft.message_id}, thread_id: {draft.thread_id}",
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to create draft: {e}",
+            )
+
+    async def _arun(
+            self,
+            to: List[str],
+            subject: Optional[str] = None,
+            body_text: Optional[str] = None,
+            body_html: Optional[str] = None,
+            cc: Optional[List[str]] = None,
+            bcc: Optional[List[str]] = None,
+            attachment_paths: Optional[List[str]] = None
+    ) -> ToolResponse:
+        try:
+
+            draft = await self.google_service.async_gmail.create_draft(
                 to=to,
                 subject=subject,
                 body_text=body_text,
@@ -115,10 +179,10 @@ class ReplyEmailTool(BaseTool):
     description: str = "Reply to an existing writer message"
     args_schema: ArgsSchema = ReplyEmailInput
 
-    gmail_service: GmailApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, gmail_service: GmailApiService, ):
-        super().__init__(gmail_service=gmail_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(
             self,
@@ -128,7 +192,31 @@ class ReplyEmailTool(BaseTool):
     ) -> ToolResponse:
         try:
 
-            reply = self.gmail_service.reply(
+            reply = self.google_service.gmail.reply(
+                original_email=message_id,
+                body_text=body_text,
+                attachment_paths=attachment_paths,
+            )
+            return ToolResponse(
+                status="success",
+                message=f"Reply sent successfully. message_id: {reply.message_id}, thread_id: {reply.thread_id}",
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to send reply: {e}"
+            )
+
+    async def _arun(
+            self,
+            message_id: str,
+            body_text: Optional[str] = None,
+            attachment_paths: Optional[List[str]] = None
+    ) -> ToolResponse:
+        try:
+
+            reply = await self.google_service.async_gmail.reply(
                 original_email=message_id,
                 body_text=body_text,
                 attachment_paths=attachment_paths,
@@ -156,10 +244,10 @@ class ForwardEmailTool(BaseTool):
     description: str = "Forward an existing email message to one or more recipients"
     args_schema: ArgsSchema = ForwardEmailInput
 
-    gmail_service: GmailApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, gmail_service: GmailApiService, ):
-        super().__init__(gmail_service=gmail_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(
             self,
@@ -168,7 +256,31 @@ class ForwardEmailTool(BaseTool):
             include_attachments: Optional[bool] = True
     ) -> ToolResponse:
         try:
-            forward = self.gmail_service.forward(
+            forward = self.google_service.gmail.forward(
+                original_email=message_id,
+                to=to,
+                include_attachments=include_attachments
+            )
+            return ToolResponse(
+                status="success",
+                message=f"Email forwarded successfully. message_id: {forward.message_id}, thread_id: {forward.thread_id}",
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to forward writer: {e}"
+            )
+
+    async def _arun(
+            self,
+            message_id: str,
+            to: List[str],
+            include_attachments: Optional[bool] = True
+    ) -> ToolResponse:
+        try:
+
+            forward = await self.google_service.async_gmail.forward(
                 original_email=message_id,
                 to=to,
                 include_attachments=include_attachments

@@ -1,6 +1,6 @@
 from typing import Optional, Literal
 
-from google_client.services.drive.api_service import DriveApiService
+from google_client.api_service import APIServiceLayer
 from google_client.services.drive.types import DriveFolder
 from langchain.tools.base import BaseTool
 from langchain_core.tools import ArgsSchema
@@ -22,10 +22,10 @@ class UploadFileTool(BaseTool):
     description: str = "Upload a file to Google Drive"
     args_schema: ArgsSchema = UploadFileInput
 
-    drive_service: DriveApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, drive_service: DriveApiService):
-        super().__init__(drive_service=drive_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(
             self,
@@ -35,7 +35,34 @@ class UploadFileTool(BaseTool):
             description: Optional[str] = None
     ) -> ToolResponse:
         try:
-            file = self.drive_service.upload_file(
+            file = self.google_service.drive.upload_file(
+                file_path=file_path,
+                name=name,
+                parent_folder_id=parent_folder_id,
+                description=description
+            )
+
+            return ToolResponse(
+                status="success",
+                message=f"File uploaded successfully. file_id: {file.file_id}, name: {file.name}"
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to upload file: {str(e)}"
+            )
+
+    async def _arun(
+            self,
+            file_path: str,
+            name: Optional[str] = None,
+            parent_folder_id: Optional[str] = None,
+            description: Optional[str] = None
+    ) -> ToolResponse:
+        try:
+            service = self.google_service.async_drive
+            file = await service.upload_file(
                 file_path=file_path,
                 name=name,
                 parent_folder_id=parent_folder_id,
@@ -65,10 +92,10 @@ class CreateFolderTool(BaseTool):
     description: str = "Create a new folder in Google Drive"
     args_schema: ArgsSchema = CreateFolderInput
 
-    drive_service: DriveApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, drive_service: DriveApiService):
-        super().__init__(drive_service=drive_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(
             self,
@@ -79,14 +106,48 @@ class CreateFolderTool(BaseTool):
         try:
             parent_folder = None
             if parent_folder_id:
-                parent_folder = self.drive_service.get(parent_folder_id)
+                parent_folder = self.google_service.drive.get(parent_folder_id)
                 if not isinstance(parent_folder, DriveFolder):
                     raise ToolException(
                         tool_name=self.name,
                         message=f"Parent ID {parent_folder_id} is not a folder"
                     )
 
-            folder = self.drive_service.create_folder(
+            folder = self.google_service.drive.create_folder(
+                name=name,
+                parent_folder=parent_folder,
+                description=description
+            )
+
+            return ToolResponse(
+                status="success",
+                message=f"Folder created successfully. folder_id: {folder.folder_id}, name: {folder.name}"
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to create folder: {str(e)}"
+            )
+
+    async def _arun(
+            self,
+            name: str,
+            parent_folder_id: Optional[str] = None,
+            description: Optional[str] = None
+    ) -> ToolResponse:
+        try:
+            service = self.google_service.async_drive
+            parent_folder = None
+            if parent_folder_id:
+                parent_folder = await service.get(parent_folder_id)
+                if not isinstance(parent_folder, DriveFolder):
+                    raise ToolException(
+                        tool_name=self.name,
+                        message=f"Parent ID {parent_folder_id} is not a folder"
+                    )
+
+            folder = await service.create_folder(
                 name=name,
                 parent_folder=parent_folder,
                 description=description
@@ -120,10 +181,10 @@ class ShareFileTool(BaseTool):
     description: str = "Share a file or folder with a user by email"
     args_schema: ArgsSchema = ShareFileInput
 
-    drive_service: DriveApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, drive_service: DriveApiService):
-        super().__init__(drive_service=drive_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(
             self,
@@ -134,8 +195,8 @@ class ShareFileTool(BaseTool):
             message: Optional[str] = None
     ) -> ToolResponse:
         try:
-            item = self.drive_service.get(file_id)
-            permission = self.drive_service.share(
+            item = self.google_service.drive.get(file_id)
+            permission = self.google_service.drive.share(
                 item=item,
                 email=email,
                 role=role,

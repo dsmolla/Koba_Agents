@@ -1,4 +1,4 @@
-from google_client.services.drive.api_service import DriveApiService
+from google_client.api_service import APIServiceLayer
 from google_client.services.drive.types import DriveFolder
 from langchain.tools.base import BaseTool
 from langchain_core.tools import ArgsSchema
@@ -18,15 +18,15 @@ class MoveFileTool(BaseTool):
     description: str = "Move a file or folder to a different folder"
     args_schema: ArgsSchema = MoveFileInput
 
-    drive_service: DriveApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, drive_service: DriveApiService):
-        super().__init__(drive_service=drive_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(self, file_id: str, target_folder_id: str) -> ToolResponse:
         try:
-            item = self.drive_service.get(file_id)
-            target_folder = self.drive_service.get(target_folder_id)
+            item = self.google_service.drive.get(file_id)
+            target_folder = self.google_service.drive.get(target_folder_id)
 
             if not isinstance(target_folder, DriveFolder):
                 raise ToolException(
@@ -34,7 +34,36 @@ class MoveFileTool(BaseTool):
                     message=f"Target {target_folder_id} is not a folder"
                 )
 
-            updated_item = self.drive_service.move(
+            updated_item = self.google_service.drive.move(
+                item=item,
+                target_folder=target_folder,
+                remove_from_current_parents=True
+            )
+
+            return ToolResponse(
+                status="success",
+                message=f"{updated_item.name} moved successfully to folder {target_folder.name}"
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to move item: {str(e)}"
+            )
+
+    async def _arun(self, file_id: str, target_folder_id: str) -> ToolResponse:
+        try:
+            service = self.google_service.async_drive
+            item = await service.get(file_id)
+            target_folder = await service.get(target_folder_id)
+
+            if not isinstance(target_folder, DriveFolder):
+                raise ToolException(
+                    tool_name=self.name,
+                    message=f"Target {target_folder_id} is not a folder"
+                )
+
+            updated_item = await service.move(
                 item=item,
                 target_folder=target_folder,
                 remove_from_current_parents=True
@@ -62,15 +91,32 @@ class RenameFileTool(BaseTool):
     description: str = "Rename a file or folder"
     args_schema: ArgsSchema = RenameFileInput
 
-    drive_service: DriveApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, drive_service: DriveApiService):
-        super().__init__(drive_service=drive_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(self, file_id: str, new_name: str) -> ToolResponse:
         try:
-            item = self.drive_service.get(file_id)
-            updated_item = self.drive_service.rename(item=item, name=new_name)
+            item = self.google_service.drive.get(file_id)
+            updated_item = self.google_service.drive.rename(item=item, name=new_name)
+
+            return ToolResponse(
+                status="success",
+                message=f"Item renamed successfully to '{updated_item.name}'"
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to rename item: {str(e)}"
+            )
+
+    async def _arun(self, file_id: str, new_name: str) -> ToolResponse:
+        try:
+            service = self.google_service.async_drive
+            item = await service.get(file_id)
+            updated_item = await service.rename(item=item, name=new_name)
 
             return ToolResponse(
                 status="success",
@@ -93,15 +139,32 @@ class DeleteFileTool(BaseTool):
     description: str = "Delete a file or folder from Google Drive permanently"
     args_schema: ArgsSchema = DeleteFileInput
 
-    drive_service: DriveApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, drive_service: DriveApiService):
-        super().__init__(drive_service=drive_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(self, file_id: str) -> ToolResponse:
         try:
-            item = self.drive_service.get(file_id)
-            self.drive_service.delete(item)
+            item = self.google_service.drive.get(file_id)
+            self.google_service.drive.delete(item)
+
+            return ToolResponse(
+                status="success",
+                message=f"Item deleted successfully. file_id: {file_id}"
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to delete item: {str(e)}"
+            )
+
+    async def _arun(self, file_id: str) -> ToolResponse:
+        try:
+            service = self.google_service.async_drive
+            item = await service.get(file_id)
+            await service.delete(item)
 
             return ToolResponse(
                 status="success",

@@ -2,7 +2,7 @@ from datetime import datetime
 from textwrap import dedent
 from typing import Optional
 
-from google_client.services.gmail.api_service import GmailApiService
+from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
@@ -17,21 +17,21 @@ class SearchAndRetrievalAgent(BaseGmailAgent):
 
     def __init__(
             self,
-            gmail_service: GmailApiService,
+            google_service: APIServiceLayer,
             llm: BaseChatModel,
             email_cache: EmailCache,
             config: Optional[RunnableConfig] = None,
             print_steps: Optional[bool] = False,
     ):
         self.email_cache = email_cache
-        super().__init__(gmail_service, llm, config, print_steps)
+        super().__init__(google_service, llm, config, print_steps)
 
     def _get_tools(self):
         return [
-            GetEmailTool(self.gmail_service, self.email_cache),
-            SearchEmailsTool(self.gmail_service, self.email_cache),
-            DownloadAttachmentTool(self.gmail_service, self.email_cache),
-            ListUserLabelsTool(self.gmail_service)
+            GetEmailTool(self.google_service, self.email_cache),
+            SearchEmailsTool(self.google_service, self.email_cache),
+            DownloadAttachmentTool(self.google_service, self.email_cache),
+            ListUserLabelsTool(self.google_service)
         ]
 
     def system_prompt(self):

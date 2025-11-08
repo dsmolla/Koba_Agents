@@ -1,9 +1,11 @@
 import sys
+
 import logging
-import asyncio
 from telegram_interface.bot import GoogleAgentBot
 from threading import Thread
 from flask import Flask, request
+
+from telegram_interface.config import Config
 
 # Configure logging
 logging.basicConfig(
@@ -12,8 +14,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 app = Flask(__name__)
-bot = GoogleAgentBot()
+bot = GoogleAgentBot('http://localhost:8080/callback')
 
 @app.route('/callback')
 async def oauth2_callback():
@@ -31,7 +34,8 @@ async def oauth2_callback():
     if not telegram_id:
         return "Invalid state parameter", 400
 
-    if bot.session_manager.auth_manager.complete_auth(state, telegram_id, code):
+    if token := bot.session_manager.auth_manager.complete_auth_flow(code, Config.OAUTH_SCOPES):
+        bot.session_manager.user_tokens_db.add_user(telegram_id, token)
         await bot.send_message(telegram_id, "Authentication successful! You can now use the bot.")
         return "Authentication successful! You can close this window."
     else:
@@ -48,14 +52,9 @@ def main():
         flask_thread.start()
         bot.run()
     except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
         sys.exit(0)
-    except Exception as e:
-        logger.error(f"Fatal error: {e}", exc_info=True)
-        sys.exit(1)
     finally:
-        logger.info("Shutting down")
-        bot.session_manager.auth_manager.user_tokens_db.close()
+        bot.session_manager.user_tokens_db.close()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,4 @@
 import os
-import re
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -25,9 +24,9 @@ async def format_markdown_for_telegram(text: str) -> str:
     
 
 class GoogleAgentBot:
-    def __init__(self):
+    def __init__(self, auth_redirect_uri: str):
         self.application = Application.builder().token(Config.TELEGRAM_BOT_TOKEN).build()
-        self.session_manager = SessionManager()
+        self.session_manager = SessionManager(auth_redirect_uri)
         self.auth_flows = {}
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -36,33 +35,30 @@ class GoogleAgentBot:
 
     async def login(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
-        if self.session_manager.auth_manager.user_authenticated(telegram_id):
+        if self.session_manager.is_user_authenticated(telegram_id):
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(ALREADY_AUTHENTICATED_MESSAGE))
             return
 
         try:
             state = os.urandom(16).hex()
             self.session_manager.store_auth_flow(state, telegram_id)
-            auth_url = self.session_manager.auth_manager.generate_auth_url(state)
-            await update.message.reply_text(await format_markdown_for_telegram(LOGIN_MESSAGE.format(link=auth_url)))
+            auth_url = self.session_manager.auth_manager.generate_auth_url(Config.OAUTH_SCOPES, state)
+            await update.message.reply_markdown_v2(await format_markdown_for_telegram(LOGIN_MESSAGE.format(link=auth_url)))
         except Exception:
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(AUTH_FLOW_ERROR_MESSAGE))
 
     async def status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
-        if self.session_manager.auth_manager.user_authenticated(telegram_id):
+        if self.session_manager.is_user_authenticated(telegram_id):
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(STATUS_AUTHENTICATED_MESSAGE))
         else:
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(STATUS_NOT_AUTHENTICATED_MESSAGE))
 
     async def logout(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
-        if not self.session_manager.auth_manager.user_authenticated(telegram_id):
-            await update.message.reply_markdown_v2(await format_markdown_for_telegram(NOT_LOGGED_IN_MESSAGE))
-        else:
-            self.session_manager.auth_manager.invalidate_token(telegram_id)
-            self.session_manager.clear_session(telegram_id)
-            await update.message.reply_markdown_v2(await format_markdown_for_telegram(LOGGED_OUT_MESSAGE))
+        self.session_manager.user_tokens_db.delete_token(telegram_id)
+        self.session_manager.clear_session(telegram_id)
+        await update.message.reply_markdown_v2(await format_markdown_for_telegram(LOGGED_OUT_MESSAGE))
 
     async def clear(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
@@ -75,19 +71,19 @@ class GoogleAgentBot:
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
         user_message = update.message.text
+        session = self.session_manager.get_session(telegram_id)
 
-        if (session := self.session_manager.get_session(telegram_id)) is None or session.agent is None:
+        if session.agent is None:
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(NOT_LOGGED_IN_MESSAGE))
             return
 
         session.add_messages([HumanMessage(content=user_message)])
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
         try:
-            response= session.agent.execute(session.messages)
+            response = await session.agent.aexecute(session.messages)
             session.add_messages(response.messages)
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(response.messages[-1].content))
-        except Exception as e:
-            raise e
+        except Exception:
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_PROCESSING_MESSAGE))
 
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

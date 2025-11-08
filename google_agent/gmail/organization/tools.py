@@ -1,6 +1,7 @@
 from textwrap import dedent
+from typing import Optional
 
-from google_client.services.gmail.api_service import GmailApiService
+from google_client.api_service import APIServiceLayer
 from langchain.tools.base import BaseTool
 from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
@@ -33,14 +34,33 @@ class ApplyLabelTool(BaseTool):
     description: str = "Mark an email with a specific label in Gmail."
     args_schema: ArgsSchema = ApplyLabelInput
 
-    gmail_service: GmailApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, gmail_service: GmailApiService):
-        super().__init__(gmail_service=gmail_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(self, message_id: str, label_id: str) -> ToolResponse:
         try:
-            if self.gmail_service.add_label(email=message_id, labels=[label_id]):
+            if self.google_service.gmail.add_label(email=message_id, labels=[label_id]):
+                return ToolResponse(
+                    status="success",
+                    message=f"Label ({label_id}) applied to email with message_id: {message_id}",
+                )
+
+            return ToolResponse(
+                status="error",
+                message="Unable to apply label due to internal error. Try again."
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Unable to apply label due to {e}",
+            )
+
+    async def _arun(self, message_id: str, label_id: str) -> ToolResponse:
+        try:
+            if await self.google_service.async_gmail.add_label(email=message_id, labels=[label_id]):
                 return ToolResponse(
                     status="success",
                     message=f"Label ({label_id}) applied to email with message_id: {message_id}",
@@ -82,14 +102,33 @@ class RemoveLabelTool(BaseTool):
     description: str = "Remove a label from an email."
     args_schema: ArgsSchema = RemoveLabelInput
 
-    gmail_service: GmailApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, gmail_service: GmailApiService):
-        super().__init__(gmail_service=gmail_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(self, message_id: str, label_id: str) -> ToolResponse:
         try:
-            if self.gmail_service.remove_label(email=message_id, labels=[label_id]):
+            if self.google_service.gmail.remove_label(email=message_id, labels=[label_id]):
+                return ToolResponse(
+                    status="success",
+                    message=f"Label {label_id} removed from email with message_id: {message_id}",
+                )
+
+            return ToolResponse(
+                status="error",
+                message="Unable to remove label due to internal error. Try again."
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Unable to remove label due to {e}",
+            )
+
+    async def _arun(self, message_id: str, label_id: str) -> ToolResponse:
+        try:
+            if await self.google_service.async_gmail.remove_label(email=message_id, labels=[label_id]):
                 return ToolResponse(
                     status="success",
                     message=f"Label {label_id} removed from email with message_id: {message_id}",
@@ -116,15 +155,29 @@ class CreateLabelTool(BaseTool):
     description: str = "Create a new user label in Gmail"
     args_schema: ArgsSchema = CreateLabelInput
 
-    gmail_service: GmailApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, gmail_service: GmailApiService):
-        super().__init__(gmail_service=gmail_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(self, name: str) -> ToolResponse:
         try:
 
-            label = self.gmail_service.create_label(name=name)
+            label = self.google_service.gmail.create_label(name=name)
+            return ToolResponse(
+                status="success",
+                message=f"Created label {label.name} with label_id {label.id}",
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Unable to create label {e}",
+            )
+
+    async def _arun(self, name: str) -> ToolResponse:
+        try:
+            label = await self.google_service.async_gmail.create_label(name=name)
             return ToolResponse(
                 status="success",
                 message=f"Created label {label.name} with label_id {label.id}",
@@ -146,15 +199,34 @@ class DeleteLabelTool(BaseTool):
     description: str = "Delete a user-created label in Gmail"
     args_schema: ArgsSchema = DeleteLabelInput
 
-    gmail_service: GmailApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, gmail_service: GmailApiService):
-        super().__init__(gmail_service=gmail_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(self, label_id: str) -> ToolResponse:
         try:
 
-            if self.gmail_service.delete_label(label=label_id):
+            if self.google_service.gmail.delete_label(label=label_id):
+                return ToolResponse(
+                    status="success",
+                    message=f"Label with label_id {label_id} deleted",
+                )
+
+            return ToolResponse(
+                status="error",
+                message="Unable to delete label due to internal error. Try again.",
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Unable to delete label: {e}"
+            )
+
+    async def _arun(self, label_id: str) -> ToolResponse:
+        try:
+            if await self.google_service.async_gmail.delete_label(label=label_id):
                 return ToolResponse(
                     status="success",
                     message=f"Label with label_id {label_id} deleted",
@@ -182,15 +254,32 @@ class RenameLabelTool(BaseTool):
     description: str = "Rename a user-created label in Gmail"
     args_schema: ArgsSchema = RenameLabelInput
 
-    gmail_service: GmailApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, gmail_service: GmailApiService):
-        super().__init__(gmail_service=gmail_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(self, label_id: str, new_name: str) -> ToolResponse:
         try:
 
-            label = self.gmail_service.update_label(
+            label = self.google_service.gmail.update_label(
+                label=label_id,
+                new_name=new_name,
+            )
+            return ToolResponse(
+                status="success",
+                message=f"Label with label_id {label.id} renamed to {new_name}",
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Unable to rename label: {e}",
+            )
+
+    async def _arun(self, label_id: str, new_name: str) -> ToolResponse:
+        try:
+            label = await self.google_service.async_gmail.update_label(
                 label=label_id,
                 new_name=new_name,
             )
@@ -215,16 +304,36 @@ class DeleteEmailTool(BaseTool):
     description: str = "Delete an email message from Gmail. Email is moved to Trash by default"
     args_schema: ArgsSchema = DeleteEmailInput
 
-    gmail_service: GmailApiService
+    google_service: APIServiceLayer
 
-    def __init__(self, gmail_service: GmailApiService, ):
-        super().__init__(gmail_service=gmail_service)
+    def __init__(self, google_service: APIServiceLayer):
+        super().__init__(google_service=google_service)
 
     def _run(self, message_id: str) -> ToolResponse:
         """Delete an email"""
         try:
 
-            if self.gmail_service.delete_email(email=message_id, permanent=False):
+            if self.google_service.gmail.delete_email(email=message_id, permanent=False):
+                return ToolResponse(
+                    status="success",
+                    message=f"Email with message_id {message_id} deleted",
+                )
+
+            return ToolResponse(
+                status="error",
+                message=f"Unable to delete email message {message_id}. Try again",
+            )
+
+        except Exception as e:
+            raise ToolException(
+                tool_name=self.name,
+                message=f"Failed to delete email: {e}"
+            )
+
+    async def _arun(self, message_id: str) -> ToolResponse:
+        """Delete an email"""
+        try:
+            if await self.google_service.async_gmail.delete_email(email=message_id, permanent=False):
                 return ToolResponse(
                     status="success",
                     message=f"Email with message_id {message_id} deleted",

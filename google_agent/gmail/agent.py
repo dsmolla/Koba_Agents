@@ -1,7 +1,7 @@
 from datetime import datetime
 from textwrap import dedent
 
-from google_client.services.gmail import GmailApiService
+from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
@@ -21,21 +21,27 @@ class GmailAgent(BaseGmailAgent):
 
     def __init__(
             self,
-            gmail_service: GmailApiService,
+            google_service: APIServiceLayer,
             llm: BaseChatModel,
             config: RunnableConfig = None,
             print_steps: bool = False,
     ):
         self.email_cache = EmailCache()
-        super().__init__(gmail_service, llm, config, print_steps)
+        super().__init__(google_service, llm, config, print_steps)
 
     def _get_tools(self):
-        organization_agent = OrganizationAgent(self.gmail_service, LLM_FLASH, self.config, self.print_steps)
-        search_and_retrieval_agent = SearchAndRetrievalAgent(self.gmail_service, LLM_FLASH, self.email_cache,
-                                                             self.config, self.print_steps)
-        summary_and_analytics_agent = SummaryAndAnalyticsAgent(self.gmail_service, LLM_FLASH, self.email_cache,
-                                                               self.config, self.print_steps)
-        writer_agent = WriterAgent(self.gmail_service, LLM_LITE, self.config, self.print_steps)
+        organization_agent = OrganizationAgent(
+            self.google_service, LLM_FLASH, self.config, self.print_steps
+        )
+        search_and_retrieval_agent = SearchAndRetrievalAgent(
+            self.google_service, LLM_FLASH, self.email_cache, self.config, self.print_steps
+        )
+        summary_and_analytics_agent = SummaryAndAnalyticsAgent(
+            self.google_service, LLM_FLASH, self.email_cache, self.config, self.print_steps
+        )
+        writer_agent = WriterAgent(
+            self.google_service, LLM_LITE, self.config, self.print_steps
+        )
 
         return [
             OrganizationTool(organization_agent),

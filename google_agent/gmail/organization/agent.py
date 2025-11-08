@@ -2,7 +2,7 @@ from datetime import datetime
 from textwrap import dedent
 from typing import Optional
 
-from google_client.services.gmail.api_service import GmailApiService
+from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
@@ -16,21 +16,21 @@ class OrganizationAgent(BaseGmailAgent):
 
     def __init__(
             self,
-            gmail_service: GmailApiService,
+            google_service: APIServiceLayer,
             llm: BaseChatModel,
             config: Optional[RunnableConfig] = None,
             print_steps: Optional[bool] = False,
     ):
-        super().__init__(gmail_service, llm, config, print_steps)
+        super().__init__(google_service, llm, config, print_steps)
 
     def _get_tools(self):
         return [
-            ApplyLabelTool(self.gmail_service),
-            RemoveLabelTool(self.gmail_service),
-            CreateLabelTool(self.gmail_service),
-            DeleteLabelTool(self.gmail_service),
-            RenameLabelTool(self.gmail_service),
-            DeleteEmailTool(self.gmail_service)
+            ApplyLabelTool(self.google_service),
+            RemoveLabelTool(self.google_service),
+            CreateLabelTool(self.google_service),
+            DeleteLabelTool(self.google_service),
+            RenameLabelTool(self.google_service),
+            DeleteEmailTool(self.google_service)
         ]
 
     def system_prompt(self):
