@@ -106,7 +106,7 @@ class SessionManager:
 
     def create_agent(self, telegram_id: int) -> Optional[GoogleAgent]:
         if user_token := self.user_tokens_db.get_user_token(telegram_id):
-            timezone = self.user_tokens_db.get_timezone(telegram_id)
+            timezone = self.user_tokens_db.get_timezone(telegram_id) or 'UTC'
             try:
                 google_service = APIServiceLayer(user_token, timezone)
                 self.user_tokens_db.update_token(telegram_id, google_service.refresh_token())   # Will raise error if token invalid

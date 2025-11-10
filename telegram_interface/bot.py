@@ -2,13 +2,14 @@ import os
 
 import telegramify_markdown
 from langchain_core.messages import HumanMessage
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ChatAction
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
     ContextTypes,
+    CallbackQueryHandler,
     filters
 )
 
@@ -71,6 +72,58 @@ class GoogleAgentBot:
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_markdown_v2(await format_markdown_for_telegram(HELP_MESSAGE))
 
+    async def timezone(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        telegram_id = update.effective_user.id
+
+        if not self.session_manager.is_user_authenticated(telegram_id):
+            await update.message.reply_markdown_v2(await format_markdown_for_telegram(TIMEZONE_NOT_AUTHENTICATED_MESSAGE))
+            return
+
+        current_tz = self.session_manager.user_tokens_db.get_timezone(telegram_id)
+        if not current_tz:
+            current_tz = "Not set"
+
+        # Define common timezones with inline keyboard
+        keyboard = [
+            [InlineKeyboardButton("🇺🇸 America/New_York (EST/EDT)", callback_data="America/New_York")],
+            [InlineKeyboardButton("🇺🇸 America/Chicago (CST/CDT)", callback_data="America/Chicago")],
+            [InlineKeyboardButton("🇺🇸 America/Denver (MST/MDT)", callback_data="America/Denver")],
+            [InlineKeyboardButton("🇺🇸 America/Los_Angeles (PST/PDT)", callback_data="America/Los_Angeles")],
+            [InlineKeyboardButton("🇬🇧 Europe/London (GMT/BST)", callback_data="Europe/London")],
+            [InlineKeyboardButton("🇫🇷 Europe/Paris (CET/CEST)", callback_data="Europe/Paris")],
+            [InlineKeyboardButton("🇩🇪 Europe/Berlin (CET/CEST)", callback_data="Europe/Berlin")],
+            [InlineKeyboardButton("🇯🇵 Asia/Tokyo (JST)", callback_data="Asia/Tokyo")],
+            [InlineKeyboardButton("🇨🇳 Asia/Shanghai (CST)", callback_data="Asia/Shanghai")],
+            [InlineKeyboardButton("🇮🇳 Asia/Kolkata (IST)", callback_data="Asia/Kolkata")],
+            [InlineKeyboardButton("🇦🇺 Australia/Sydney (AEDT/AEST)", callback_data="Australia/Sydney")],
+            [InlineKeyboardButton("🌍 UTC", callback_data="UTC")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_markdown_v2(
+            await format_markdown_for_telegram(TIMEZONE_PROMPT_MESSAGE.format(current_timezone=current_tz)),
+            reply_markup=reply_markup
+        )
+
+    async def handle_timezone_selection(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        query = update.callback_query
+        await query.answer()
+
+        telegram_id = update.effective_user.id
+        timezone = query.data
+
+        try:
+            self.session_manager.user_tokens_db.update_timezone(telegram_id, timezone)
+            await query.edit_message_text(
+                await format_markdown_for_telegram(TIMEZONE_UPDATED_MESSAGE.format(timezone=timezone)),
+                parse_mode='MarkdownV2'
+            )
+        except Exception:
+            await query.edit_message_text(
+                await format_markdown_for_telegram(TIMEZONE_ERROR_MESSAGE),
+                parse_mode='MarkdownV2'
+            )
+
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
         user_message = update.message.text
@@ -105,6 +158,8 @@ class GoogleAgentBot:
         self.application.add_handler(CommandHandler("logout", self.logout))
         self.application.add_handler(CommandHandler("clear", self.clear))
         self.application.add_handler(CommandHandler("help", self.help))
+        self.application.add_handler(CommandHandler("timezone", self.timezone))
+        self.application.add_handler(CallbackQueryHandler(self.handle_timezone_selection, pattern="^"))
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
 
         # self.application.add_error_handler(self.error_handler)

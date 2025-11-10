@@ -10,6 +10,7 @@ Use /login to begin the authentication process.
 📝 **Available Commands:**
 /start - Show this welcome message
 /login - Authenticate with Google
+/timezone - Set your timezone
 /status - Check your authentication status
 /clear - Clear conversation history
 /logout - Remove Google Authentication
@@ -58,6 +59,7 @@ HELP_MESSAGE = """
 **Commands:**
 /start - Show welcome message
 /login - Authenticate with Google
+/timezone - Set your timezone
 /status - Check authentication status
 /clear - Clear conversation history
 /logout - Remove Google Authentication
@@ -77,3 +79,17 @@ If you have any questions or need further assistance, just ask!
 """
 
 ERROR_PROCESSING_MESSAGE = "❌ Sorry, I encountered an error processing your request. Please try again or use /clear to start a fresh conversation."
+
+TIMEZONE_PROMPT_MESSAGE = """
+🌍 **Set Your Timezone**
+
+Please select your timezone from the options below. This helps me display calendar events and schedule tasks at the correct time for you.
+
+Your current timezone: {current_timezone}
+"""
+
+TIMEZONE_UPDATED_MESSAGE = "✅ Your timezone has been updated to **{timezone}**."
+
+TIMEZONE_ERROR_MESSAGE = "❌ There was an error updating your timezone. Please try again."
+
+TIMEZONE_NOT_AUTHENTICATED_MESSAGE = "❌ You need to authenticate first. Use /login to authenticate with your Google account."
