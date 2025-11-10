@@ -36,7 +36,7 @@ async def oauth2_callback():
 
     if token := bot.session_manager.auth_manager.complete_auth_flow(code, Config.OAUTH_SCOPES):
         bot.session_manager.user_tokens_db.add_user(telegram_id, token)
-        await bot.send_message(telegram_id, "Authentication successful! You can now use the bot.")
+        await bot.send_message(telegram_id, "Authentication successful! You can now use the bot's features. Use /timezone to set your timezone.")
         return "Authentication successful! You can close this window."
     else:
         return "Authentication failed. Please try again.", 400

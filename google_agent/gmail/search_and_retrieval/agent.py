@@ -9,6 +9,7 @@ from langchain_core.runnables import RunnableConfig
 from google_agent.gmail.shared.email_cache import EmailCache
 from .tools import GetEmailTool, SearchEmailsTool, ListUserLabelsTool, DownloadAttachmentTool
 from ..shared.base_agent import BaseGmailAgent
+from ...shared.tools import CurrentDateTimeTool
 
 
 class SearchAndRetrievalAgent(BaseGmailAgent):
@@ -28,6 +29,7 @@ class SearchAndRetrievalAgent(BaseGmailAgent):
 
     def _get_tools(self):
         return [
+            CurrentDateTimeTool(self.google_service.timezone),
             GetEmailTool(self.google_service, self.email_cache),
             SearchEmailsTool(self.google_service, self.email_cache),
             DownloadAttachmentTool(self.google_service, self.email_cache),
@@ -62,6 +64,7 @@ class SearchAndRetrievalAgent(BaseGmailAgent):
             * Always provide clear, organized results
 
             ## Context Awareness
-            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+            * Use the current_datetime_tool to get the current date and time when needed
+            
         """)
 

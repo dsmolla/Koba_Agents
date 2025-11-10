@@ -12,6 +12,7 @@ from google_agent.tasks.agent import TasksAgent
 from google_agent.tools import GmailTool, TasksTool, CalendarTool, DriveTool
 from .shared.base_agent import BaseAgent
 from .shared.llm_models import LLM_FLASH
+from .shared.tools import CurrentDateTimeTool
 
 
 class GoogleAgent(BaseAgent):
@@ -56,6 +57,7 @@ class GoogleAgent(BaseAgent):
         )
 
         return [
+            CurrentDateTimeTool(self.google_service.timezone),
             GmailTool(gmail_agent),
             TasksTool(tasks_agent),
             CalendarTool(calendar_agent),
@@ -119,8 +121,8 @@ class GoogleAgent(BaseAgent):
             * When collaborating, consider Drive sharing permissions
             
             ## Context Awareness
-            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
-            
+            * Use the current_datetime_tool to get the current date and time when needed
+                        
             # Examples
             
             ## Email-Only Operations

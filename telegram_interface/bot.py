@@ -1,5 +1,9 @@
 import os
+
+import telegramify_markdown
+from langchain_core.messages import HumanMessage
 from telegram import Update
+from telegram.constants import ChatAction
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -7,13 +11,10 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-from telegram.constants import ChatAction
-from langchain_core.messages import HumanMessage
-import telegramify_markdown
 
 from telegram_interface.config import Config
-from telegram_interface.session_manager import SessionManager
 from telegram_interface.messages import *
+from telegram_interface.session_manager import SessionManager
 
 
 async def format_markdown_for_telegram(text: str) -> str:
@@ -21,7 +22,7 @@ async def format_markdown_for_telegram(text: str) -> str:
     if len(formatted_text) > 0:
         return formatted_text[0].content
     return ""
-    
+
 
 class GoogleAgentBot:
     def __init__(self, auth_redirect_uri: str):
@@ -31,7 +32,8 @@ class GoogleAgentBot:
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_name = update.effective_user.first_name or 'there'
-        await update.message.reply_markdown_v2(await format_markdown_for_telegram(WELCOME_MESSAGE.format(name=user_name)))
+        await update.message.reply_markdown_v2(
+            await format_markdown_for_telegram(WELCOME_MESSAGE.format(name=user_name)))
 
     async def login(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
@@ -43,7 +45,8 @@ class GoogleAgentBot:
             state = os.urandom(16).hex()
             self.session_manager.store_auth_flow(state, telegram_id)
             auth_url = self.session_manager.auth_manager.generate_auth_url(Config.OAUTH_SCOPES, state)
-            await update.message.reply_markdown_v2(await format_markdown_for_telegram(LOGIN_MESSAGE.format(link=auth_url)))
+            await update.message.reply_markdown_v2(
+                await format_markdown_for_telegram(LOGIN_MESSAGE.format(link=auth_url)))
         except Exception:
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(AUTH_FLOW_ERROR_MESSAGE))
 
@@ -109,6 +112,3 @@ class GoogleAgentBot:
         self.application.job_queue.run_repeating(self._cleanup_sessions, interval=300, first=300)
 
         self.application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-
-

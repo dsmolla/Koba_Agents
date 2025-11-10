@@ -1,15 +1,11 @@
-from datetime import datetime
 from textwrap import dedent
-from typing import Optional, Union
 
-from google_client.api_service import APIServiceLayer
-from google_client.services.calendar import CalendarApiService
-from google_client.services.calendar.async_api_service import AsyncCalendarApiService
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
-from .tools import *
 from google_agent.shared.base_agent import BaseAgent
+from .tools import *
+from ..shared.tools import CurrentDateTimeTool
 
 
 class CalendarAgent(BaseAgent):
@@ -28,6 +24,7 @@ class CalendarAgent(BaseAgent):
 
     def _get_tools(self):
         return [
+            CurrentDateTimeTool(self.google_service.timezone),
             ListCalendarsTool(self.google_service),
             CreateCalendarTool(self.google_service),
             DeleteCalendarTool(self.google_service),
@@ -67,7 +64,7 @@ class CalendarAgent(BaseAgent):
             * When listing events, organize them chronologically and include key details (time, title, location, attendees)
             
             ## Context Awareness
-            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+            * Use the current_datetime_tool to get the current date and time when needed
             
             ## Error Handling
             * If an event cannot be found, suggest alternative search criteria

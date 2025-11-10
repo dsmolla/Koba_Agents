@@ -13,6 +13,7 @@ from .shared.base_agent import BaseGmailAgent
 from .summary_and_analytics.agent import SummaryAndAnalyticsAgent
 from .tools import OrganizationTool, SearchAndRetrievalTool, SummaryAndAnalyticsTool, WriterTool
 from .writer.agent import WriterAgent
+from ..shared.tools import CurrentDateTimeTool
 
 
 class GmailAgent(BaseGmailAgent):
@@ -44,6 +45,7 @@ class GmailAgent(BaseGmailAgent):
         )
 
         return [
+            CurrentDateTimeTool(self.google_service.timezone),
             OrganizationTool(organization_agent),
             SearchAndRetrievalTool(search_and_retrieval_agent),
             SummaryAndAnalyticsTool(summary_and_analytics_agent),
@@ -81,7 +83,7 @@ class GmailAgent(BaseGmailAgent):
             * Always provide clear, organized results
 
             ## Context Awareness
-            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+            * Use the current_datetime_tool to get the current date and time when needed
 
             # Example
             

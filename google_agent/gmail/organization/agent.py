@@ -60,5 +60,6 @@ class OrganizationAgent(BaseGmailAgent):
             * Always provide clear, organized results
 
             ## Context Awareness
-            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+            * Use the current_datetime_tool to get the current date and time when needed
+            
         """)

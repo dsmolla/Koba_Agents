@@ -9,6 +9,7 @@ from google_agent.shared.base_agent import BaseAgent
 from .task_list_cache import TaskListCache
 from .tools import CreateTaskTool, ListTasksTool, DeleteTaskTool, CompleteTaskTool, ReopenTaskTool, UpdateTaskTool, \
     CreateTaskListTool, ListTaskListsTool
+from ..shared.tools import CurrentDateTimeTool
 
 
 class TasksAgent(BaseAgent):
@@ -28,6 +29,7 @@ class TasksAgent(BaseAgent):
 
     def _get_tools(self):
         return [
+            CurrentDateTimeTool(self.google_service.timezone),
             CreateTaskTool(self.google_service),
             ListTasksTool(self.google_service),
             DeleteTaskTool(self.google_service),
@@ -64,8 +66,8 @@ class TasksAgent(BaseAgent):
             * Always provide clear, organized results
 
             ## Context Awareness
-            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
-
+            * Use the current_datetime_tool to get the current date and time when needed
+            
             # Example
 
             User: create a task called "Buy groceries" due tomorrow

@@ -9,6 +9,7 @@ from langchain_core.runnables import RunnableConfig
 from google_agent.gmail.shared.email_cache import EmailCache
 from .tools import SummarizeEmailsTool, ExtractFromEmailTool, ClassifyEmailTool
 from ..shared.base_agent import BaseGmailAgent
+from ...shared.tools import CurrentDateTimeTool
 
 
 class SummaryAndAnalyticsAgent(BaseGmailAgent):
@@ -28,6 +29,7 @@ class SummaryAndAnalyticsAgent(BaseGmailAgent):
 
     def _get_tools(self):
         return [
+            CurrentDateTimeTool(self.google_service.timezone),
             SummarizeEmailsTool(self.google_service, self.email_cache),
             ExtractFromEmailTool(self.google_service, self.email_cache),
             ClassifyEmailTool(self.google_service, self.email_cache),
@@ -58,6 +60,6 @@ class SummaryAndAnalyticsAgent(BaseGmailAgent):
             * Always include message ids and thread ids in your responses
 
             ## Context Awareness
-            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
-
+            * Use the current_datetime_tool to get the current date and time when needed
+            
         """)

@@ -3,6 +3,7 @@ from textwrap import dedent
 
 from google_agent.drive.shared.base_agent import BaseDriveAgent
 from .tools import SearchFilesTool, GetFileTool, DownloadFileTool, ListFolderContentsTool, GetPermissionsTool
+from ...shared.tools import CurrentDateTimeTool
 
 
 class SearchAndRetrievalAgent(BaseDriveAgent):
@@ -11,6 +12,7 @@ class SearchAndRetrievalAgent(BaseDriveAgent):
 
     def _get_tools(self):
         return [
+            CurrentDateTimeTool(self.google_service.timezone),
             SearchFilesTool(self.google_service),
             GetFileTool(self.google_service),
             DownloadFileTool(self.google_service),
@@ -45,6 +47,7 @@ class SearchAndRetrievalAgent(BaseDriveAgent):
             * Always provide clear, organized results
 
             ## Context Awareness
-            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+            * Use the current_datetime_tool to get the current date and time when needed
+            
             """
         )

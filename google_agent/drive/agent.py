@@ -6,11 +6,12 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from google_agent.shared.base_agent import BaseAgent
-from google_agent.shared.llm_models import LLM_LITE, LLM_FLASH, LLM_PRO
+from google_agent.shared.llm_models import LLM_LITE, LLM_FLASH
 from .organization.agent import OrganizationAgent
 from .search_and_retrieval.agent import SearchAndRetrievalAgent
 from .tools import OrganizationTool, SearchAndRetrievalTool, WriterTool
 from .writer.agent import WriterAgent
+from ..shared.tools import CurrentDateTimeTool
 
 
 class DriveAgent(BaseAgent):
@@ -39,6 +40,7 @@ class DriveAgent(BaseAgent):
         )
 
         return [
+            CurrentDateTimeTool(self.google_service.timezone),
             OrganizationTool(organization_agent),
             SearchAndRetrievalTool(search_and_retrieval_agent),
             WriterTool(writer_agent),
@@ -73,8 +75,8 @@ class DriveAgent(BaseAgent):
             * Always provide clear, organized results
 
             ## Context Awareness
-            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
-
+            * Use the current_datetime_tool to get the current date and time when needed
+            
             # Example
 
             User: create a folder called "Project Files" and upload my document to it

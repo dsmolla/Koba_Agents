@@ -54,8 +54,4 @@ class WriterAgent(BaseGmailAgent):
 
             ## Response Guidelines
             * Always include message ids and thread ids in your responses
-
-            ## Context Awareness
-            * Current date and time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
         """)
-
