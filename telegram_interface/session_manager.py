@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from typing import Optional
 
@@ -14,6 +15,8 @@ from google_client.api_service import APIServiceLayer
 
 from .user_tokens_db import UserTokensDB
 from .config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class UserSession:
@@ -70,12 +73,17 @@ class UserSession:
 
 class SessionManager:
     def __init__(self, redirect_uri: str) -> None:
+        logger.info("Initializing SessionManager", extra={'redirect_uri': redirect_uri})
         self.sessions: dict[int, UserSession] = {}
         self.auth_manager = GoogleOAuthManager(self._get_client_secret(), redirect_uri=redirect_uri)
         self.user_tokens_db = UserTokensDB()
         self.auth_flows: dict[str, int] = {}
 
         set_debug(Config.DEBUG)
+        logger.info("SessionManager initialized successfully", extra={
+            'debug_mode': Config.DEBUG,
+            'session_timeout': Config.SESSION_TIMEOUT
+        })
 
     def _get_client_secret(self) -> dict:
         with open(Config.CREDS_PATH, 'r') as f:
@@ -85,61 +93,105 @@ class SessionManager:
         if user_token := self.user_tokens_db.get_user_token(telegram_id):
             try:
                 self.auth_manager.refresh_user_token(user_token)
+                logger.debug("User authentication verified", extra={'user_id': telegram_id})
                 return True
-            except google.auth.exceptions.RefreshError:
+            except google.auth.exceptions.RefreshError as e:
+                logger.warning("Token refresh failed during authentication check", extra={
+                    'user_id': telegram_id,
+                    'error': str(e)
+                })
                 return False
+        logger.debug("No token found for user", extra={'user_id': telegram_id})
         return False
 
     def get_session(self, telegram_id: int) -> UserSession:
         if telegram_id in self.sessions:
             session = self.sessions[telegram_id]
             if session.is_expired():
+                logger.info("Session expired, cleaning up", extra={'user_id': telegram_id})
                 self._cleanup_session(telegram_id)
             else:
+                logger.debug("Existing session retrieved", extra={
+                    'user_id': telegram_id,
+                    'message_count': len(session.messages)
+                })
                 session.update_activity()
                 return session
 
+        logger.info("Creating new session", extra={'user_id': telegram_id})
         session = UserSession(telegram_id)
         session.agent = self.create_agent(telegram_id)
         self.sessions[telegram_id] = session
+        logger.info("New session created", extra={
+            'user_id': telegram_id,
+            'has_agent': session.agent is not None
+        })
         return session
 
     def create_agent(self, telegram_id: int) -> Optional[GoogleAgent]:
+        logger.debug("Attempting to create agent", extra={'user_id': telegram_id})
         if user_token := self.user_tokens_db.get_user_token(telegram_id):
             timezone = self.user_tokens_db.get_timezone(telegram_id) or 'UTC'
+            logger.debug("Creating agent with timezone", extra={
+                'user_id': telegram_id,
+                'timezone': timezone
+            })
             try:
                 google_service = APIServiceLayer(user_token, timezone)
                 self.user_tokens_db.update_token(telegram_id, google_service.refresh_token())   # Will raise error if token invalid
+                logger.info("GoogleAgent created successfully", extra={
+                    'user_id': telegram_id,
+                    'timezone': timezone,
+                    'print_steps': Config.PRINT_STEPS
+                })
                 return GoogleAgent(
                     google_service=google_service,
                     llm=LLM_FLASH,
                     print_steps=Config.PRINT_STEPS
                 )
-            except google.auth.exceptions.RefreshError:
+            except google.auth.exceptions.RefreshError as e:
+                logger.error("Failed to create agent - token refresh error", extra={
+                    'user_id': telegram_id,
+                    'error': str(e)
+                }, exc_info=True)
                 self.user_tokens_db.delete_token(telegram_id)
                 return None
-        
+
+        logger.warning("Cannot create agent - no token found", extra={'user_id': telegram_id})
         return None
 
     def save_session_to_disk(self, telegram_id: int) -> bool:
         session = self.sessions.get(telegram_id)
         if session is None:
+            logger.debug("Cannot save session - session not found", extra={'user_id': telegram_id})
             return False
 
         if session.is_expired():
+            logger.debug("Cannot save session - session expired", extra={'user_id': telegram_id})
             return False
 
         session_path = Config.get_user_session_path(telegram_id)
         try:
             with open(session_path, 'w') as f:
                 json.dump(session.to_dict(), f, indent=2)
+            logger.info("Session saved to disk", extra={
+                'user_id': telegram_id,
+                'path': str(session_path),
+                'message_count': len(session.messages)
+            })
             return True
-        except Exception:
+        except Exception as e:
+            logger.error("Failed to save session to disk", extra={
+                'user_id': telegram_id,
+                'path': str(session_path),
+                'error': str(e)
+            }, exc_info=True)
             return False
 
     def load_session_from_disk(self, telegram_id: int) -> bool:
         session_path = Config.get_user_session_path(telegram_id)
         if not session_path.exists():
+            logger.debug("No session file found on disk", extra={'user_id': telegram_id})
             return False
 
         try:
@@ -149,37 +201,69 @@ class SessionManager:
 
                 if not session.is_expired():
                     self.sessions[telegram_id] = session
+                    logger.info("Session loaded from disk", extra={
+                        'user_id': telegram_id,
+                        'message_count': len(session.messages)
+                    })
                     return True
                 else:
+                    logger.debug("Session on disk is expired", extra={'user_id': telegram_id})
                     return False
-        except Exception:
+        except Exception as e:
+            logger.error("Failed to load session from disk", extra={
+                'user_id': telegram_id,
+                'path': str(session_path),
+                'error': str(e)
+            }, exc_info=True)
             return False
 
     def clear_session(self, telegram_id: int):
         if telegram_id in self.sessions:
+            message_count = len(self.sessions[telegram_id].messages)
             self.sessions[telegram_id].clear_history()
+            logger.info("Session history cleared", extra={
+                'user_id': telegram_id,
+                'messages_cleared': message_count
+            })
 
-    def cleanup_expired_sessions(self):
+    def cleanup_expired_sessions(self) -> int:
         expired_users = [
             telegram_id for telegram_id, session in self.sessions.items()
             if session.is_expired()
         ]
 
+        if expired_users:
+            logger.info("Cleaning up expired sessions", extra={
+                'expired_count': len(expired_users),
+                'user_ids': expired_users
+            })
+
         for telegram_id in expired_users:
             self._cleanup_session(telegram_id)
 
+        return len(expired_users)
+
     def _cleanup_session(self, telegram_id: int):
         if telegram_id in self.sessions:
+            logger.debug("Cleaning up session", extra={'user_id': telegram_id})
             del self.sessions[telegram_id]
 
     def store_auth_flow(self, state: str, telegram_id: int):
+        logger.debug("Storing auth flow", extra={'user_id': telegram_id})
         self.auth_flows[state] = telegram_id
 
     def get_auth_flow(self, state: str) -> Optional[int]:
-        return self.auth_flows.get(state)
+        telegram_id = self.auth_flows.get(state)
+        if telegram_id:
+            logger.debug("Auth flow retrieved", extra={'user_id': telegram_id})
+        else:
+            logger.warning("Auth flow not found")
+        return telegram_id
 
     def remove_auth_flow(self, state: str):
         if state in self.auth_flows:
+            telegram_id = self.auth_flows[state]
+            logger.debug("Removing auth flow", extra={'user_id': telegram_id})
             del self.auth_flows[state]
 
 
