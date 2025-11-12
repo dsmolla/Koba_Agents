@@ -219,7 +219,8 @@ class GoogleAgentBot:
             }, exc_info=True)
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_PROCESSING_MESSAGE))
 
-    async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    @staticmethod
+    async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         telegram_id = update.effective_user.id if update.effective_user else None
         error = context.error
         logger.error("Telegram bot error occurred", extra={
@@ -253,7 +254,7 @@ class GoogleAgentBot:
         self.application.add_handler(CallbackQueryHandler(self.handle_timezone_selection, pattern="^"))
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
 
-        # self.application.add_error_handler(self.error_handler)
+        self.application.add_error_handler(self.error_handler)
 
         logger.info("Scheduling session cleanup job (every 300 seconds)")
         self.application.job_queue.run_repeating(self._cleanup_sessions, interval=300, first=300)

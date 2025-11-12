@@ -1,3 +1,5 @@
+from logging import getLevelName
+
 import requests
 import sys
 import logging
@@ -9,8 +11,7 @@ from telegram_interface.bot import GoogleAgentBot
 from telegram_interface.config import Config
 from telegram_interface.logging_config import setup_logging
 
-# Initialize centralized logging system
-setup_logging(log_level=logging.DEBUG)
+setup_logging(log_level=getLevelName(Config.LOG_LEVEL))
 logger = logging.getLogger(__name__)
 
 

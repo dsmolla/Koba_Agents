@@ -79,14 +79,15 @@ class SessionManager:
         self.user_tokens_db = UserTokensDB()
         self.auth_flows: dict[str, int] = {}
 
-        set_debug(Config.DEBUG)
+        set_debug(Config.LANGGRAPH_DEBUG)
         logger.info("SessionManager initialized successfully", extra={
-            'debug_mode': Config.DEBUG,
+            'langgraph_debug_mode': Config.LANGGRAPH_DEBUG,
             'session_timeout': Config.SESSION_TIMEOUT
         })
 
-    def _get_client_secret(self) -> dict:
-        with open(Config.CREDS_PATH, 'r') as f:
+    @staticmethod
+    def _get_client_secret() -> dict:
+        with open(Config.CLIENT_CREDS_PATH, 'r') as f:
             return json.load(f)
 
     def is_user_authenticated(self, telegram_id: int) -> bool:
@@ -141,13 +142,11 @@ class SessionManager:
                 self.user_tokens_db.update_token(telegram_id, google_service.refresh_token())   # Will raise error if token invalid
                 logger.info("GoogleAgent created successfully", extra={
                     'user_id': telegram_id,
-                    'timezone': timezone,
-                    'print_steps': Config.PRINT_STEPS
+                    'timezone': timezone
                 })
                 return GoogleAgent(
                     google_service=google_service,
                     llm=LLM_FLASH,
-                    print_steps=Config.PRINT_STEPS
                 )
             except google.auth.exceptions.RefreshError as e:
                 logger.error("Failed to create agent - token refresh error", extra={
@@ -265,5 +264,3 @@ class SessionManager:
             telegram_id = self.auth_flows[state]
             logger.debug("Removing auth flow", extra={'user_id': telegram_id})
             del self.auth_flows[state]
-
-

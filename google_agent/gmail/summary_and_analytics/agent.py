@@ -1,4 +1,3 @@
-from datetime import datetime
 from textwrap import dedent
 from typing import Optional
 
@@ -21,11 +20,10 @@ class SummaryAndAnalyticsAgent(BaseGmailAgent):
             google_service: APIServiceLayer,
             llm: BaseChatModel,
             email_cache: EmailCache,
-            config: Optional[RunnableConfig] = None,
-            print_steps: Optional[bool] = False,
+            config: Optional[RunnableConfig] = None
     ):
         self.email_cache = email_cache
-        super().__init__(google_service, llm, config, print_steps)
+        super().__init__(google_service, llm, config)
 
     def _get_tools(self):
         return [

@@ -10,7 +10,7 @@ def remove_non_ascii(text):
 
 
 class EmailCache(OrderedDict):
-    def __init__(self, max_size=200):
+    def __init__(self, max_size=1000):
         super().__init__()
         self.max_size = max_size
 

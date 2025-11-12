@@ -13,12 +13,10 @@ class BaseGmailAgent(BaseAgent, ABC):
             self,
             google_service: APIServiceLayer,
             llm: BaseChatModel,
-            config: Optional[RunnableConfig] = None,
-            print_steps: Optional[bool] = False,
+            config: Optional[RunnableConfig] = None
     ):
         self.google_service = google_service
         super().__init__(
             llm=llm,
-            config=config,
-            print_steps=print_steps
+            config=config
         )

@@ -38,9 +38,6 @@ class SendEmailTool(BaseTool):
             attachment_paths: Optional[List[str]] = None
     ) -> ToolResponse:
         try:
-
-            print(attachment_paths)
-
             email = self.google_service.gmail.send_email(
                 to=to,
                 subject=subject,
@@ -70,9 +67,6 @@ class SendEmailTool(BaseTool):
             attachment_paths: Optional[List[str]] = None
     ) -> ToolResponse:
         try:
-
-            print(attachment_paths)
-
             email = await self.google_service.async_gmail.send_email(
                 to=to,
                 subject=subject,

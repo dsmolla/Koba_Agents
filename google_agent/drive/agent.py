@@ -23,21 +23,14 @@ class DriveAgent(BaseAgent):
             google_service: APIServiceLayer,
             llm: BaseChatModel,
             config: RunnableConfig = None,
-            print_steps: bool = False,
     ):
         self.google_service = google_service
-        super().__init__(llm, config, print_steps)
+        super().__init__(llm, config)
 
     def _get_tools(self):
-        organization_agent = OrganizationAgent(
-            self.google_service, LLM_FLASH, self.config, self.print_steps
-        )
-        search_and_retrieval_agent = SearchAndRetrievalAgent(
-            self.google_service, LLM_LITE, self.config, self.print_steps
-        )
-        writer_agent = WriterAgent(
-            self.google_service, LLM_FLASH, self.config, self.print_steps
-        )
+        organization_agent = OrganizationAgent(self.google_service, LLM_FLASH, self.config)
+        search_and_retrieval_agent = SearchAndRetrievalAgent(self.google_service, LLM_LITE, self.config)
+        writer_agent = WriterAgent(self.google_service, LLM_FLASH, self.config)
 
         return [
             CurrentDateTimeTool(self.google_service.timezone),

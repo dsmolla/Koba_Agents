@@ -1,4 +1,3 @@
-from datetime import datetime
 from textwrap import dedent
 
 from google_client.api_service import APIServiceLayer
@@ -11,7 +10,6 @@ from google_agent.gmail.agent import GmailAgent
 from google_agent.tasks.agent import TasksAgent
 from google_agent.tools import GmailTool, TasksTool, CalendarTool, DriveTool
 from .shared.base_agent import BaseAgent
-from .shared.llm_models import LLM_FLASH
 from .shared.tools import CurrentDateTimeTool
 
 
@@ -23,38 +21,16 @@ class GoogleAgent(BaseAgent):
             self,
             google_service: APIServiceLayer,
             llm: BaseChatModel,
-            config: RunnableConfig = None,
-            print_steps: bool = False,
+            config: RunnableConfig = None
     ):
         self.google_service = google_service
-        super().__init__(llm, config, print_steps)
+        super().__init__(llm, config)
 
     def _get_tools(self):
-        gmail_agent = GmailAgent(
-            self.google_service,
-            LLM_FLASH,
-            self.config,
-            self.print_steps
-
-        )
-        calendar_agent = CalendarAgent(
-            self.google_service,
-            LLM_FLASH,
-            self.config,
-            self.print_steps
-        )
-        tasks_agent = TasksAgent(
-            self.google_service,
-            LLM_FLASH,
-            self.config,
-            self.print_steps
-        )
-        drive_agent = DriveAgent(
-            self.google_service,
-            LLM_FLASH,
-            self.config,
-            self.print_steps
-        )
+        gmail_agent = GmailAgent(self.google_service, self.llm, self.config)
+        calendar_agent = CalendarAgent(self.google_service, self.llm, self.config)
+        tasks_agent = TasksAgent(self.google_service, self.llm, self.config)
+        drive_agent = DriveAgent(self.google_service, self.llm, self.config)
 
         return [
             CurrentDateTimeTool(self.google_service.timezone),
@@ -73,7 +49,7 @@ class GoogleAgent(BaseAgent):
             f"""
             # Identity
             
-            You are a Google Workspace supervisor agent that coordinates email, calendar, task management, and file storage. You have access to the following experts or tools:
+            You are a Google Workspace supervisor agent that coordinates email, calendar, task management (google tasks), and file storage (google drive). You have access to the following experts or tools:
             {'\n'.join(tool_descriptions)}
             
             # Instructions
@@ -100,6 +76,7 @@ class GoogleAgent(BaseAgent):
             * When users ask about availability or schedules, check both calendar and tasks
             * When users mention documents, files, or attachments, consider Drive operations
             * If information seems incomplete from one domain, proactively check related domains
+            * All agents have date and time context awareness, so there is no need to translate relative dates like "next Friday" into absolute dates when passing between agents
             
             ## Domain-Specific Guidelines
             
@@ -140,24 +117,24 @@ class GoogleAgent(BaseAgent):
             ## Calendar-Only Operations
             
             User: what meetings do I have tomorrow?
-            AI: tool_call('calendar_agent_tool', args={{'task_description': 'list all my meetings and events for tomorrow'}})
+            AI: tool_call('calendar_agent_tool', args={{'task_description': 'what meetings do I have tomorrow?'}})
             Respond: Provide organized list of tomorrow's meetings
             -----
             
             User: schedule a team standup every Monday at 9am
-            AI: tool_call('calendar_agent_tool', args={{'task_description': 'create a recurring event for team standup every Monday at 9:00 AM'}})
+            AI: tool_call('calendar_agent_tool', args={{'task_description': 'schedule a team standup every Monday at 9am'}})
             Respond: Confirm the recurring event has been created
             -----
             
             ## Tasks-Only Operations
             
             User: show me all my overdue tasks
-            AI: tool_call('tasks_agent_tool', args={{'task_description': 'list all tasks that are past their due date'}})
+            AI: tool_call('tasks_agent_tool', args={{'task_description': 'show me all my overdue tasks'}})
             Respond: Provide list of overdue tasks with details
             -----
             
             User: create a task to review the Q4 budget by Friday
-            AI: tool_call('tasks_agent_tool', args={{'task_description': 'create a task titled "Review Q4 budget" with due date this Friday'}})
+            AI: tool_call('tasks_agent_tool', args={{'task_description': 'create a task to review the Q4 budget by Friday'}})
             Respond: Confirm task creation
             -----
 
@@ -168,14 +145,9 @@ class GoogleAgent(BaseAgent):
             Respond: Provide list of presentation files found
             -----
 
-            User: create a folder called "Project Alpha" and share it with the team
-            AI: tool_call('drive_agent_tool', args={{'task_description': 'create a folder named "Project Alpha" and share it with appropriate team members'}})
+            User: create a folder called "Project Alpha" and share it with 'abc@gmail.com'
+            AI: tool_call('drive_agent_tool', args={{'task_description': 'create a folder called "Project Alpha" and share it with "abc@gmail.com"'}})
             Respond: Confirm folder creation and sharing
-            -----
-
-            User: organize all my documents from this year into folders by month
-            AI: tool_call('drive_agent_tool', args={{'task_description': 'find all documents from this year and organize them into monthly folders'}})
-            Respond: Summarize organization completed
             -----
             
             ## Cross-Domain Operations

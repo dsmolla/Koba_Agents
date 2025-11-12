@@ -1,4 +1,3 @@
-from datetime import datetime
 from textwrap import dedent
 
 from google_client.api_service import APIServiceLayer
@@ -20,12 +19,11 @@ class TasksAgent(BaseAgent):
             self,
             google_service: APIServiceLayer,
             llm: BaseChatModel,
-            config: RunnableConfig = None,
-            print_steps: bool = False,
+            config: RunnableConfig = None
     ):
         self.google_service = google_service
         self.task_list_cache = TaskListCache()
-        super().__init__(llm, config, print_steps)
+        super().__init__(llm, config)
 
     def _get_tools(self):
         return [

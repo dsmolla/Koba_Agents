@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 def execute(
         agent: CompiledStateGraph,
         messages: list[BaseMessage],
-        print_steps: bool = False,
         config: dict = None
 ) -> AgentResponse:
     start = time.time()
@@ -85,7 +84,6 @@ def execute(
 async def aexecute(
         agent: CompiledStateGraph,
         messages: list[BaseMessage],
-        print_steps: bool = False,
         config: dict = None
 ) -> AgentResponse:
     """Async version of execute() function."""

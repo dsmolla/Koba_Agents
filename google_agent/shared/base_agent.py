@@ -34,8 +34,7 @@ class BaseAgent(ABC):
     def __init__(
             self,
             llm: BaseChatModel,
-            config: Optional[RunnableConfig] = None,
-            print_steps: Optional[bool] = False
+            config: Optional[RunnableConfig] = None
     ):
         logger.info(f"Initializing {self.name}", extra={
             'agent_name': self.name,
@@ -43,7 +42,6 @@ class BaseAgent(ABC):
         })
         self.llm = llm
         self.config = config
-        self.print_steps = print_steps
 
         self.tools = self._get_tools()
         logger.debug(f"Tools loaded for {self.name}", extra={
@@ -87,7 +85,6 @@ class BaseAgent(ABC):
         return agent_executor.execute(
             agent=self.agent,
             messages=messages,
-            print_steps=self.print_steps,
             config=self.config,
         )
 
@@ -96,6 +93,5 @@ class BaseAgent(ABC):
         return await agent_executor.aexecute(
             agent=self.agent,
             messages=messages,
-            print_steps=self.print_steps,
             config=self.config,
         )

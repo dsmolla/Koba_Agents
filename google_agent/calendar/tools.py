@@ -115,14 +115,10 @@ class DeleteCalendarTool(BaseTool):
 
     def _run(self, calendar_id: str) -> ToolResponse:
         try:
-            if self.google_service.calendar.delete_calendar(calendar_id):
-                return ToolResponse(
-                    status="success", 
-                    message="Calendar deleted"
-                )
-            raise ToolException(
-                tool_name=self.name, 
-                message=f"Failed to delete calendar"
+            self.google_service.calendar.delete_calendar(calendar_id)
+            return ToolResponse(
+                status="success",
+                message="Calendar deleted"
             )
         except Exception as e:
             raise ToolException(
@@ -130,19 +126,18 @@ class DeleteCalendarTool(BaseTool):
                 message=f"Failed to delete calendar: {str(e)}"
             )
 
-    async def _arun(self, name: str) -> ToolResponse:
+    async def _arun(self, calendar_id: str) -> ToolResponse:
         try:
-            calendar = await self.google_service.async_calendar.create_calendar(name)
-            calendar = [{'name': calendar.summary, 'id': calendar.id}]
+            await self.google_service.async_calendar.delete_calendar(calendar_id)
             return ToolResponse(
                 status="success", 
-                message=json.dumps(calendar)
+                message="Calendar deleted"
             )
 
         except Exception as e:
             raise ToolException(
                 tool_name=self.name, 
-                message=f"Failed to create calendar: {str(e)}"
+                message=f"Failed to delete calendar: {str(e)}"
             )
         
 

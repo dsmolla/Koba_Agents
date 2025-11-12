@@ -1,4 +1,3 @@
-from datetime import datetime
 from textwrap import dedent
 from typing import Optional
 
@@ -18,10 +17,9 @@ class WriterAgent(BaseGmailAgent):
             self,
             google_service: APIServiceLayer,
             llm: BaseChatModel,
-            config: Optional[RunnableConfig] = None,
-            print_steps: Optional[bool] = False,
+            config: Optional[RunnableConfig] = None
     ):
-        super().__init__(google_service, llm, config, print_steps)
+        super().__init__(google_service, llm, config)
 
     def _get_tools(self):
         return [

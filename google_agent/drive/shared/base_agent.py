@@ -12,8 +12,7 @@ class BaseDriveAgent(BaseAgent):
         self,
         google_service: APIServiceLayer,
         llm: BaseChatModel,
-        config: RunnableConfig = None,
-        print_steps: bool = False,
+        config: RunnableConfig = None
     ):
         self.google_service = google_service
-        super().__init__(llm, config, print_steps)
+        super().__init__(llm, config)
