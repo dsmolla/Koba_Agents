@@ -1,5 +1,6 @@
 from logging import getLevelName
 
+import asyncio
 import requests
 import sys
 import logging
@@ -10,6 +11,8 @@ from flask import Flask, request
 from telegram_interface.bot import GoogleAgentBot
 from telegram_interface.config import Config
 from telegram_interface.logging_config import setup_logging
+
+Config.validate()
 
 setup_logging(log_level=getLevelName(Config.LOG_LEVEL))
 logger = logging.getLogger(__name__)
@@ -45,7 +48,7 @@ def oauth2_callback():
 
     try:
         if token := bot.session_manager.auth_manager.complete_auth_flow(code, Config.OAUTH_SCOPES):
-            bot.session_manager.user_tokens_db.add_user(telegram_id, token)
+            asyncio.run(bot.session_manager.user_tokens_db.add_user(telegram_id, token))
             logger.info("OAuth authentication successful", extra={'user_id': telegram_id})
 
             url = f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -88,6 +91,11 @@ def main():
     logger.info("=" * 60)
 
     try:
+        # Initialize database tables
+        logger.info("Initializing database tables")
+        asyncio.run(bot.session_manager.user_tokens_db._create_tables())
+        logger.info("Database tables initialized")
+
         logger.info("Starting Flask server thread for OAuth callbacks")
         flask_thread = Thread(target=run_flask_app, daemon=True)
         flask_thread.start()
@@ -103,8 +111,6 @@ def main():
         logger.critical("Fatal error in main", extra={'error': str(e)}, exc_info=True)
         sys.exit(1)
     finally:
-        logger.info("Cleaning up resources")
-        bot.session_manager.user_tokens_db.close()
         logger.info("Google Agent Bot shut down complete")
 
 

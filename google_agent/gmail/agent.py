@@ -1,4 +1,3 @@
-from datetime import datetime
 from textwrap import dedent
 
 from google_client.api_service import APIServiceLayer
@@ -6,7 +5,6 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from google_agent.gmail.shared.email_cache import EmailCache
-from google_agent.shared.llm_models import LLM_LITE, LLM_FLASH
 from .organization.agent import OrganizationAgent
 from .search_and_retrieval.agent import SearchAndRetrievalAgent
 from .shared.base_agent import BaseGmailAgent
@@ -30,10 +28,12 @@ class GmailAgent(BaseGmailAgent):
         super().__init__(google_service, llm, config)
 
     def _get_tools(self):
-        organization_agent = OrganizationAgent(self.google_service, LLM_FLASH, self.config)
-        search_and_retrieval_agent = SearchAndRetrievalAgent(self.google_service, LLM_FLASH, self.email_cache, self.config)
-        summary_and_analytics_agent = SummaryAndAnalyticsAgent(self.google_service, LLM_FLASH, self.email_cache, self.config)
-        writer_agent = WriterAgent(self.google_service, LLM_LITE, self.config)
+        organization_agent = OrganizationAgent(self.google_service, self.llm, self.config)
+        search_and_retrieval_agent = SearchAndRetrievalAgent(self.google_service, self.llm, self.email_cache,
+                                                             self.config)
+        summary_and_analytics_agent = SummaryAndAnalyticsAgent(self.google_service, self.llm, self.email_cache,
+                                                               self.config)
+        writer_agent = WriterAgent(self.google_service, self.llm, self.config)
 
         return [
             CurrentDateTimeTool(self.google_service.timezone),

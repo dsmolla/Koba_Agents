@@ -525,6 +525,7 @@ class UpdateEventTool(BaseTool):
     async def _arun(
             self,
             event_id: str,
+            calendar_id: str = 'primary',
             summary: Optional[str] = None,
             start_datetime: Optional[str] = None,
             end_datetime: Optional[str] = None,
@@ -536,7 +537,7 @@ class UpdateEventTool(BaseTool):
             recurrence: Optional[List[str]] = None
     ) -> ToolResponse:
         try:
-            event = await self.google_service.async_calendar.get_event(event_id=event_id)
+            event = await self.google_service.async_calendar.get_event(event_id=event_id, calendar_id=calendar_id)
             if summary:
                 event.summary = summary
             if start_datetime:

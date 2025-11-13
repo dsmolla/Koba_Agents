@@ -90,8 +90,8 @@ class SessionManager:
         with open(Config.CLIENT_CREDS_PATH, 'r') as f:
             return json.load(f)
 
-    def is_user_authenticated(self, telegram_id: int) -> bool:
-        if user_token := self.user_tokens_db.get_user_token(telegram_id):
+    async def is_user_authenticated(self, telegram_id: int) -> bool:
+        if user_token := await self.user_tokens_db.get_user_token(telegram_id):
             try:
                 self.auth_manager.refresh_user_token(user_token)
                 logger.debug("User authentication verified", extra={'user_id': telegram_id})
@@ -105,7 +105,7 @@ class SessionManager:
         logger.debug("No token found for user", extra={'user_id': telegram_id})
         return False
 
-    def get_session(self, telegram_id: int) -> UserSession:
+    async def get_session(self, telegram_id: int) -> UserSession:
         if telegram_id in self.sessions:
             session = self.sessions[telegram_id]
             if session.is_expired():
@@ -121,7 +121,7 @@ class SessionManager:
 
         logger.info("Creating new session", extra={'user_id': telegram_id})
         session = UserSession(telegram_id)
-        session.agent = self.create_agent(telegram_id)
+        session.agent = await self.create_agent(telegram_id)
         self.sessions[telegram_id] = session
         logger.info("New session created", extra={
             'user_id': telegram_id,
@@ -129,17 +129,17 @@ class SessionManager:
         })
         return session
 
-    def create_agent(self, telegram_id: int) -> Optional[GoogleAgent]:
+    async def create_agent(self, telegram_id: int) -> Optional[GoogleAgent]:
         logger.debug("Attempting to create agent", extra={'user_id': telegram_id})
-        if user_token := self.user_tokens_db.get_user_token(telegram_id):
-            timezone = self.user_tokens_db.get_timezone(telegram_id) or 'UTC'
+        if user_token := await self.user_tokens_db.get_user_token(telegram_id):
+            timezone = await self.user_tokens_db.get_timezone(telegram_id) or 'UTC'
             logger.debug("Creating agent with timezone", extra={
                 'user_id': telegram_id,
                 'timezone': timezone
             })
             try:
                 google_service = APIServiceLayer(user_token, timezone)
-                self.user_tokens_db.update_token(telegram_id, google_service.refresh_token())   # Will raise error if token invalid
+                await self.user_tokens_db.update_token(telegram_id, google_service.refresh_token())   # Will raise error if token invalid
                 logger.info("GoogleAgent created successfully", extra={
                     'user_id': telegram_id,
                     'timezone': timezone
@@ -153,7 +153,7 @@ class SessionManager:
                     'user_id': telegram_id,
                     'error': str(e)
                 }, exc_info=True)
-                self.user_tokens_db.delete_token(telegram_id)
+                await self.user_tokens_db.delete_token(telegram_id)
                 return None
 
         logger.warning("Cannot create agent - no token found", extra={'user_id': telegram_id})

@@ -217,5 +217,6 @@ class GoogleAgent(BaseAgent):
             - Maintain context across the entire workflow
             - If an operation fails, explain clearly and suggest alternatives
             - Each expert can perform multiple tasks with one prompt. So, try to pass multiple tasks using 'and'.
+            - If a user is talking about a file, folder, event, email, or task and you already have the ID from a previous step, always use the ID instead of searching by name again.
             """
         )

@@ -6,7 +6,6 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from google_agent.shared.base_agent import BaseAgent
-from google_agent.shared.llm_models import LLM_LITE, LLM_FLASH
 from .organization.agent import OrganizationAgent
 from .search_and_retrieval.agent import SearchAndRetrievalAgent
 from .tools import OrganizationTool, SearchAndRetrievalTool, WriterTool
@@ -28,9 +27,9 @@ class DriveAgent(BaseAgent):
         super().__init__(llm, config)
 
     def _get_tools(self):
-        organization_agent = OrganizationAgent(self.google_service, LLM_FLASH, self.config)
-        search_and_retrieval_agent = SearchAndRetrievalAgent(self.google_service, LLM_LITE, self.config)
-        writer_agent = WriterAgent(self.google_service, LLM_FLASH, self.config)
+        organization_agent = OrganizationAgent(self.google_service, self.llm, self.config)
+        search_and_retrieval_agent = SearchAndRetrievalAgent(self.google_service, self.llm, self.config)
+        writer_agent = WriterAgent(self.google_service, self.llm, self.config)
 
         return [
             CurrentDateTimeTool(self.google_service.timezone),
