@@ -1,27 +1,29 @@
 from textwrap import dedent
-from typing import Optional
 
 from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from .tools import ApplyLabelTool, RemoveLabelTool, CreateLabelTool, DeleteLabelTool, RenameLabelTool, DeleteEmailTool
-from ..shared.base_agent import BaseGmailAgent
+from ...shared.base_agent import BaseReActAgent
 
 
-class OrganizationAgent(BaseGmailAgent):
-    name = "OrganizationAgent"
-    description = "Agent that can handle tasks related to organizing a gmail inbox"
+class OrganizationAgent(BaseReActAgent):
+    name = "GmailOrganizationAgent"
+    description = dedent("""
+        Agent that can handle tasks related to organizing a gmail inbox.
+        This includes applying, removing, creating, deleting, and renaming labels as well as deleting emails.
+    """)
 
     def __init__(
             self,
             google_service: APIServiceLayer,
             llm: BaseChatModel,
-            config: Optional[RunnableConfig] = None,
+            config: RunnableConfig = None,
     ):
-        super().__init__(google_service, llm, config)
+        super().__init__(llm, google_service, config)
 
-    def _get_tools(self):
+    def tools(self):
         return [
             ApplyLabelTool(self.google_service),
             RemoveLabelTool(self.google_service),
@@ -33,7 +35,7 @@ class OrganizationAgent(BaseGmailAgent):
 
     def system_prompt(self):
         tool_descriptions = []
-        for tool in self.tools:
+        for tool in self.tools():
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
 
         return dedent(

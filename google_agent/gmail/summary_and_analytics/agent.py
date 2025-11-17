@@ -7,13 +7,13 @@ from langchain_core.runnables import RunnableConfig
 
 from google_agent.gmail.shared.email_cache import EmailCache
 from .tools import SummarizeEmailsTool, ExtractFromEmailTool, ClassifyEmailTool
-from ..shared.base_agent import BaseGmailAgent
+from ...shared.base_agent import BaseReActAgent
 from ...shared.tools import CurrentDateTimeTool
 
 
-class SummaryAndAnalyticsAgent(BaseGmailAgent):
-    name = "SummaryAndAnalyticsAgent"
-    description = "Agent that helps users search their inbox"
+class SummaryAndAnalyticsAgent(BaseReActAgent):
+    name = "GmailSummaryAndAnalyticsAgent"
+    description = "Agent that can summarize, classify and extract information from emails in Gmail"
 
     def __init__(
             self,
@@ -22,10 +22,9 @@ class SummaryAndAnalyticsAgent(BaseGmailAgent):
             email_cache: EmailCache,
             config: Optional[RunnableConfig] = None
     ):
-        self.email_cache = email_cache
-        super().__init__(google_service, llm, config)
+        super().__init__(llm, google_service, config, email_cache=email_cache)
 
-    def _get_tools(self):
+    def tools(self):
         return [
             CurrentDateTimeTool(self.google_service.timezone),
             SummarizeEmailsTool(self.google_service, self.email_cache),
@@ -35,7 +34,7 @@ class SummaryAndAnalyticsAgent(BaseGmailAgent):
 
     def system_prompt(self) -> str:
         tool_descriptions = []
-        for tool in self.tools:
+        for tool in self.tools():
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
 
         return dedent(

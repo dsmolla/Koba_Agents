@@ -1,14 +1,27 @@
 from textwrap import dedent
 
-from google_agent.drive.shared.base_agent import BaseDriveAgent
 from .tools import MoveFileTool, RenameFileTool, DeleteFileTool
 
+from google_client.api_service import APIServiceLayer
+from langchain_core.language_models import BaseChatModel
+from langchain_core.runnables import RunnableConfig
 
-class OrganizationAgent(BaseDriveAgent):
-    name: str = "OrganizationAgent"
-    description: str = "Specialized agent for organizing, managing, and maintaining Google Drive files and folders"
+from ...shared.base_agent import BaseReActAgent
 
-    def _get_tools(self):
+
+class OrganizationAgent(BaseReActAgent):
+    name: str = "DriveOrganizationAgent"
+    description: str = "Specialized drive agent for moving, renaming, and deleting Google Drive files and folders"
+
+    def __init__(
+            self,
+            google_service: APIServiceLayer,
+            llm: BaseChatModel,
+            config: RunnableConfig = None,
+    ):
+        super().__init__(llm, google_service, config)
+
+    def tools(self):
         return [
             MoveFileTool(self.google_service),
             RenameFileTool(self.google_service),
@@ -17,7 +30,7 @@ class OrganizationAgent(BaseDriveAgent):
 
     def system_prompt(self):
         tool_descriptions = []
-        for tool in self.tools:
+        for tool in self.tools():
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
 
         return dedent(

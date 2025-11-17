@@ -1,14 +1,16 @@
 from textwrap import dedent
 
+from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
-from google_agent.shared.base_agent import BaseAgent
-from .tools import *
+from google_agent.shared.base_agent import BaseReActAgent
+from .tools import ListCalendarsTool, CreateCalendarTool, DeleteCalendarTool, GetEventsTool, ListEventsTool, \
+    CreateEventTool, DeleteEventTool, UpdateEventTool, FindFreeSlotsTool
 from ..shared.tools import CurrentDateTimeTool
 
 
-class CalendarAgent(BaseAgent):
+class CalendarAgent(BaseReActAgent):
     name: str = "CalendarAgent"
     description: str = "A Calendar expert that can handle complex tasks and queries related to Google Calendar"
 
@@ -16,12 +18,11 @@ class CalendarAgent(BaseAgent):
             self,
             google_service: APIServiceLayer,
             llm: BaseChatModel,
-            config: RunnableConfig = None
+            config: RunnableConfig = None,
     ):
-        self.google_service = google_service
-        super().__init__(llm, config)
+        super().__init__(llm, google_service, config)
 
-    def _get_tools(self):
+    def tools(self):
         return [
             CurrentDateTimeTool(self.google_service.timezone),
             ListCalendarsTool(self.google_service),
@@ -37,7 +38,7 @@ class CalendarAgent(BaseAgent):
 
     def system_prompt(self):
         tool_descriptions = []
-        for tool in self.tools:
+        for tool in self.tools():
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
 
         return dedent(

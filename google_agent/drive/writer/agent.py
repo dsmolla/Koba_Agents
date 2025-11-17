@@ -1,14 +1,26 @@
 from textwrap import dedent
 
-from google_agent.drive.shared.base_agent import BaseDriveAgent
+from google_client.api_service import APIServiceLayer
+from langchain_core.language_models import BaseChatModel
+from langchain_core.runnables import RunnableConfig
+
 from .tools import UploadFileTool, CreateFolderTool, ShareFileTool
+from ...shared.base_agent import BaseReActAgent
 
 
-class WriterAgent(BaseDriveAgent):
-    name: str = "WriterAgent"
+class WriterAgent(BaseReActAgent):
+    name: str = "DriveWriterAgent"
     description: str = "Specialized agent for creating, uploading, and sharing Google Drive files and folders"
 
-    def _get_tools(self):
+    def __init__(
+            self,
+            google_service: APIServiceLayer,
+            llm: BaseChatModel,
+            config: RunnableConfig = None,
+    ):
+        super().__init__(llm, google_service, config)
+
+    def tools(self):
         return [
             UploadFileTool(self.google_service),
             CreateFolderTool(self.google_service),
@@ -17,7 +29,7 @@ class WriterAgent(BaseDriveAgent):
 
     def system_prompt(self):
         tool_descriptions = []
-        for tool in self.tools:
+        for tool in self.tools():
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
 
         return dedent(

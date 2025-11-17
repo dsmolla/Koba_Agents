@@ -1,15 +1,31 @@
 from textwrap import dedent
 
-from google_agent.drive.shared.base_agent import BaseDriveAgent
+from google_client.api_service import APIServiceLayer
+from langchain_core.language_models import BaseChatModel
+from langchain_core.runnables import RunnableConfig
+
 from .tools import SearchFilesTool, GetFileTool, DownloadFileTool, ListFolderContentsTool, GetPermissionsTool
+from ...shared.base_agent import BaseReActAgent
 from ...shared.tools import CurrentDateTimeTool
 
 
-class SearchAndRetrievalAgent(BaseDriveAgent):
-    name: str = "SearchAndRetrievalAgent"
-    description: str = "Specialized agent for searching, retrieving, and accessing Google Drive files and folders"
+class SearchAndRetrievalAgent(BaseReActAgent):
+    name: str = "DriveSearchAndRetrievalAgent"
+    description: str = dedent("""
+        Specialized drive agent for searching and retrieving Google Drive files and folders. 
+        It can search for files, get file details, download files, list folder contents, and get file permissions.
+    """)
 
-    def _get_tools(self):
+    def __init__(
+            self,
+            google_service: APIServiceLayer,
+            llm: BaseChatModel,
+            config: RunnableConfig = None,
+    ):
+        self.google_service = google_service
+        super().__init__(llm, google_service, config)
+
+    def tools(self):
         return [
             CurrentDateTimeTool(self.google_service.timezone),
             SearchFilesTool(self.google_service),
@@ -21,7 +37,7 @@ class SearchAndRetrievalAgent(BaseDriveAgent):
 
     def system_prompt(self):
         tool_descriptions = []
-        for tool in self.tools:
+        for tool in self.tools():
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
 
         return dedent(

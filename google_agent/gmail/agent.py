@@ -7,14 +7,13 @@ from langchain_core.runnables import RunnableConfig
 from google_agent.gmail.shared.email_cache import EmailCache
 from .organization.agent import OrganizationAgent
 from .search_and_retrieval.agent import SearchAndRetrievalAgent
-from .shared.base_agent import BaseGmailAgent
 from .summary_and_analytics.agent import SummaryAndAnalyticsAgent
-from .tools import OrganizationTool, SearchAndRetrievalTool, SummaryAndAnalyticsTool, WriterTool
 from .writer.agent import WriterAgent
+from ..shared.base_agent import BaseSupervisorAgent
 from ..shared.tools import CurrentDateTimeTool
 
 
-class GmailAgent(BaseGmailAgent):
+class GmailAgent(BaseSupervisorAgent):
     name: str = "GmailAgent"
     description: str = "A Gmail expert that can handle complex tasks and queries related to Gmail"
 
@@ -22,49 +21,44 @@ class GmailAgent(BaseGmailAgent):
             self,
             google_service: APIServiceLayer,
             llm: BaseChatModel,
-            config: RunnableConfig = None
+            config: RunnableConfig = None,
     ):
-        self.email_cache = EmailCache()
-        super().__init__(google_service, llm, config)
+        super().__init__(llm, google_service, config, email_cache=EmailCache())
 
-    def _get_tools(self):
-        organization_agent = OrganizationAgent(self.google_service, self.llm, self.config)
-        search_and_retrieval_agent = SearchAndRetrievalAgent(self.google_service, self.llm, self.email_cache,
-                                                             self.config)
-        summary_and_analytics_agent = SummaryAndAnalyticsAgent(self.google_service, self.llm, self.email_cache,
-                                                               self.config)
-        writer_agent = WriterAgent(self.google_service, self.llm, self.config)
-
+    def agents(self):
         return [
-            CurrentDateTimeTool(self.google_service.timezone),
-            OrganizationTool(organization_agent),
-            SearchAndRetrievalTool(search_and_retrieval_agent),
-            SummaryAndAnalyticsTool(summary_and_analytics_agent),
-            WriterTool(writer_agent),
+            OrganizationAgent(self.google_service, self.llm, self.config),
+            SearchAndRetrievalAgent(self.google_service, self.llm, self.email_cache, self.config),
+            SummaryAndAnalyticsAgent(self.google_service, self.llm, self.email_cache, self.config),
+            WriterAgent(self.google_service, self.llm, self.config)
         ]
 
+    def tools(self):
+        return [CurrentDateTimeTool(self.google_service.timezone)]
+
     def system_prompt(self):
+        agent_description = []
+        for agent in self.agents():
+            agent_description.append(f"- {agent.name}: {agent.description}")
+
         tool_descriptions = []
-        for tool in self.tools:
+        for tool in self.tools():
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
 
         return dedent(
             f"""
             # Identity
 
-            You are a team supervisor for a Gmail team. You have access to following experts or tools:
+            You are a team supervisor for a Gmail team. You have access to following experts:
+            {'\n'.join(agent_description)}
+            
+            AND the following tools:
             {'\n'.join(tool_descriptions)}
             
             # Instructions
 
-            ## Core Workflow
-            * Always start by drafting a plan for multi-step operations
-            * Break down complex requests into smaller, specific tool calls
-            * Identify which tools you need and determine the correct execution order
-            * Always wait for the output of one tool before making the next tool call
-            * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
             * Every question the user asks you is related to email. If they ask you for any information that seems unrelated to email, try to find that information in their inbox.
-            * If  you can't find information requested in the snippet, always ask the summary_and_analytics_agent_tool to extract the requested information.
+            * If  you can't find information requested in the snippet, always ask the GmailSummaryAndAnalyticsAgent to extract the requested information.
             * At the end, summarize all actions taken and provide a detailed answer to the user's query
 
             ## Response Guidelines
@@ -75,41 +69,5 @@ class GmailAgent(BaseGmailAgent):
 
             ## Context Awareness
             * Use the current_datetime_tool to get the current date and time when needed
-
-            # Example
-            
-            User: delete all of my user created labels
-            AI: tool_call('search_and_retrieval_agent_tool', args={{'task_description': 'list all of my user created labels'}})
-            Check: Check output from tool_call and pass it to the next tool_call
-            AI: tool_call('organization_agent_tool', args={{'task_description': 'delete the following labels: <output from search_and_retrieval_agent_tool>'}})
-            Respond: Respond to user
-            -----
-            
-            User: summarize my emails from last week
-            AI: tool_call('search_and_retrieval_agent_tool', args={{'task_description': 'find all my emails from last week'}}
-            Check: Check output from tool_call and pass it to the next tool_call
-            AI: tool_call('summary_and_analytics_agent_tool', args={{'task_description': 'summarize the following emails: <output from search_and_retrieval_agent_tool>'}})
-            Respond: Respond to user
-            -----
-            
-            User: organize my emails from today into the following labels: personal, finance, news, and shopping
-            AI: tool_call('search_and_retrieval_agent_tool', args={{'task_description': 'list all my emails from today'}}
-            Check: Check output from tool_call and pass it to the next tool_call
-            AI: tool_call('summary_and_analytics_agent_tool', args={{'task_description': 'classify the following emails as personal, finance, news and shopping: <output from search_and_retrieval_agent_tool>'}})}}
-            Check: Check output from tool_call and pass it to the next tool_call
-            AI: tool_call('organization_agent_tool', args={{'task_description': 'label the following emails according to their classification: <output from summary_and_analytics_agent_tool>'}}
-            Respond: Respond to user
-            -----
-            
-            User: move all my emails in finance folder to personal
-            AI: tool_call('search_and_retrieval_agent_tool', args={{'task_description': 'list all my emails in finance folder'}}
-            Check: Check output from tool_call and pass it to the next tool_call
-            AI: tool_call('organization_agent_tool', args={{'task_description': 'move the following emails to personal folder: <output from search_and_retrieval_agent_tool>'}}
-            Respond: Respond to user
-            -----
-            
-            * Replace <output from ...agent_tool> with actual response from the agent
-            * Always include message ids and thread ids in your response.
-
             """
         )

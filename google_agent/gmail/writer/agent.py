@@ -1,27 +1,26 @@
 from textwrap import dedent
-from typing import Optional
 
 from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from .tools import SendEmailTool, DraftEmailTool, ReplyEmailTool, ForwardEmailTool
-from ..shared.base_agent import BaseGmailAgent
+from ...shared.base_agent import BaseReActAgent
 
 
-class WriterAgent(BaseGmailAgent):
-    name = "WriterAgent"
+class WriterAgent(BaseReActAgent):
+    name = "GmailWriterAgent"
     description = "Agent that can deals with sending, drafting, forwarding and replying of emails"
 
     def __init__(
             self,
             google_service: APIServiceLayer,
             llm: BaseChatModel,
-            config: Optional[RunnableConfig] = None
+            config: RunnableConfig = None,
     ):
-        super().__init__(google_service, llm, config)
+        super().__init__(llm, google_service, config)
 
-    def _get_tools(self):
+    def tools(self):
         return [
             SendEmailTool(self.google_service),
             DraftEmailTool(self.google_service),
@@ -31,7 +30,7 @@ class WriterAgent(BaseGmailAgent):
 
     def system_prompt(self):
         tool_descriptions = []
-        for tool in self.tools:
+        for tool in self.tools():
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
 
         return dedent(

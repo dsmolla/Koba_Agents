@@ -221,7 +221,7 @@ class GoogleAgentBot:
 
     @staticmethod
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        telegram_id = update.effective_user.id if update.effective_user else None
+        telegram_id = update.effective_user.id if update else None
         error = context.error
         logger.error("Telegram bot error occurred", extra={
             'user_id': telegram_id,
