@@ -5,7 +5,7 @@ from typing import Optional
 
 from google_client.api_service import APIServiceLayer
 from google_client.services.drive.types import DriveFile, DriveFolder, DriveItem
-from langchain.tools.base import BaseTool
+from langchain_core.tools import BaseTool
 from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
 
@@ -157,13 +157,13 @@ class SearchFilesTool(BaseTool):
             if shared_with_me:
                 builder = builder.shared_with_me()
             if modified_after:
-                builder = builder.modified_after(datetime.fromisoformat(modified_after))
+                builder = builder.modified_after(datetime.fromisoformat(modified_after).replace(tzinfo=None))
             if modified_before:
-                builder = builder.modified_before(datetime.fromisoformat(modified_before))
+                builder = builder.modified_before(datetime.fromisoformat(modified_before).replace(tzinfo=None))
             if created_after:
-                builder = builder.created_after(datetime.fromisoformat(created_after))
+                builder = builder.created_after(datetime.fromisoformat(created_after).replace(tzinfo=None))
             if created_before:
-                builder = builder.created_before(datetime.fromisoformat(created_before))
+                builder = builder.created_before(datetime.fromisoformat(created_before).replace(tzinfo=None))
             if starred:
                 builder = builder.starred()
             if not include_folders and include_files:

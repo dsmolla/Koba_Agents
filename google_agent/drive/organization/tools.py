@@ -1,6 +1,6 @@
 from google_client.api_service import APIServiceLayer
 from google_client.services.drive.types import DriveFolder
-from langchain.tools.base import BaseTool
+from langchain_core.tools import BaseTool
 from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
 

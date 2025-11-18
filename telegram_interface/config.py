@@ -26,7 +26,6 @@ class Config:
     ]
     OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI")
     LANGGRAPH_DEBUG = os.getenv("LANGGRAPH_DEBUG", "False").lower() == "true"
-    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
     @classmethod
     def validate(cls):

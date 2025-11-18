@@ -5,7 +5,7 @@ from typing import Optional, Literal, Union
 from google_client.api_service import APIServiceLayer
 from google_client.services.tasks import TaskQueryBuilder
 from google_client.services.tasks.async_query_builder import AsyncTaskQueryBuilder
-from langchain.tools.base import BaseTool
+from langchain_core.tools import BaseTool
 from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
 

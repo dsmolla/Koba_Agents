@@ -1,7 +1,7 @@
 from typing import Optional, List
 
 from google_client.api_service import APIServiceLayer
-from langchain.tools import BaseTool
+from langchain_core.tools import BaseTool
 from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
 

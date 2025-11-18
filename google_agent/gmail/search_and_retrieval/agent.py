@@ -1,17 +1,17 @@
-from textwrap import dedent
 from typing import Optional
 
 from google_client.api_service import APIServiceLayer
+from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from google_agent.gmail.shared.email_cache import EmailCache
+from .system_prompt import system_prompt
 from .tools import GetEmailTool, SearchEmailsTool, ListUserLabelsTool, DownloadAttachmentTool
-from ...shared.base_agent import BaseReActAgent
 from ...shared.tools import CurrentDateTimeTool
 
 
-class SearchAndRetrievalAgent(BaseReActAgent):
+class SearchAndRetrievalAgent:
     name = "GmailRetrievalAgent"
     description = "Agent that specializes in searching, retrieving, and accessing Gmail emails, downloading attachments and listing user labels"
 
@@ -22,45 +22,18 @@ class SearchAndRetrievalAgent(BaseReActAgent):
             email_cache: EmailCache,
             config: Optional[RunnableConfig] = None
     ):
-        super().__init__(llm, google_service, config, email_cache=email_cache)
-
-    def tools(self):
-        return [
-            CurrentDateTimeTool(self.google_service.timezone),
-            GetEmailTool(self.google_service, self.email_cache),
-            SearchEmailsTool(self.google_service, self.email_cache),
-            DownloadAttachmentTool(self.google_service, self.email_cache),
-            ListUserLabelsTool(self.google_service)
+        self._tools = [
+            CurrentDateTimeTool(google_service.timezone),
+            GetEmailTool(google_service, email_cache),
+            SearchEmailsTool(google_service, email_cache),
+            DownloadAttachmentTool(google_service, email_cache),
+            ListUserLabelsTool(google_service)
         ]
 
-    def system_prompt(self):
-        tool_descriptions = []
-        for tool in self.tools():
-            tool_descriptions.append(f"- {tool.name}: {tool.description}")
-
-        return dedent(
-            f"""
-            # Identity
-
-            You are a Gmail search and retrieval assistant that helps users search their inbox. You have access to the following Gmail tools:
-            {'\n'.join(tool_descriptions)}
-
-            # Instructions
-
-            ## Core Workflow
-            * Always start by drafting a plan for multi-step operations
-            * Break down complex requests into smaller, specific tool calls
-            * Identify which tools you need and determine the correct execution order
-            * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
-            * At the end, summarize all actions taken and provide a detailed answer to the user's query
-
-            ## Response Guidelines
-            * Always include message ids and thread ids in your responses
-            * Always include Label IDs in your response when listing or modifying labels
-            * Always include FULL FILE PATHS in your response for downloaded attachments
-            * Always provide clear, organized results
-
-            ## Context Awareness
-            * Use the current_datetime_tool to get the current date and time when needed
-            
-        """)
+        self.agent = create_agent(
+            name=self.name,
+            model=llm,
+            tools=self._tools,
+            system_prompt=system_prompt.format(
+                tools="\n".join([f"- {tool.name}: {tool.description}" for tool in self._tools])),
+        )

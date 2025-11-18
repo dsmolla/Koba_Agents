@@ -5,7 +5,7 @@ from typing import Optional, List, Literal
 from google_client.api_service import APIServiceLayer
 from google_client.services.calendar import EventQueryBuilder, Attendee
 from google_client.services.calendar.async_query_builder import AsyncEventQueryBuilder
-from langchain.tools.base import BaseTool
+from langchain_core.tools import BaseTool
 from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
 

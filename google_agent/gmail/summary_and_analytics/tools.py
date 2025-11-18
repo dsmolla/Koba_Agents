@@ -3,7 +3,7 @@ from textwrap import dedent
 from typing import Optional, Literal
 
 from google_client.api_service import APIServiceLayer
-from langchain.tools import BaseTool
+from langchain_core.tools import BaseTool
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.tools import ArgsSchema
 from langchain_google_genai import ChatGoogleGenerativeAI

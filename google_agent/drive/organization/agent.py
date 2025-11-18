@@ -1,17 +1,20 @@
-from textwrap import dedent
-
-from .tools import MoveFileTool, RenameFileTool, DeleteFileTool
-
 from google_client.api_service import APIServiceLayer
+from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
-from ...shared.base_agent import BaseReActAgent
+from .system_prompt import system_prompt
+from .tools import MoveFileTool, RenameFileTool, DeleteFileTool
 
 
-class OrganizationAgent(BaseReActAgent):
+class OrganizationAgent:
     name: str = "DriveOrganizationAgent"
-    description: str = "Specialized drive agent for moving, renaming, and deleting Google Drive files and folders"
+    description: str = """
+    This agent can:
+        - Move files and folders within Google Drive
+        - Rename files and folders in Google Drive
+        - Delete files and folders from Google Drive
+    """
 
     def __init__(
             self,
@@ -19,38 +22,16 @@ class OrganizationAgent(BaseReActAgent):
             llm: BaseChatModel,
             config: RunnableConfig = None,
     ):
-        super().__init__(llm, google_service, config)
-
-    def tools(self):
-        return [
-            MoveFileTool(self.google_service),
-            RenameFileTool(self.google_service),
-            DeleteFileTool(self.google_service),
+        self._tools = [
+            MoveFileTool(google_service),
+            RenameFileTool(google_service),
+            DeleteFileTool(google_service),
         ]
 
-    def system_prompt(self):
-        tool_descriptions = []
-        for tool in self.tools():
-            tool_descriptions.append(f"- {tool.name}: {tool.description}")
-
-        return dedent(
-            f"""
-            # Identity
-
-            You are a Google Drive organization specialist. You excel at organizing, managing, and maintaining Drive files and folders. You have access to the following tools:
-            {'\n'.join(tool_descriptions)}
-
-            # Instructions
-            
-            ## Core Workflow
-            * Always start by drafting a plan for multi-step operations
-            * Break down complex requests into smaller, specific tool calls
-            * Identify which tools you need and determine the correct execution order
-            * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
-            * At the end, summarize all actions taken and provide a detailed answer to the user's query
-
-            ## Response Guidelines
-            * Always include file IDs in your responses
-            * Always provide clear, organized results
-            """
+        self.agent = create_agent(
+            name=self.name,
+            model=llm,
+            tools=self._tools,
+            system_prompt=system_prompt.format(
+                tools="\n".join([f"- {tool.name}: {tool.description}" for tool in self._tools])),
         )

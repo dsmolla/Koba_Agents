@@ -1,28 +1,20 @@
-import logging
 from abc import ABC, abstractmethod
 from typing import Optional
 
 from dotenv import load_dotenv
+from google_client.api_service import APIServiceLayer
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langgraph.graph.state import CompiledStateGraph
-from langgraph.prebuilt import create_react_agent
-from langchain.globals import set_debug
-
+from langchain.agents import create_agent
 from langgraph_supervisor import create_supervisor
-
-
-from google_client.api_service import APIServiceLayer
 
 from . import agent_executor
 from .response import AgentResponse
 
 load_dotenv()
-set_debug(True)
-
-logger = logging.getLogger(__name__)
 
 
 class BaseGoogleAgent(ABC):
@@ -101,11 +93,11 @@ class BaseReActAgent(BaseGoogleAgent, ABC):
 
     def agent(self) -> CompiledStateGraph:
         if self._agent is None:
-            self._agent = create_react_agent(
-                self.llm,
-                self.tools(),
+            self._agent = create_agent(
+                model=self.llm,
+                tools=self.tools(),
                 name=self.name,
-                prompt=SystemMessage(self.system_prompt())
+                system_prompt=self.system_prompt()
             )
 
         return self._agent
@@ -153,7 +145,7 @@ class BaseSupervisorAgent(BaseGoogleAgent, ABC):
                 model=self.llm,
                 agents=[a.agent() for a in self.agents()],
                 tools=self.tools(),
-                supervisor_name=self.name,
+                supervisor_name="supervisor_" + self.name,
                 prompt=SystemMessage(self.system_prompt()),
                 output_mode="last_message"
             ).compile(name=self.name)

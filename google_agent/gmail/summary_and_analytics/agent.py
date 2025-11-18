@@ -1,17 +1,17 @@
-from textwrap import dedent
 from typing import Optional
 
 from google_client.api_service import APIServiceLayer
+from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from google_agent.gmail.shared.email_cache import EmailCache
+from .system_prompt import system_prompt
 from .tools import SummarizeEmailsTool, ExtractFromEmailTool, ClassifyEmailTool
-from ...shared.base_agent import BaseReActAgent
 from ...shared.tools import CurrentDateTimeTool
 
 
-class SummaryAndAnalyticsAgent(BaseReActAgent):
+class SummaryAndAnalyticsAgent:
     name = "GmailSummaryAndAnalyticsAgent"
     description = "Agent that can summarize, classify and extract information from emails in Gmail"
 
@@ -22,41 +22,17 @@ class SummaryAndAnalyticsAgent(BaseReActAgent):
             email_cache: EmailCache,
             config: Optional[RunnableConfig] = None
     ):
-        super().__init__(llm, google_service, config, email_cache=email_cache)
-
-    def tools(self):
-        return [
-            CurrentDateTimeTool(self.google_service.timezone),
-            SummarizeEmailsTool(self.google_service, self.email_cache),
-            ExtractFromEmailTool(self.google_service, self.email_cache),
-            ClassifyEmailTool(self.google_service, self.email_cache),
+        self._tools = [
+            CurrentDateTimeTool(google_service.timezone),
+            SummarizeEmailsTool(google_service, email_cache),
+            ExtractFromEmailTool(google_service, email_cache),
+            ClassifyEmailTool(google_service, email_cache),
         ]
 
-    def system_prompt(self) -> str:
-        tool_descriptions = []
-        for tool in self.tools():
-            tool_descriptions.append(f"- {tool.name}: {tool.description}")
-
-        return dedent(
-            f"""
-            # Identity
-
-            You are a Gmail summary and analytics assistant that helps users summarize their emails. You have access to the following Gmail tools:
-            {'\n'.join(tool_descriptions)}
-
-            # Instructions
-
-            ## Core Workflow
-            * Always start by drafting a plan for multi-step operations
-            * Break down complex requests into smaller, specific tool calls
-            * Identify which tools you need and determine the correct execution order
-            * Chain outputs: Use results from previous tool calls as inputs to subsequent calls
-            * At the end, summarize all actions taken and provide a detailed answer to the user's query
-
-            ## Response Guidelines
-            * Always include message ids and thread ids in your responses
-
-            ## Context Awareness
-            * Use the current_datetime_tool to get the current date and time when needed
-            
-        """)
+        self.agent = create_agent(
+            name=self.name,
+            model=llm,
+            tools=self._tools,
+            system_prompt=system_prompt.format(
+                tools="\n".join([f"- {tool.name}: {tool.description}" for tool in self._tools])),
+        )
