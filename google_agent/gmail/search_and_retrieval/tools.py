@@ -6,7 +6,7 @@ from typing import Optional, Union
 from google_client.api_service import APIServiceLayer
 from google_client.services.gmail import EmailQueryBuilder
 from google_client.services.gmail.async_query_builder import AsyncEmailQueryBuilder
-from langchain.tools import BaseTool
+from langchain_core.tools import BaseTool
 from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
 

@@ -1,3 +1,4 @@
+import asyncio
 import os
 import logging
 import time
@@ -180,23 +181,28 @@ class GoogleAgentBot:
             'user_id': telegram_id,
             'username': username,
             'message_length': len(user_message),
-            'message_preview': user_message[:100]  # First 100 chars
+            'message_preview': user_message[:100]
         })
 
         session = await self.session_manager.get_session(telegram_id)
 
         if session.agent is None:
-            logger.warning("Message from unauthenticated user", extra={'user_id': telegram_id})
+            logger.info("Message from unauthenticated user", extra={'user_id': telegram_id})
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(NOT_LOGGED_IN_MESSAGE))
             return
 
-        session.add_messages([HumanMessage(content=user_message)])
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+        async def typing_action():
+            while True:
+                await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+                await asyncio.sleep(4)
+
+        typing_task = asyncio.create_task(typing_action())
 
         try:
-            logger.debug("Sending message to agent", extra={'user_id': telegram_id})
-            response = await session.agent.aexecute(session.messages)
-            session.add_messages(response.messages)
+            human_message = HumanMessage(content=user_message)
+            session.add_message(human_message)
+            response = await session.agent.aexecute([human_message])
+            session.add_message(response.messages[-1])
 
             processing_time = time.time() - start_time
             response_text = response.messages[-1].content
@@ -205,7 +211,7 @@ class GoogleAgentBot:
                 'user_id': telegram_id,
                 'processing_time': f"{processing_time:.2f}s",
                 'response_length': len(response_text),
-                'response_preview': response_text[:100]  # First 100 chars
+                'response_preview': response_text[:100]
             })
 
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(response_text))
@@ -218,6 +224,18 @@ class GoogleAgentBot:
                 'message_preview': user_message[:100]
             }, exc_info=True)
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_PROCESSING_MESSAGE))
+        finally:
+            typing_task.cancel()
+
+    async def save_session(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        telegram_id = update.effective_user.id
+        await self.session_manager.save_session_to_disk(telegram_id)
+        logger.info("User session saved", extra={'user_id': telegram_id})
+
+    async def load_session(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        telegram_id = update.effective_user.id
+        await self.session_manager.load_session_from_disk(telegram_id)
+        logger.info("User session loaded", extra={'user_id': telegram_id})
 
     @staticmethod
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -252,6 +270,8 @@ class GoogleAgentBot:
         self.application.add_handler(CommandHandler("clear", self.clear))
         self.application.add_handler(CommandHandler("help", self.help))
         self.application.add_handler(CommandHandler("timezone", self.timezone))
+        self.application.add_handler(CommandHandler("save", self.save_session))
+        self.application.add_handler(CommandHandler("load", self.load_session))
         self.application.add_handler(CallbackQueryHandler(self.handle_timezone_selection, pattern="^"))
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
 

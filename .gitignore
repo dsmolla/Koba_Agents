@@ -6,6 +6,6 @@ nul
 __pycache__
 
 *.log
-data/
+.data/
 
 google_client/

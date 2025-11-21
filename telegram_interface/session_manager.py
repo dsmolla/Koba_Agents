@@ -3,6 +3,7 @@ import logging
 import time
 from typing import Optional
 
+import aiofiles
 import google.auth.exceptions
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
@@ -32,8 +33,8 @@ class UserSession:
     def is_expired(self) -> bool:
         return (time.time() - self.last_activity) > Config.SESSION_TIMEOUT
 
-    def add_messages(self, message: list[BaseMessage]):
-        self.messages.extend(message)
+    def add_message(self, message: BaseMessage):
+        self.messages.append(message)
         self.update_activity()
 
     def clear_history(self):
@@ -56,17 +57,15 @@ class UserSession:
     @classmethod
     def from_dict(cls, data: dict) -> 'UserSession':
         session = cls(data['telegram_id'])
-        session.last_activity = data['last_activity']
+        session.last_activity = time.time()
 
         for msg_data in data['messages']:
-            if msg_data['type'] == HumanMessage:
-                session.messages.append(
-                    HumanMessage(content=msg_data['content']))
+            if msg_data['type'] == 'HumanMessage':
+                session.messages.append(HumanMessage(content=msg_data['content']))
             elif msg_data['type'] == 'AIMessage':
                 session.messages.append(AIMessage(content=msg_data['content']))
             elif msg_data['type'] == 'ToolMessage':
-                session.messages.append(
-                    ToolMessage(content=msg_data['content']))
+                session.messages.append(ToolMessage(content=msg_data['content']))
 
         return session
 
@@ -147,6 +146,10 @@ class SessionManager:
                 return GoogleAgent(
                     google_service=google_service,
                     llm=LLM_FLASH,
+                    config={
+                        "configurable":
+                            {"thread_id": telegram_id}
+                    }
                 )
             except google.auth.exceptions.RefreshError as e:
                 logger.error("Failed to create agent - token refresh error", extra={
@@ -159,7 +162,7 @@ class SessionManager:
         logger.warning("Cannot create agent - no token found", extra={'user_id': telegram_id})
         return None
 
-    def save_session_to_disk(self, telegram_id: int) -> bool:
+    async def save_session_to_disk(self, telegram_id: int) -> bool:
         session = self.sessions.get(telegram_id)
         if session is None:
             logger.debug("Cannot save session - session not found", extra={'user_id': telegram_id})
@@ -171,8 +174,8 @@ class SessionManager:
 
         session_path = Config.get_user_session_path(telegram_id)
         try:
-            with open(session_path, 'w') as f:
-                json.dump(session.to_dict(), f, indent=2)
+            async with aiofiles.open(session_path, 'w') as f:
+                await f.write(json.dumps(session.to_dict(), indent=2))
             logger.info("Session saved to disk", extra={
                 'user_id': telegram_id,
                 'path': str(session_path),
@@ -187,27 +190,27 @@ class SessionManager:
             }, exc_info=True)
             return False
 
-    def load_session_from_disk(self, telegram_id: int) -> bool:
+    async def load_session_from_disk(self, telegram_id: int) -> bool:
         session_path = Config.get_user_session_path(telegram_id)
         if not session_path.exists():
             logger.debug("No session file found on disk", extra={'user_id': telegram_id})
             return False
 
         try:
-            with open(session_path, 'r') as f:
-                data = json.load(f)
-                session = UserSession.from_dict(data)
+            async with aiofiles.open(session_path, 'r') as f:
+                data = await f.read()
+                session = UserSession.from_dict(json.loads(data))
+                session.agent = await self.create_agent(telegram_id)
+                if session.agent:
+                    session.agent.agent.checkpointer.put()
+                self.sessions[telegram_id] = session
 
-                if not session.is_expired():
-                    self.sessions[telegram_id] = session
-                    logger.info("Session loaded from disk", extra={
-                        'user_id': telegram_id,
-                        'message_count': len(session.messages)
-                    })
-                    return True
-                else:
-                    logger.debug("Session on disk is expired", extra={'user_id': telegram_id})
-                    return False
+                logger.info("Session loaded from disk", extra={
+                    'user_id': telegram_id,
+                    'message_count': len(session.messages)
+                })
+
+                return True
         except Exception as e:
             logger.error("Failed to load session from disk", extra={
                 'user_id': telegram_id,

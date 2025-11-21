@@ -3,9 +3,9 @@ from textwrap import dedent
 from typing import Optional, Literal
 
 from google_client.api_service import APIServiceLayer
-from langchain.tools import BaseTool
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.tools import ArgsSchema
+from langchain_core.tools import BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
@@ -30,9 +30,9 @@ class SummarizeEmailsTool(BaseTool):
     email_cache: EmailCache
 
     def __init__(
-        self,
-        google_service: APIServiceLayer,
-        email_cache: EmailCache
+            self,
+            google_service: APIServiceLayer,
+            email_cache: EmailCache
     ):
         super().__init__(
             google_service=google_service,
@@ -256,9 +256,9 @@ class ExtractFromEmailTool(BaseTool):
     email_cache: EmailCache
 
     def __init__(
-        self,
-        google_service: APIServiceLayer,
-        email_cache: EmailCache
+            self,
+            google_service: APIServiceLayer,
+            email_cache: EmailCache
     ):
         super().__init__(
             google_service=google_service,
@@ -444,9 +444,9 @@ class ClassifyEmailTool(BaseTool):
     email_cache: EmailCache
 
     def __init__(
-        self,
-        google_service: APIServiceLayer,
-        email_cache: EmailCache
+            self,
+            google_service: APIServiceLayer,
+            email_cache: EmailCache
     ):
         super().__init__(
             google_service=google_service,
@@ -533,7 +533,7 @@ class ClassifyEmailTool(BaseTool):
             )
 
     async def _arun(self, message_ids: list[str], classifications: list[str],
-             include_confidence: Optional[bool] = False) -> ToolResponse:
+                    include_confidence: Optional[bool] = False) -> ToolResponse:
         try:
             emails = []
             for message_id in message_ids:

@@ -13,5 +13,5 @@ class CurrentDateTimeTool(BaseTool):
     def _run(self) -> str:
         return current_datetime(self.timezone).strftime("%Y-%m-%dT%H:%M:%S")
 
-    async def _arun(self, task_description: str) -> str:
+    async def _arun(self) -> str:
         return current_datetime(self.timezone).strftime("%Y-%m-%dT%H:%M:%S")

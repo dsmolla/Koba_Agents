@@ -5,8 +5,8 @@ from typing import Optional, List, Literal
 from google_client.api_service import APIServiceLayer
 from google_client.services.calendar import EventQueryBuilder, Attendee
 from google_client.services.calendar.async_query_builder import AsyncEventQueryBuilder
-from langchain.tools.base import BaseTool
 from langchain_core.tools import ArgsSchema
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from google_agent.shared.exceptions import ToolException
@@ -28,13 +28,13 @@ class ListCalendarsTool(BaseTool):
             calendars = self.google_service.calendar.list_calendars()
             calendars = [{'name': calendar.summary, 'id': calendar.id} for calendar in calendars]
             return ToolResponse(
-                status="success", 
+                status="success",
                 message=json.dumps(calendars)
             )
 
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to list calendars: {str(e)}"
             )
 
@@ -43,13 +43,13 @@ class ListCalendarsTool(BaseTool):
             calendars = await self.google_service.async_calendar.list_calendars()
             calendars = [{'name': calendar.summary, 'id': calendar.id} for calendar in calendars]
             return ToolResponse(
-                status="success", 
+                status="success",
                 message=json.dumps(calendars)
             )
 
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to list calendars: {str(e)}"
             )
 
@@ -73,13 +73,13 @@ class CreateCalendarTool(BaseTool):
             calendar = self.google_service.calendar.create_calendar(name)
             calendar = [{'name': calendar.summary, 'id': calendar.id}]
             return ToolResponse(
-                status="success", 
+                status="success",
                 message=json.dumps(calendar)
             )
 
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to create calendar: {str(e)}"
             )
 
@@ -88,13 +88,13 @@ class CreateCalendarTool(BaseTool):
             calendar = await self.google_service.async_calendar.create_calendar(name)
             calendar = [{'name': calendar.summary, 'id': calendar.id}]
             return ToolResponse(
-                status="success", 
+                status="success",
                 message=json.dumps(calendar)
             )
 
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to create calendar: {str(e)}"
             )
 
@@ -122,7 +122,7 @@ class DeleteCalendarTool(BaseTool):
             )
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to delete calendar: {str(e)}"
             )
 
@@ -130,20 +130,21 @@ class DeleteCalendarTool(BaseTool):
         try:
             await self.google_service.async_calendar.delete_calendar(calendar_id)
             return ToolResponse(
-                status="success", 
+                status="success",
                 message="Calendar deleted"
             )
 
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to delete calendar: {str(e)}"
             )
-        
+
 
 class GetEventsInput(BaseModel):
     event_id: str = Field(description="The event_id of the event to retrieve")
-    calendar_id: Optional[str] = Field('primary', description="The calendar_id containing the event. Default is primary")
+    calendar_id: Optional[str] = Field('primary',
+                                       description="The calendar_id containing the event. Default is primary")
 
 
 class GetEventsTool(BaseTool):
@@ -161,13 +162,13 @@ class GetEventsTool(BaseTool):
             event = self.google_service.calendar.get_event(event_id, calendar_id)
             event_dict = event.to_dict()
             return ToolResponse(
-                status="success", 
+                status="success",
                 message=json.dumps(event_dict)
             )
 
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to find event: {str(e)}"
             )
 
@@ -176,22 +177,25 @@ class GetEventsTool(BaseTool):
             event = await self.google_service.async_calendar.get_event(event_id, calendar_id)
             event_dict = event.to_dict()
             return ToolResponse(
-                status="success", 
+                status="success",
                 message=json.dumps(event_dict)
             )
 
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to find event: {str(e)}"
             )
 
 
 class ListEventsInput(BaseModel):
-    calendar_id: Optional[str] = Field('primary', description="The calendar_id containing the event. Default is primary")
+    calendar_id: Optional[str] = Field('primary',
+                                       description="The calendar_id containing the event. Default is primary")
     max_results: Optional[int] = Field(default=100, description="Maximum number of events to return")
-    datetime_min: Optional[str] = Field(default=None, description="RFC3339 timestamp string to filter events starting from. Defaults to today")
-    datetime_max: Optional[str] = Field(default=None, description="RFC3339 timestamp string to filter events ending by. Defaults to 30 days after datetime_min")
+    datetime_min: Optional[str] = Field(default=None,
+                                        description="RFC3339 timestamp string to filter events starting from. Defaults to today")
+    datetime_max: Optional[str] = Field(default=None,
+                                        description="RFC3339 timestamp string to filter events ending by. Defaults to 30 days after datetime_min")
     date_filter: Optional[Literal["TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "THIS_MONTH"]] = (
         Field(None, description=("Predefined date filters to filter events. "
                                  "Overrides datetime_min and datetime_max if provided. "
@@ -235,13 +239,13 @@ class ListEventsTool(BaseTool):
             events = builder.execute()
             events_data = [event.to_dict() for event in events]
             return ToolResponse(
-                status="success", 
+                status="success",
                 message=json.dumps(events_data)
             )
 
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to list events: {str(e)}"
             )
 
@@ -269,13 +273,13 @@ class ListEventsTool(BaseTool):
             events = await builder.execute()
             events_data = [event.to_dict() for event in events]
             return ToolResponse(
-                status="success", 
+                status="success",
                 message=json.dumps(events_data)
             )
 
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to list events: {str(e)}"
             )
 
@@ -309,7 +313,8 @@ class ListEventsTool(BaseTool):
 
 
 class CreateEventInput(BaseModel):
-    calendar_id: Optional[str] = Field('primary', description="The calendar_id of where to create the event. Default is primary")
+    calendar_id: Optional[str] = Field('primary',
+                                       description="The calendar_id of where to create the event. Default is primary")
     summary: str = Field(description="The summary or title of the event")
     start_datetime: str = Field(description="RFC3339 timestamp string for the event start time")
     end_datetime: str = Field(description="RFC3339 timestamp string for the event end time")
@@ -354,13 +359,13 @@ class CreateEventTool(BaseTool):
                 calendar_id=calendar_id
             )
             return ToolResponse(
-                status="success", 
+                status="success",
                 message=f"Event created successfully. event_id: {event.event_id}"
             )
 
         except Exception as e:
             raise ToolException(
-                tool_name=self.name, 
+                tool_name=self.name,
                 message=f"Failed to create event: {str(e)}"
             )
 
@@ -403,7 +408,8 @@ class CreateEventTool(BaseTool):
 
 class DeleteEventInput(BaseModel):
     event_id: str = Field(description="The event_id of the event to delete")
-    calendar_id: Optional[str] = Field('primary', description="The calendar_id containing the event. Default is primary")
+    calendar_id: Optional[str] = Field('primary',
+                                       description="The calendar_id containing the event. Default is primary")
 
 
 class DeleteEventTool(BaseTool):
@@ -445,7 +451,8 @@ class DeleteEventTool(BaseTool):
 
 
 class UpdateEventInput(BaseModel):
-    calendar_id: Optional[str] = Field('primary', description="The calendar_id containing the event. Default is primary")
+    calendar_id: Optional[str] = Field('primary',
+                                       description="The calendar_id containing the event. Default is primary")
     event_id: str = Field(description="The event_id of the event to update")
     summary: Optional[str] = Field(default=None, description="The new summary or title of the event")
     start_datetime: Optional[str] = Field(default=None,
@@ -576,7 +583,8 @@ class FindFreeSlotsInput(BaseModel):
     duration_minutes: int = Field(description="Minimum duration for free slots in minutes")
     datetime_min: Optional[str] = Field(default=None, description="RFC3339 timestamp string to start searching from")
     datetime_max: Optional[str] = Field(default=None, description="RFC3339 timestamp string to end searching by")
-    calendar_ids: Optional[List[str]] = Field(['primary'], description="A list of calendar_ids where to look for free slots. Default is primary")
+    calendar_ids: Optional[List[str]] = Field(['primary'],
+                                              description="A list of calendar_ids where to look for free slots. Default is primary")
 
 
 class FindFreeSlotsTool(BaseTool):
@@ -647,4 +655,3 @@ class FindFreeSlotsTool(BaseTool):
                 tool_name=self.name,
                 message=f"Failed to find free slots: {str(e)}"
             )
-
