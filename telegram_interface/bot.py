@@ -1,11 +1,19 @@
 import asyncio
-import os
 import logging
+import os
 import time
+from collections import defaultdict
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
 
 import telegramify_markdown
 from langchain_core.messages import HumanMessage
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram._files.audio import Audio
+from telegram._files.document import Document
+from telegram._files.photosize import PhotoSize
+from telegram._files.video import Video
 from telegram.constants import ChatAction
 from telegram.ext import (
     Application,
@@ -30,12 +38,23 @@ async def format_markdown_for_telegram(text: str) -> str:
     return ""
 
 
+@dataclass
+class MessageData:
+    documents: list[Document | PhotoSize | Video | Audio] = field(default_factory=list)
+    text: Optional[str] = None
+    update: Optional[Update] = None
+
+
 class GoogleAgentBot:
     def __init__(self, auth_redirect_uri: str):
         logger.info("Initializing GoogleAgentBot", extra={'auth_redirect_uri': auth_redirect_uri})
         self.application = Application.builder().token(Config.TELEGRAM_BOT_TOKEN).concurrent_updates(True).build()
         self.session_manager = SessionManager(auth_redirect_uri)
         self.auth_flows = {}
+
+        self.pending_messages: dict[int, MessageData] = defaultdict(lambda: MessageData())
+        self.timers: dict[int, asyncio.Task] = {}
+
         logger.info("GoogleAgentBot initialized successfully")
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -104,7 +123,8 @@ class GoogleAgentBot:
         logger.info("User session cleared", extra={'user_id': telegram_id})
         await update.message.reply_markdown_v2(await format_markdown_for_telegram(CLEARED_HISTORY_MESSAGE))
 
-    async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    @staticmethod
+    async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
         logger.info("/help command received", extra={'user_id': telegram_id})
         await update.message.reply_markdown_v2(await format_markdown_for_telegram(HELP_MESSAGE))
@@ -115,7 +135,8 @@ class GoogleAgentBot:
 
         if not await self.session_manager.is_user_authenticated(telegram_id):
             logger.warning("Timezone command from unauthenticated user", extra={'user_id': telegram_id})
-            await update.message.reply_markdown_v2(await format_markdown_for_telegram(TIMEZONE_NOT_AUTHENTICATED_MESSAGE))
+            await update.message.reply_markdown_v2(
+                await format_markdown_for_telegram(TIMEZONE_NOT_AUTHENTICATED_MESSAGE))
             return
 
         current_tz = await self.session_manager.user_tokens_db.get_timezone(telegram_id)
@@ -171,17 +192,50 @@ class GoogleAgentBot:
                 parse_mode='MarkdownV2'
             )
 
-    async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        telegram_id = update.effective_user.id
-        username = update.effective_user.username
-        user_message = update.message.text
+    async def _process_group_after_timeout(self, telegram_id: int):
+        await asyncio.sleep(1.5)
+
+        if telegram_id in self.pending_messages:
+            message_data = self.pending_messages[telegram_id]
+            await self.execute_message(message_data)
+
+            del self.pending_messages[telegram_id]
+            if telegram_id in self.timers:
+                del self.timers[telegram_id]
+
+    @staticmethod
+    async def download_files(documents: list[Document]) -> list[Path]:
+        download_folder = Path(Config.USER_FILES_DIR)
+        downloaded_files = []
+        for document in documents:
+            try:
+                file = await document.get_file()
+                try:
+                    file_name = document.file_name
+                except AttributeError:
+                    file_name = document.file_unique_id
+                    extension = file.file_path.split('.')[-1]
+                    file_name = f"{file_name}.{extension}"
+                path = await file.download_to_drive(download_folder / file_name)
+                downloaded_files.append(path)
+            except Exception:
+                logger.error(f"Error downloading file: {document}",
+                             extra={'file_id': document.file_id},
+                             exc_info=True
+                             )
+        return downloaded_files
+
+    async def execute_message(self, message_data: MessageData):
         start_time = time.time()
+        telegram_id = message_data.update.effective_user.id
+        update = message_data.update
+        text = message_data.text or ""
 
         logger.info("User message received", extra={
             'user_id': telegram_id,
-            'username': username,
-            'message_length': len(user_message),
-            'message_preview': user_message[:100]
+            'message_length': len(text),
+            'message_preview': text[:100],
+            'files': [document.file_unique_id for document in message_data.documents]
         })
 
         session = await self.session_manager.get_session(telegram_id)
@@ -191,15 +245,21 @@ class GoogleAgentBot:
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(NOT_LOGGED_IN_MESSAGE))
             return
 
+        paths = []
+        if message_data.documents:
+            paths = await self.download_files(message_data.documents)
+            text += "\nFile Paths: "
+            text += ', '.join([str(path) for path in paths])
+
         async def typing_action():
             while True:
-                await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+                await update.message.reply_chat_action(ChatAction.TYPING)
                 await asyncio.sleep(4)
 
         typing_task = asyncio.create_task(typing_action())
 
         try:
-            human_message = HumanMessage(content=user_message)
+            human_message = HumanMessage(content=text)
             session.add_message(human_message)
             response = await session.agent.aexecute([human_message])
             session.add_message(response.messages[-1])
@@ -221,13 +281,71 @@ class GoogleAgentBot:
                 'user_id': telegram_id,
                 'processing_time': f"{processing_time:.2f}s",
                 'error': str(e),
-                'message_preview': user_message[:100]
+                'message_preview': text[:100]
             }, exc_info=True)
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_PROCESSING_MESSAGE))
         finally:
             typing_task.cancel()
+            # Clean up downloaded files
+            for path in paths:
+                try:
+                    if path.exists():
+                        path.unlink()
+                        logger.debug("File deleted successfully", extra={
+                            'user_id': telegram_id,
+                            'file_path': str(path)
+                        })
+                except Exception as e:
+                    logger.warning("Failed to delete file", extra={
+                        'user_id': telegram_id,
+                        'file_path': str(path),
+                        'error': str(e)
+                    })
+
+    async def handle_files(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        message = update.message
+        telegram_id = update.effective_user.id
+
+        message_data = self.pending_messages[telegram_id]
+
+        if message_data.update is None:
+            message_data.update = update
+
+        if message.document:
+            message_data.documents.append(message.document)
+
+        if message.photo:
+            message_data.documents.append(message.photo[-1])
+
+        if message.video:
+            message_data.documents.append(message.video)
+
+        if message.audio:
+            message_data.documents.append(message.audio)
+
+        if message.caption and message_data.text is None:
+            message_data.text = message.caption
+
+        if telegram_id in self.timers:
+            self.timers[telegram_id].cancel()
+
+        self.pending_messages[telegram_id] = message_data
+        self.timers[telegram_id] = asyncio.create_task(self._process_group_after_timeout(telegram_id))
+
+    async def handle_text_only(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        telegram_id = update.effective_user.id
+        message_data = self.pending_messages[telegram_id]
+        message_data.text = update.message.text
+        message_data.update = update
+
+        if telegram_id in self.timers:
+            self.timers[telegram_id].cancel()
+
+        self.pending_messages[telegram_id] = message_data
+        self.timers[telegram_id] = asyncio.create_task(self._process_group_after_timeout(telegram_id))
 
     async def save_session(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+
         telegram_id = update.effective_user.id
         await self.session_manager.save_session_to_disk(telegram_id)
         logger.info("User session saved", extra={'user_id': telegram_id})
@@ -273,7 +391,9 @@ class GoogleAgentBot:
         self.application.add_handler(CommandHandler("save", self.save_session))
         self.application.add_handler(CommandHandler("load", self.load_session))
         self.application.add_handler(CallbackQueryHandler(self.handle_timezone_selection, pattern="^"))
-        self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
+        self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_only))
+        self.application.add_handler(
+            MessageHandler(filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO, self.handle_files))
 
         self.application.add_error_handler(self.error_handler)
 

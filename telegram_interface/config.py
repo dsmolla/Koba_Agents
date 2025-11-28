@@ -12,6 +12,7 @@ class Config:
     CLIENT_CREDS_PATH = os.getenv("CLIENT_CREDS_PATH")
     USER_TOKENS_DB = os.getenv("USER_TOKENS_DB", "user_tokens.db")
     USER_SESSIONS_DIR = os.getenv("USER_SESSIONS_DIR", "user_sessions")
+    USER_FILES_DIR = os.getenv("USER_FILES_DIR", "user_files")
 
     SECRET_KEY = os.getenv("SECRET_KEY")
 

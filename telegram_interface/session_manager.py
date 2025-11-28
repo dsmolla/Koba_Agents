@@ -71,12 +71,16 @@ class UserSession:
 
 
 class SessionManager:
+    # Auth flow timeout in seconds (10 minutes)
+    AUTH_FLOW_TIMEOUT = 600
+
     def __init__(self, redirect_uri: str) -> None:
         logger.info("Initializing SessionManager", extra={'redirect_uri': redirect_uri})
         self.sessions: dict[int, UserSession] = {}
         self.auth_manager = GoogleOAuthManager(self._get_client_secret(), redirect_uri=redirect_uri)
         self.user_tokens_db = UserTokensDB()
-        self.auth_flows: dict[str, int] = {}
+        # Store (telegram_id, timestamp) tuples to enable cleanup
+        self.auth_flows: dict[str, tuple[int, float]] = {}
 
         set_debug(Config.LANGGRAPH_DEBUG)
         logger.info("SessionManager initialized successfully", extra={
@@ -201,13 +205,12 @@ class SessionManager:
                 data = await f.read()
                 session = UserSession.from_dict(json.loads(data))
                 session.agent = await self.create_agent(telegram_id)
-                if session.agent:
-                    session.agent.agent.checkpointer.put()
                 self.sessions[telegram_id] = session
 
                 logger.info("Session loaded from disk", extra={
                     'user_id': telegram_id,
-                    'message_count': len(session.messages)
+                    'message_count': len(session.messages),
+                    'has_agent': session.agent is not None
                 })
 
                 return True
@@ -251,19 +254,55 @@ class SessionManager:
             del self.sessions[telegram_id]
 
     def store_auth_flow(self, state: str, telegram_id: int):
+        # Cleanup expired flows before adding new one
+        self.cleanup_expired_auth_flows()
+
         logger.debug("Storing auth flow", extra={'user_id': telegram_id})
-        self.auth_flows[state] = telegram_id
+        self.auth_flows[state] = (telegram_id, time.time())
 
     def get_auth_flow(self, state: str) -> Optional[int]:
-        telegram_id = self.auth_flows.get(state)
-        if telegram_id:
+        flow_data = self.auth_flows.get(state)
+        if flow_data:
+            telegram_id, timestamp = flow_data
+            # Check if flow has expired
+            if (time.time() - timestamp) > self.AUTH_FLOW_TIMEOUT:
+                logger.warning("Auth flow expired", extra={
+                    'user_id': telegram_id,
+                    'age_seconds': time.time() - timestamp
+                })
+                self.remove_auth_flow(state)
+                return None
             logger.debug("Auth flow retrieved", extra={'user_id': telegram_id})
+            return telegram_id
         else:
             logger.warning("Auth flow not found")
-        return telegram_id
+        return None
 
     def remove_auth_flow(self, state: str):
         if state in self.auth_flows:
-            telegram_id = self.auth_flows[state]
+            telegram_id, _ = self.auth_flows[state]
             logger.debug("Removing auth flow", extra={'user_id': telegram_id})
             del self.auth_flows[state]
+
+    def cleanup_expired_auth_flows(self) -> int:
+        """Remove auth flows older than AUTH_FLOW_TIMEOUT."""
+        current_time = time.time()
+        expired_states = [
+            state for state, (telegram_id, timestamp) in self.auth_flows.items()
+            if (current_time - timestamp) > self.AUTH_FLOW_TIMEOUT
+        ]
+
+        if expired_states:
+            logger.info("Cleaning up expired auth flows", extra={
+                'expired_count': len(expired_states)
+            })
+
+        for state in expired_states:
+            telegram_id, _ = self.auth_flows[state]
+            logger.debug("Removing expired auth flow", extra={
+                'user_id': telegram_id,
+                'age_seconds': current_time - self.auth_flows[state][1]
+            })
+            del self.auth_flows[state]
+
+        return len(expired_states)

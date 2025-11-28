@@ -12,6 +12,10 @@ class GoogleAgent(BaseSupervisorGoogleAgent):
     name: str = "GoogleAgent"
     description: str = "A Google Workspace expert that can handle complex queries related to Gmail, Calendar, Tasks, and Drive"
 
+    def __init__(self, google_service, llm, config=None):
+        super().__init__(google_service, llm, config)
+        self._checkpointer = None
+
     @property
     def tools(self):
         if self._tools is None:
@@ -20,7 +24,9 @@ class GoogleAgent(BaseSupervisorGoogleAgent):
 
     @property
     def checkpointer(self):
-        return InMemorySaver()
+        if self._checkpointer is None:
+            self._checkpointer = InMemorySaver()
+        return self._checkpointer
 
     @property
     def sub_agents(self):
