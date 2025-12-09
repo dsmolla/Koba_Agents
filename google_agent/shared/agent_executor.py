@@ -95,19 +95,23 @@ async def aexecute(
         config: RunnableConfig = None
 ) -> AgentResponse:
 
-    start = time.time()
-    message_history = []
-
     logger.info(f"Agent execution started (async)", extra={
         'agent_name': agent.name,
         'message_count': len(messages),
         'content_preview': [str(msg.content)[:100] for msg in messages if msg.content]
     })
 
+    start = time.time()
+    message_history = []
+    structured_responses = []
+
     try:
         async for chunk in agent.astream(input={'messages': messages}, stream_mode='values', config=config):
             response = chunk['messages'][-1]
             message_history.append(response)
+            if chunk.get('structured_response'):
+                structured_responses.append(chunk['structured_response'])
+
             log_execution(response, agent.name)
 
     except Exception as e:
@@ -118,4 +122,4 @@ async def aexecute(
     execution_time = time.time() - start
     log_completion(agent.name, message_history, execution_time)
 
-    return AgentResponse(name=agent.name, messages=message_history)
+    return AgentResponse(name=agent.name, messages=message_history, structured_responses=structured_responses)

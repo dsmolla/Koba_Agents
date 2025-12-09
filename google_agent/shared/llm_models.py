@@ -13,6 +13,7 @@ MODELS = {
     },
 }
 
-LLM_FLASH = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash'])
+custom_profile = {"structured_output": True}
+LLM_FLASH = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash'], profile=custom_profile)
 
 

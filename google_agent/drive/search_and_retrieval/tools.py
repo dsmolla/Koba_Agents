@@ -318,9 +318,11 @@ class DownloadFileTool(BaseTool):
     args_schema: ArgsSchema = DownloadFileInput
 
     google_service: APIServiceLayer
+    download_folder: Optional[str] = None
 
-    def __init__(self, google_service: APIServiceLayer):
+    def __init__(self, google_service: APIServiceLayer, download_folder: Optional[str] = None):
         super().__init__(google_service=google_service)
+        self.download_folder = download_folder
 
     def _run(self, file_id: str) -> ToolResponse:
         try:
@@ -331,7 +333,7 @@ class DownloadFileTool(BaseTool):
                     message=f"Item {file_id} is a folder, not a file"
                 )
 
-            download_folder = os.path.join(os.path.expanduser("~"), "Downloads", "GoogleDriveFiles")
+            download_folder = self.download_folder or os.path.join(os.path.expanduser("~"), "Downloads", "GoogleDriveFiles")
             downloaded_path = self.google_service.drive.download_file(file, download_folder)
 
             return ToolResponse(
@@ -344,7 +346,6 @@ class DownloadFileTool(BaseTool):
                 tool_name=self.name,
                 message=f"Failed to download file: {str(e)}"
             )
-
     async def _arun(self, file_id: str) -> ToolResponse:
         try:
             service = self.google_service.async_drive
@@ -355,8 +356,9 @@ class DownloadFileTool(BaseTool):
                     message=f"Item {file_id} is a folder, not a file"
                 )
 
-            download_folder = os.path.join(os.path.expanduser("~"), "Downloads", "GoogleDriveFiles")
+            download_folder = self.download_folder or os.path.join(os.path.expanduser("~"), "Downloads", "GoogleDriveFiles")
             downloaded_path = await service.download_file(file, download_folder)
+
 
             return ToolResponse(
                 status="success",

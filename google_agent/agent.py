@@ -1,10 +1,16 @@
+from typing import override
+
+from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph.state import CompiledStateGraph
 
 from google_agent.calendar.agent import CalendarAgent
 from google_agent.drive.agent import DriveAgent
 from google_agent.gmail.agent import GmailAgent
 from google_agent.tasks.agent import TasksAgent
 from .shared.base_agent import BaseSupervisorGoogleAgent
+from .shared.response import StructuredResponse
 from .shared.tools import CurrentDateTimeTool
 
 
@@ -12,9 +18,10 @@ class GoogleAgent(BaseSupervisorGoogleAgent):
     name: str = "GoogleAgent"
     description: str = "A Google Workspace expert that can handle complex queries related to Gmail, Calendar, Tasks, and Drive"
 
-    def __init__(self, google_service, llm, config=None):
+    def __init__(self, google_service, llm, config=None, download_folder=None):
         super().__init__(google_service, llm, config)
         self._checkpointer = None
+        self.download_folder = download_folder
 
     @property
     def tools(self):
@@ -36,6 +43,7 @@ class GoogleAgent(BaseSupervisorGoogleAgent):
                     self.google_service,
                     self.llm,
                     self.config,
+                    self.download_folder
                 ),
                 CalendarAgent(
                     self.google_service,
@@ -51,6 +59,21 @@ class GoogleAgent(BaseSupervisorGoogleAgent):
                     self.google_service,
                     self.llm,
                     self.config,
+                    self.download_folder
                 ),
             ]
         return self._sub_agents
+
+    @override
+    @property
+    def agent(self) -> CompiledStateGraph:
+        if self._agent is None:
+            self._agent = create_agent(
+                name=self.name,
+                model=self.llm,
+                tools=self.tools + self.sub_agent_tools,
+                system_prompt=self.system_prompt,
+                checkpointer=self.checkpointer,
+                response_format=ToolStrategy(StructuredResponse),
+            )
+        return self._agent

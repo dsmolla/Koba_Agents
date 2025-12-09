@@ -19,6 +19,13 @@ class Config:
     SESSION_TIMEOUT = int(os.getenv("SESSION_TIMEOUT", 3600))  # 1 hour
     MAX_MESSAGE_LENGTH = 4096  # Telegram message limit
 
+    # Network timeout settings for Telegram API (in seconds)
+    TELEGRAM_CONNECT_TIMEOUT = float(os.getenv("TELEGRAM_CONNECT_TIMEOUT", "30.0"))
+    TELEGRAM_READ_TIMEOUT = float(os.getenv("TELEGRAM_READ_TIMEOUT", "60.0"))
+    TELEGRAM_WRITE_TIMEOUT = float(os.getenv("TELEGRAM_WRITE_TIMEOUT", "60.0"))
+    TELEGRAM_MEDIA_WRITE_TIMEOUT = float(os.getenv("TELEGRAM_MEDIA_WRITE_TIMEOUT", "120.0"))
+    TELEGRAM_POOL_SIZE = int(os.getenv("TELEGRAM_POOL_SIZE", "32"))
+
     OAUTH_SCOPES = [
         'https://www.googleapis.com/auth/calendar',
         'https://mail.google.com/',

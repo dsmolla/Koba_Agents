@@ -1,3 +1,4 @@
+import inspect
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -10,11 +11,11 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import BaseTool
 from langchain_core.tools import ArgsSchema
+from langchain_core.tools import BaseTool
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel, Field
-import inspect
+
 from . import agent_executor
 from .response import AgentResponse
 
@@ -105,7 +106,7 @@ class BaseReactGoogleAgent(BaseGoogleAgent, ABC):
                 model=self.llm,
                 tools=self.tools,
                 system_prompt=self.system_prompt,
-                checkpointer=self.checkpointer
+                checkpointer=self.checkpointer,
             )
         return self._agent
 
@@ -161,6 +162,6 @@ class BaseSupervisorGoogleAgent(BaseGoogleAgent, ABC):
                 model=self.llm,
                 tools=self.tools + self.sub_agent_tools,
                 system_prompt=self.system_prompt,
-                checkpointer=self.checkpointer
+                checkpointer=self.checkpointer,
             )
         return self._agent

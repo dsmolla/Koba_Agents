@@ -27,9 +27,11 @@ class SearchAndRetrievalAgent(BaseReactGoogleAgent):
             google_service: APIServiceLayer,
             llm: BaseChatModel,
             email_cache: EmailCache,
-            config: Optional[RunnableConfig] = None
+            config: Optional[RunnableConfig] = None,
+            download_folder: Optional[str] = None
     ):
         self.email_cache = email_cache
+        self.download_folder = download_folder
         super().__init__(google_service, llm, config)
 
     @property
@@ -39,7 +41,7 @@ class SearchAndRetrievalAgent(BaseReactGoogleAgent):
                 CurrentDateTimeTool(self.google_service.timezone),
                 GetEmailTool(self.google_service, self.email_cache),
                 SearchEmailsTool(self.google_service, self.email_cache),
-                DownloadAttachmentTool(self.google_service, self.email_cache),
+                DownloadAttachmentTool(self.google_service, self.email_cache, self.download_folder),
                 ListUserLabelsTool(self.google_service)
             ]
         return self._tools

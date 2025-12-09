@@ -285,13 +285,13 @@ class ListEventsTool(BaseTool):
 
     def query_builder(self, params: dict, is_async: bool = False) -> EventQueryBuilder | AsyncEventQueryBuilder:
         service = self.google_service.async_calendar if is_async else self.google_service.calendar
-        builder = service.query()
+        builder = service.query().in_calendar(params["calendar_id"])
         if params.get("max_results"):
             builder = builder.limit(params["max_results"])
         if params.get("datetime_min"):
-            builder = params["datetime_min"]
+            builder = builder.from_date(params["datetime_min"])
         if params.get("datetime_max"):
-            builder = params["datetime_max"]
+            builder = builder.to_date(params["datetime_max"])
         if params.get("date_filter"):
             match params["date_filter"]:
                 case "TODAY":

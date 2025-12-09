@@ -16,6 +16,10 @@ class SearchAndRetrievalAgent(BaseReactGoogleAgent):
             - Get sharing permissions of files and folders (needs file_id or folder_id)
     """)
 
+    def __init__(self, google_service, llm, config=None, download_folder=None):
+        super().__init__(google_service, llm, config)
+        self.download_folder = download_folder
+
     @property
     def tools(self):
         if self._tools is None:
@@ -23,7 +27,7 @@ class SearchAndRetrievalAgent(BaseReactGoogleAgent):
                 CurrentDateTimeTool(self.google_service.timezone),
                 SearchFilesTool(self.google_service),
                 GetFileTool(self.google_service),
-                DownloadFileTool(self.google_service),
+                DownloadFileTool(self.google_service, self.download_folder),
                 ListFolderContentsTool(self.google_service),
                 GetPermissionsTool(self.google_service),
             ]

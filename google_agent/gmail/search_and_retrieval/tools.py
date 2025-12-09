@@ -428,9 +428,6 @@ class DownloadAttachmentInput(BaseModel):
     message_id: str = Field(description="Message ID of the writer containing the attachment")
     attachment_id: Optional[str] = Field(default=None,
                                          description="ID of the attachment to download. Leave empty to download all attachments in the email")
-    download_folder: Optional[str] = Field(default=None,
-                                           description="Local path to save the attachment, defaults to Downloads/GmailAttachments")
-
 
 class DownloadAttachmentTool(BaseTool):
     name: str = "download_attachment"
@@ -439,22 +436,24 @@ class DownloadAttachmentTool(BaseTool):
 
     google_service: APIServiceLayer
     email_cache: EmailCache
+    download_folder: Optional[str] = None
 
     def __init__(
         self,
         google_service: APIServiceLayer,
-        email_cache: EmailCache
+        email_cache: EmailCache,
+        download_folder: Optional[str] = None
+
     ):
         super().__init__(
             google_service=google_service,
             email_cache=email_cache
         )
+        self.download_folder = download_folder
 
-    def _run(self, message_id: str, attachment_id: Optional[str] = None,
-             download_folder: Optional[str] = None) -> ToolResponse:
+    def _run(self, message_id: str, attachment_id: Optional[str] = None) -> ToolResponse:
         try:
-            download_folder = os.path.join(os.path.expanduser("~"), "Downloads", "GmailAttachments")
-
+            download_folder = self.download_folder or os.path.join(os.path.expanduser("~"), "Downloads", "GmailAttachments")
             email = self.email_cache.retrieve(message_id)
             if email is None:
                 email = self.email_cache.save(
@@ -506,10 +505,9 @@ class DownloadAttachmentTool(BaseTool):
                 message=f"Failed to download attachment: {e}"
             )
 
-    async def _arun(self, message_id: str, attachment_id: Optional[str] = None,
-             download_folder: Optional[str] = None) -> ToolResponse:
+    async def _arun(self, message_id: str, attachment_id: Optional[str] = None) -> ToolResponse:
         try:
-            download_folder = os.path.join(os.path.expanduser("~"), "Downloads", "GmailAttachments")
+            download_folder = self.download_folder or os.path.join(os.path.expanduser("~"), "Downloads", "GmailAttachments")
 
             email = self.email_cache.retrieve(message_id)
             if email is None:

@@ -11,6 +11,10 @@ class GmailAgent(BaseSupervisorGoogleAgent):
     name: str = "GmailAgent"
     description: str = "A Gmail expert that can handle complex tasks and queries related to Gmail"
 
+    def __init__(self, google_service, llm, config=None, download_folder=None):
+        super().__init__(google_service, llm, config)
+        self.download_folder = download_folder
+
     @property
     def tools(self):
         if self._tools is None:
@@ -32,6 +36,7 @@ class GmailAgent(BaseSupervisorGoogleAgent):
                     self.llm,
                     email_cache,
                     self.config,
+                    self.download_folder,
                 ),
                 SummaryAndAnalyticsAgent(
                     self.google_service,

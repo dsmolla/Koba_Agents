@@ -9,7 +9,7 @@ from typing import Optional
 
 import telegramify_markdown
 from langchain_core.messages import HumanMessage
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaDocument
 from telegram._files.audio import Audio
 from telegram._files.document import Document
 from telegram._files.photosize import PhotoSize
@@ -23,6 +23,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     filters
 )
+from telegram.request import HTTPXRequest
 
 from telegram_interface.config import Config
 from telegram_interface.messages import *
@@ -48,7 +49,22 @@ class MessageData:
 class GoogleAgentBot:
     def __init__(self, auth_redirect_uri: str):
         logger.info("Initializing GoogleAgentBot", extra={'auth_redirect_uri': auth_redirect_uri})
-        self.application = Application.builder().token(Config.TELEGRAM_BOT_TOKEN).concurrent_updates(True).build()
+
+        # Create custom request handler with configured timeouts
+        request = HTTPXRequest(
+            connection_pool_size=Config.TELEGRAM_POOL_SIZE,
+            connect_timeout=Config.TELEGRAM_CONNECT_TIMEOUT,
+            read_timeout=Config.TELEGRAM_READ_TIMEOUT,
+            write_timeout=Config.TELEGRAM_WRITE_TIMEOUT,
+            media_write_timeout=Config.TELEGRAM_MEDIA_WRITE_TIMEOUT
+        )
+
+        self.application = Application.builder() \
+            .token(Config.TELEGRAM_BOT_TOKEN) \
+            .concurrent_updates(True) \
+            .request(request) \
+            .build()
+
         self.session_manager = SessionManager(auth_redirect_uri)
         self.auth_flows = {}
 
@@ -204,8 +220,9 @@ class GoogleAgentBot:
                 del self.timers[telegram_id]
 
     @staticmethod
-    async def download_files(documents: list[Document]) -> list[Path]:
-        download_folder = Path(Config.USER_FILES_DIR)
+    async def download_files(documents: list[Document], telegram_id: int) -> list[Path]:
+        download_folder = Path(Config.USER_FILES_DIR) / str(telegram_id)
+        download_folder.mkdir(parents=True, exist_ok=True)
         downloaded_files = []
         for document in documents:
             try:
@@ -245,9 +262,8 @@ class GoogleAgentBot:
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(NOT_LOGGED_IN_MESSAGE))
             return
 
-        paths = []
         if message_data.documents:
-            paths = await self.download_files(message_data.documents)
+            paths = await self.download_files(message_data.documents, telegram_id)
             text += "\nFile Paths: "
             text += ', '.join([str(path) for path in paths])
 
@@ -257,6 +273,8 @@ class GoogleAgentBot:
                 await asyncio.sleep(4)
 
         typing_task = asyncio.create_task(typing_action())
+        media_group = []
+        media_files = []
 
         try:
             human_message = HumanMessage(content=text)
@@ -265,7 +283,8 @@ class GoogleAgentBot:
             session.add_message(response.messages[-1])
 
             processing_time = time.time() - start_time
-            response_text = response.messages[-1].content
+            response_text = response.structured_responses[-1].text
+            response_files = response.structured_responses[-1].requested_files
 
             logger.info("Agent response generated successfully", extra={
                 'user_id': telegram_id,
@@ -274,7 +293,20 @@ class GoogleAgentBot:
                 'response_preview': response_text[:100]
             })
 
-            await update.message.reply_markdown_v2(await format_markdown_for_telegram(response_text))
+            for file_path in response_files:
+                file_handle = open(file_path, 'rb')
+                media_files.append(file_handle)
+                media_group.append(InputMediaDocument(media=file_handle))
+
+            if media_group:
+                await update.message.reply_media_group(
+                    media=media_group,
+                    caption=await format_markdown_for_telegram(response_text),
+                    parse_mode='MarkdownV2'
+                )
+            else:
+                await update.message.reply_markdown_v2(await format_markdown_for_telegram(response_text))
+
         except Exception as e:
             processing_time = time.time() - start_time
             logger.error("Error processing user message", extra={
@@ -286,21 +318,8 @@ class GoogleAgentBot:
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_PROCESSING_MESSAGE))
         finally:
             typing_task.cancel()
-            # Clean up downloaded files
-            for path in paths:
-                try:
-                    if path.exists():
-                        path.unlink()
-                        logger.debug("File deleted successfully", extra={
-                            'user_id': telegram_id,
-                            'file_path': str(path)
-                        })
-                except Exception as e:
-                    logger.warning("Failed to delete file", extra={
-                        'user_id': telegram_id,
-                        'file_path': str(path),
-                        'error': str(e)
-                    })
+            for f in media_files:
+                f.close()
 
     async def handle_files(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = update.message

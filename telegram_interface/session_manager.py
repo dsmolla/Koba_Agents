@@ -1,6 +1,8 @@
 import json
 import logging
+import shutil
 import time
+from pathlib import Path
 from typing import Optional
 
 import aiofiles
@@ -8,6 +10,7 @@ import google.auth.exceptions
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 from langchain_core.globals import set_debug
+from langchain_core.runnables import RunnableConfig
 
 from google_agent.agent import GoogleAgent
 from google_agent.shared.llm_models import LLM_FLASH
@@ -150,10 +153,8 @@ class SessionManager:
                 return GoogleAgent(
                     google_service=google_service,
                     llm=LLM_FLASH,
-                    config={
-                        "configurable":
-                            {"thread_id": telegram_id}
-                    }
+                    config=RunnableConfig(configurable={"thread_id": telegram_id}),
+                    download_folder=str(Path(Config.USER_FILES_DIR) / str(telegram_id))
                 )
             except google.auth.exceptions.RefreshError as e:
                 logger.error("Failed to create agent - token refresh error", extra={
@@ -252,9 +253,12 @@ class SessionManager:
         if telegram_id in self.sessions:
             logger.debug("Cleaning up session", extra={'user_id': telegram_id})
             del self.sessions[telegram_id]
+            user_file_path = Config.USER_FILES_DIR / str(telegram_id)
+            if user_file_path.exists() and user_file_path.is_dir():
+                logger.debug("Deleting user files", extra={'user_id': telegram_id})
+                shutil.rmtree(user_file_path)
 
     def store_auth_flow(self, state: str, telegram_id: int):
-        # Cleanup expired flows before adding new one
         self.cleanup_expired_auth_flows()
 
         logger.debug("Storing auth flow", extra={'user_id': telegram_id})
