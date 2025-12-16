@@ -7,6 +7,7 @@ import logging
 from threading import Thread
 
 from flask import Flask, request
+import waitress
 
 from telegram_interface.bot import GoogleAgentBot
 from telegram_interface.config import Config
@@ -32,23 +33,27 @@ def oauth2_callback():
         'remote_addr': request.remote_addr
     })
 
-    if not state or state not in bot.session_manager.auth_flows:
+    if not state:
         logger.warning("OAuth callback with invalid state")
         return "Invalid state parameter", 400
     if not code:
         logger.warning("OAuth callback missing code parameter")
         return "Missing code parameter", 400
 
-    telegram_id = bot.session_manager.get_auth_flow(state)
+    # Retrieve auth flow data (Sync)
+    auth_flow_data = bot.session_manager.get_auth_flow(state)
     bot.session_manager.remove_auth_flow(state)
 
-    if not telegram_id:
-        logger.error("OAuth callback with invalid telegram_id")
-        return "Invalid state parameter", 400
+    if not auth_flow_data:
+        logger.error("OAuth callback with invalid or expired state")
+        return "Invalid or expired state parameter", 400
+
+    telegram_id, pkce_verifier = auth_flow_data
 
     try:
         if token := bot.session_manager.auth_manager.complete_auth_flow(code, Config.OAUTH_SCOPES):
-            asyncio.run(bot.session_manager.user_tokens_db.add_user(telegram_id, token))
+            # Use Sync method to avoid asyncio loop issues in Flask thread
+            bot.session_manager.user_tokens_db.add_user_sync(telegram_id, token)
             logger.info("OAuth authentication successful", extra={'user_id': telegram_id})
 
             url = f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -76,13 +81,15 @@ def oauth2_callback():
         return "Authentication failed. Please try again.", 500
 
 def run_flask_app():
-    logger.info("Starting Flask OAuth server", extra={'port': 8080})
+    logger.info("Starting Flask OAuth server with Waitress", extra={'port': 8080})
     # Disable Flask's default logger output to avoid duplicate logs
     import logging as flask_logging
     werkzeug_logger = flask_logging.getLogger('werkzeug')
     werkzeug_logger.setLevel(flask_logging.WARNING)
+    waitress_logger = flask_logging.getLogger('waitress')
+    waitress_logger.setLevel(flask_logging.WARNING)
 
-    app.run(port=8080, debug=False)
+    waitress.serve(app, host='0.0.0.0', port=8080, _quiet=True)
 
 
 def main():
@@ -91,11 +98,6 @@ def main():
     logger.info("=" * 60)
 
     try:
-        # Initialize database tables
-        logger.info("Initializing database tables")
-        asyncio.run(bot.session_manager.user_tokens_db._create_tables())
-        logger.info("Database tables initialized")
-
         logger.info("Starting Flask server thread for OAuth callbacks")
         flask_thread = Thread(target=run_flask_app, daemon=True)
         flask_thread.start()
@@ -106,6 +108,9 @@ def main():
         bot.run()
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt, shutting down")
+        # Close database connections gracefully
+        asyncio.run(bot.session_manager.user_tokens_db.close())
+        asyncio.run(bot.session_manager.close())
         sys.exit(0)
     except Exception as e:
         logger.critical("Fatal error in main", extra={'error': str(e)}, exc_info=True)

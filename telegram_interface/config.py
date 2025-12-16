@@ -11,13 +11,26 @@ class Config:
 
     CLIENT_CREDS_PATH = os.getenv("CLIENT_CREDS_PATH")
     USER_TOKENS_DB = os.getenv("USER_TOKENS_DB", "user_tokens.db")
+    CHECKPOINTER_DB = os.getenv("CHECKPOINTER_DB", "checkpoints.db")
     USER_SESSIONS_DIR = os.getenv("USER_SESSIONS_DIR", "user_sessions")
     USER_FILES_DIR = os.getenv("USER_FILES_DIR", "user_files")
 
     SECRET_KEY = os.getenv("SECRET_KEY")
+    SECRET_KEY_SALT = os.getenv("SECRET_KEY_SALT")
 
-    SESSION_TIMEOUT = int(os.getenv("SESSION_TIMEOUT", 3600))  # 1 hour
+    SESSION_TIMEOUT = int(os.getenv("SESSION_TIMEOUT", 86400))  # 24 hours (increased from 1 hour)
     MAX_MESSAGE_LENGTH = 4096  # Telegram message limit
+    MAX_MESSAGE_HISTORY = int(os.getenv("MAX_MESSAGE_HISTORY", 50))  # Maximum messages to keep in history
+
+    # File handling settings
+    MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 20 * 1024 * 1024))  # 20MB per file
+    MAX_USER_STORAGE = int(os.getenv("MAX_USER_STORAGE", 100 * 1024 * 1024))  # 100MB per user
+    FILE_RETENTION_HOURS = int(os.getenv("FILE_RETENTION_HOURS", 48))  # Keep files for 48 hours
+    ALLOWED_FILE_EXTENSIONS = os.getenv("ALLOWED_FILE_EXTENSIONS", ".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.png,.jpg,.jpeg,.gif,.zip").split(",")
+
+    # Rate limiting
+    RATE_LIMIT_MESSAGES = int(os.getenv("RATE_LIMIT_MESSAGES", 10))  # Max messages per window
+    RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", 60))  # Window in seconds
 
     # Network timeout settings for Telegram API (in seconds)
     TELEGRAM_CONNECT_TIMEOUT = float(os.getenv("TELEGRAM_CONNECT_TIMEOUT", "30.0"))

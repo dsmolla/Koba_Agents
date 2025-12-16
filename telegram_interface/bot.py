@@ -28,6 +28,7 @@ from telegram.request import HTTPXRequest
 from telegram_interface.config import Config
 from telegram_interface.messages import *
 from telegram_interface.session_manager import SessionManager
+from telegram_interface.security import RateLimiter, FileSecurityValidator, FileCleanupManager
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ class GoogleAgentBot:
             .token(Config.TELEGRAM_BOT_TOKEN) \
             .concurrent_updates(True) \
             .request(request) \
+            .post_init(self.post_init) \
             .build()
 
         self.session_manager = SessionManager(auth_redirect_uri)
@@ -70,8 +72,49 @@ class GoogleAgentBot:
 
         self.pending_messages: dict[int, MessageData] = defaultdict(lambda: MessageData())
         self.timers: dict[int, asyncio.Task] = {}
+        self._pending_message_locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+        # Security components
+        self.rate_limiter = RateLimiter()
+        self.file_validator = FileSecurityValidator()
 
         logger.info("GoogleAgentBot initialized successfully")
+
+    async def post_init(self, application: Application):
+        """Initialize async components within the bot's event loop."""
+        logger.info("Running post_init initialization")
+        
+        # Initialize database tables
+        logger.info("Initializing database tables")
+        await self.session_manager.user_tokens_db._create_tables()
+        
+        # Initialize session manager (checkpointer)
+        logger.info("Initializing checkpointer for conversation persistence")
+        await self.session_manager.initialize()
+        
+        # Load saved sessions
+        await self.load_saved_sessions()
+        
+        logger.info("Post_init initialization complete")
+
+    async def load_saved_sessions(self):
+        """Load saved sessions from disk."""
+        logger.info("Loading saved sessions from disk")
+        loaded_count = 0
+        from pathlib import Path
+        session_dir = Path(Config.USER_SESSIONS_DIR)
+        if session_dir.exists():
+            for session_file in session_dir.glob("*_session.json"):
+                try:
+                    telegram_id = int(session_file.stem.split('_')[0])
+                    if await self.session_manager.load_session_from_disk(telegram_id):
+                        loaded_count += 1
+                except (ValueError, IndexError) as e:
+                    logger.warning(f"Failed to parse session filename: {session_file}", extra={'error': str(e)})
+                except Exception as e:
+                    logger.error(f"Failed to load session from {session_file}", extra={'error': str(e)}, exc_info=True)
+
+        logger.info(f"Loaded {loaded_count} saved sessions from disk")
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
@@ -97,7 +140,7 @@ class GoogleAgentBot:
 
         try:
             state = os.urandom(16).hex()
-            self.session_manager.store_auth_flow(state, telegram_id)
+            await self.session_manager.store_auth_flow(state, telegram_id)
             auth_url = self.session_manager.auth_manager.generate_auth_url(Config.OAUTH_SCOPES, state)
             logger.info("OAuth flow initiated", extra={
                 'user_id': telegram_id,
@@ -219,34 +262,85 @@ class GoogleAgentBot:
             if telegram_id in self.timers:
                 del self.timers[telegram_id]
 
-    @staticmethod
-    async def download_files(documents: list[Document], telegram_id: int) -> list[Path]:
+    async def download_files(self, documents: list[Document], telegram_id: int) -> tuple[list[Path], list[str]]:
+        """
+        Download files with security validation.
+        Returns: (list of downloaded paths, list of error messages)
+        """
         download_folder = Path(Config.USER_FILES_DIR) / str(telegram_id)
         download_folder.mkdir(parents=True, exist_ok=True)
         downloaded_files = []
+        errors = []
+
+        # Check user storage quota
+        quota_ok, quota_error = await FileSecurityValidator.check_user_storage_quota(telegram_id)
+        if not quota_ok:
+            errors.append(quota_error)
+            return downloaded_files, errors
+
         for document in documents:
             try:
+                # Get file info
                 file = await document.get_file()
+
+                # Get filename
                 try:
                     file_name = document.file_name
                 except AttributeError:
                     file_name = document.file_unique_id
                     extension = file.file_path.split('.')[-1]
                     file_name = f"{file_name}.{extension}"
-                path = await file.download_to_drive(download_folder / file_name)
+
+                # Sanitize filename
+                safe_filename = FileSecurityValidator.sanitize_filename(file_name)
+
+                # Validate file extension
+                ext_ok, ext_error = FileSecurityValidator.validate_file_extension(safe_filename)
+                if not ext_ok:
+                    errors.append(f"{file_name}: {ext_error}")
+                    continue
+
+                # Validate file size
+                file_size = file.file_size if hasattr(file, 'file_size') else 0
+                size_ok, size_error = FileSecurityValidator.validate_file_size(file_size)
+                if not size_ok:
+                    errors.append(f"{file_name}: {size_error}")
+                    continue
+
+                # Download file
+                path = await file.download_to_drive(download_folder / safe_filename)
                 downloaded_files.append(path)
-            except Exception:
-                logger.error(f"Error downloading file: {document}",
-                             extra={'file_id': document.file_id},
-                             exc_info=True
-                             )
-        return downloaded_files
+
+                logger.info("File downloaded successfully", extra={
+                    'user_id': telegram_id,
+                    'file_name': safe_filename,
+                    'file_size': file_size
+                })
+
+            except Exception as e:
+                error_msg = f"Error downloading {file_name if 'file_name' in locals() else 'file'}: {str(e)}"
+                errors.append(error_msg)
+                logger.error("Error downloading file", extra={
+                    'file_id': document.file_id,
+                    'user_id': telegram_id,
+                    'error': str(e)
+                }, exc_info=True)
+
+        return downloaded_files, errors
 
     async def execute_message(self, message_data: MessageData):
         start_time = time.time()
         telegram_id = message_data.update.effective_user.id
         update = message_data.update
         text = message_data.text or ""
+
+        # Rate limit check
+        is_allowed, wait_time = await self.rate_limiter.check_rate_limit(telegram_id)
+        if not is_allowed:
+            await update.message.reply_text(
+                f"⚠️ Rate limit exceeded. Please wait {wait_time} seconds before sending more messages."
+            )
+            return
 
         logger.info("User message received", extra={
             'user_id': telegram_id,
@@ -263,9 +357,19 @@ class GoogleAgentBot:
             return
 
         if message_data.documents:
-            paths = await self.download_files(message_data.documents, telegram_id)
-            text += "\nFile Paths: "
-            text += ', '.join([str(path) for path in paths])
+            paths, download_errors = await self.download_files(message_data.documents, telegram_id)
+
+            if download_errors:
+                error_text = "⚠️ File download errors:\n" + "\n".join(download_errors)
+                await update.message.reply_text(error_text)
+
+                # If no files were successfully downloaded, return early
+                if not paths:
+                    return
+
+            if paths:
+                text += "\nFile Paths: "
+                text += ', '.join([str(path) for path in paths])
 
         async def typing_action():
             while True:
@@ -274,7 +378,6 @@ class GoogleAgentBot:
 
         typing_task = asyncio.create_task(typing_action())
         media_group = []
-        media_files = []
 
         try:
             human_message = HumanMessage(content=text)
@@ -293,19 +396,20 @@ class GoogleAgentBot:
                 'response_preview': response_text[:100]
             })
 
-            for file_path in response_files:
-                file_handle = open(file_path, 'rb')
-                media_files.append(file_handle)
-                media_group.append(InputMediaDocument(media=file_handle))
+            # Use context managers for file handling
+            if response_files:
+                for file_path in response_files:
+                    with open(file_path, 'rb') as file_handle:
+                        # Read file content and create InputMediaDocument
+                        media_group.append(InputMediaDocument(media=file_handle.read(), filename=Path(file_path).name))
 
             if media_group:
-                await update.message.reply_media_group(
-                    media=media_group,
-                    caption=await format_markdown_for_telegram(response_text),
-                    parse_mode='MarkdownV2'
-                )
-            else:
-                await update.message.reply_markdown_v2(await format_markdown_for_telegram(response_text))
+                await update.message.reply_media_group(media=media_group,)
+
+            max_message_len = Config.MAX_MESSAGE_LENGTH
+            formatted_message = await format_markdown_for_telegram(response_text)
+            for i in range(0, len(response_text), max_message_len):
+                await update.message.reply_markdown_v2(formatted_message[i: i + max_message_len])
 
         except Exception as e:
             processing_time = time.time() - start_time
@@ -318,50 +422,51 @@ class GoogleAgentBot:
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_PROCESSING_MESSAGE))
         finally:
             typing_task.cancel()
-            for f in media_files:
-                f.close()
 
     async def handle_files(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = update.message
         telegram_id = update.effective_user.id
 
-        message_data = self.pending_messages[telegram_id]
+        async with self._pending_message_locks[telegram_id]:
+            message_data = self.pending_messages[telegram_id]
 
-        if message_data.update is None:
-            message_data.update = update
+            if message_data.update is None:
+                message_data.update = update
 
-        if message.document:
-            message_data.documents.append(message.document)
+            if message.document:
+                message_data.documents.append(message.document)
 
-        if message.photo:
-            message_data.documents.append(message.photo[-1])
+            if message.photo:
+                message_data.documents.append(message.photo[-1])
 
-        if message.video:
-            message_data.documents.append(message.video)
+            if message.video:
+                message_data.documents.append(message.video)
 
-        if message.audio:
-            message_data.documents.append(message.audio)
+            if message.audio:
+                message_data.documents.append(message.audio)
 
-        if message.caption and message_data.text is None:
-            message_data.text = message.caption
+            if message.caption and message_data.text is None:
+                message_data.text = message.caption
 
-        if telegram_id in self.timers:
-            self.timers[telegram_id].cancel()
+            if telegram_id in self.timers:
+                self.timers[telegram_id].cancel()
 
-        self.pending_messages[telegram_id] = message_data
-        self.timers[telegram_id] = asyncio.create_task(self._process_group_after_timeout(telegram_id))
+            self.pending_messages[telegram_id] = message_data
+            self.timers[telegram_id] = asyncio.create_task(self._process_group_after_timeout(telegram_id))
 
     async def handle_text_only(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
-        message_data = self.pending_messages[telegram_id]
-        message_data.text = update.message.text
-        message_data.update = update
 
-        if telegram_id in self.timers:
-            self.timers[telegram_id].cancel()
+        async with self._pending_message_locks[telegram_id]:
+            message_data = self.pending_messages[telegram_id]
+            message_data.text = update.message.text
+            message_data.update = update
 
-        self.pending_messages[telegram_id] = message_data
-        self.timers[telegram_id] = asyncio.create_task(self._process_group_after_timeout(telegram_id))
+            if telegram_id in self.timers:
+                self.timers[telegram_id].cancel()
+
+            self.pending_messages[telegram_id] = message_data
+            self.timers[telegram_id] = asyncio.create_task(self._process_group_after_timeout(telegram_id))
 
     async def save_session(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -391,6 +496,30 @@ class GoogleAgentBot:
         cleaned_count = self.session_manager.cleanup_expired_sessions()
         logger.info("Session cleanup completed", extra={'sessions_cleaned': cleaned_count})
 
+    async def _cleanup_old_files(self, context: ContextTypes.DEFAULT_TYPE):
+        """Periodic job to clean up old files."""
+        logger.debug("Running file cleanup task")
+        deleted_count = await FileCleanupManager.cleanup_old_files()
+        if deleted_count > 0:
+            logger.info("File cleanup completed", extra={'files_deleted': deleted_count})
+
+    async def _auto_save_sessions(self, context: ContextTypes.DEFAULT_TYPE):
+        """Periodic job to automatically save all active sessions."""
+        logger.debug("Running auto-save sessions task")
+        saved_count = 0
+        for telegram_id in list(self.session_manager.sessions.keys()):
+            try:
+                if await self.session_manager.save_session_to_disk(telegram_id):
+                    saved_count += 1
+            except Exception as e:
+                logger.error("Error auto-saving session", extra={
+                    'user_id': telegram_id,
+                    'error': str(e)
+                }, exc_info=True)
+
+        if saved_count > 0:
+            logger.info("Auto-save sessions completed", extra={'sessions_saved': saved_count})
+
     async def send_message(self, telegram_id: int, message: str):
         logger.info("Sending message to user", extra={
             'user_id': telegram_id,
@@ -416,8 +545,13 @@ class GoogleAgentBot:
 
         self.application.add_error_handler(self.error_handler)
 
-        logger.info("Scheduling session cleanup job (every 300 seconds)")
+        logger.info("Scheduling periodic maintenance jobs")
+        # Session cleanup every 300 seconds (5 minutes)
         self.application.job_queue.run_repeating(self._cleanup_sessions, interval=300, first=300)
+        # File cleanup every 3600 seconds (1 hour)
+        self.application.job_queue.run_repeating(self._cleanup_old_files, interval=3600, first=3600)
+        # Auto-save sessions every 600 seconds (10 minutes)
+        self.application.job_queue.run_repeating(self._auto_save_sessions, interval=600, first=600)
 
         logger.info("Starting bot polling")
         self.application.run_polling(allowed_updates=Update.ALL_TYPES)

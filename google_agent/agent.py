@@ -2,7 +2,6 @@ from typing import override
 
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
-from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 
 from google_agent.calendar.agent import CalendarAgent
@@ -18,9 +17,9 @@ class GoogleAgent(BaseSupervisorGoogleAgent):
     name: str = "GoogleAgent"
     description: str = "A Google Workspace expert that can handle complex queries related to Gmail, Calendar, Tasks, and Drive"
 
-    def __init__(self, google_service, llm, config=None, download_folder=None):
+    def __init__(self, google_service, llm, config=None, download_folder=None, checkpointer=None):
         super().__init__(google_service, llm, config)
-        self._checkpointer = None
+        self._checkpointer = checkpointer
         self.download_folder = download_folder
 
     @property
@@ -31,8 +30,6 @@ class GoogleAgent(BaseSupervisorGoogleAgent):
 
     @property
     def checkpointer(self):
-        if self._checkpointer is None:
-            self._checkpointer = InMemorySaver()
         return self._checkpointer
 
     @property

@@ -1,12 +1,15 @@
+import asyncio
 import json
 import logging
 import shutil
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
 import aiofiles
 import google.auth.exceptions
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 from langchain_core.globals import set_debug
@@ -38,6 +41,14 @@ class UserSession:
 
     def add_message(self, message: BaseMessage):
         self.messages.append(message)
+        # Implement message trimming to prevent unbounded growth
+        if len(self.messages) > Config.MAX_MESSAGE_HISTORY:
+            # Keep the most recent messages
+            self.messages = self.messages[-Config.MAX_MESSAGE_HISTORY:]
+            logger.debug("Message history trimmed", extra={
+                'user_id': self.telegram_id,
+                'kept_messages': len(self.messages)
+            })
         self.update_activity()
 
     def clear_history(self):
@@ -82,14 +93,35 @@ class SessionManager:
         self.sessions: dict[int, UserSession] = {}
         self.auth_manager = GoogleOAuthManager(self._get_client_secret(), redirect_uri=redirect_uri)
         self.user_tokens_db = UserTokensDB()
-        # Store (telegram_id, timestamp) tuples to enable cleanup
-        self.auth_flows: dict[str, tuple[int, float]] = {}
+
+        # Locks for thread safety
+        self._session_locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
+        self._token_refresh_locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
+        
+        # Shared checkpointer for all agents (will be initialized asynchronously)
+        self._checkpointer: Optional[AsyncSqliteSaver] = None
 
         set_debug(Config.LANGGRAPH_DEBUG)
         logger.info("SessionManager initialized successfully", extra={
             'langgraph_debug_mode': Config.LANGGRAPH_DEBUG,
             'session_timeout': Config.SESSION_TIMEOUT
         })
+
+    async def initialize(self):
+        """Initialize async resources like the checkpointer."""
+        if self._checkpointer is None:
+            checkpointer_path = str(Path(Config.CHECKPOINTER_DB).absolute())
+            # Store the context manager separately
+            self._checkpointer_cm = AsyncSqliteSaver.from_conn_string(checkpointer_path)
+            # Enter the context manager to get the actual saver
+            self._checkpointer = await self._checkpointer_cm.__aenter__()
+            logger.info("Checkpointer initialized", extra={'db_path': checkpointer_path})
+
+    async def close(self):
+        """Clean up resources."""
+        if self._checkpointer_cm:
+            await self._checkpointer_cm.__aexit__(None, None, None)
+            logger.info("Checkpointer closed")
 
     @staticmethod
     def _get_client_secret() -> dict:
@@ -112,28 +144,29 @@ class SessionManager:
         return False
 
     async def get_session(self, telegram_id: int) -> UserSession:
-        if telegram_id in self.sessions:
-            session = self.sessions[telegram_id]
-            if session.is_expired():
-                logger.info("Session expired, cleaning up", extra={'user_id': telegram_id})
-                self._cleanup_session(telegram_id)
-            else:
-                logger.debug("Existing session retrieved", extra={
-                    'user_id': telegram_id,
-                    'message_count': len(session.messages)
-                })
-                session.update_activity()
-                return session
+        async with self._session_locks[telegram_id]:
+            if telegram_id in self.sessions:
+                session = self.sessions[telegram_id]
+                if session.is_expired():
+                    logger.info("Session expired, cleaning up", extra={'user_id': telegram_id})
+                    self._cleanup_session(telegram_id)
+                else:
+                    logger.debug("Existing session retrieved", extra={
+                        'user_id': telegram_id,
+                        'message_count': len(session.messages)
+                    })
+                    session.update_activity()
+                    return session
 
-        logger.info("Creating new session", extra={'user_id': telegram_id})
-        session = UserSession(telegram_id)
-        session.agent = await self.create_agent(telegram_id)
-        self.sessions[telegram_id] = session
-        logger.info("New session created", extra={
-            'user_id': telegram_id,
-            'has_agent': session.agent is not None
-        })
-        return session
+            logger.info("Creating new session", extra={'user_id': telegram_id})
+            session = UserSession(telegram_id)
+            session.agent = await self.create_agent(telegram_id)
+            self.sessions[telegram_id] = session
+            logger.info("New session created", extra={
+                'user_id': telegram_id,
+                'has_agent': session.agent is not None
+            })
+            return session
 
     async def create_agent(self, telegram_id: int) -> Optional[GoogleAgent]:
         logger.debug("Attempting to create agent", extra={'user_id': telegram_id})
@@ -144,8 +177,11 @@ class SessionManager:
                 'timezone': timezone
             })
             try:
-                google_service = APIServiceLayer(user_token, timezone)
-                await self.user_tokens_db.update_token(telegram_id, google_service.refresh_token())   # Will raise error if token invalid
+                # Use lock for token refresh to prevent race conditions
+                async with self._token_refresh_locks[telegram_id]:
+                    google_service = APIServiceLayer(user_token, timezone)
+                    await self.user_tokens_db.update_token(telegram_id, google_service.refresh_token())   # Will raise error if token invalid
+
                 logger.info("GoogleAgent created successfully", extra={
                     'user_id': telegram_id,
                     'timezone': timezone
@@ -154,7 +190,8 @@ class SessionManager:
                     google_service=google_service,
                     llm=LLM_FLASH,
                     config=RunnableConfig(configurable={"thread_id": telegram_id}),
-                    download_folder=str(Path(Config.USER_FILES_DIR) / str(telegram_id))
+                    download_folder=str(Path(Config.USER_FILES_DIR) / str(telegram_id)),
+                    checkpointer=self._checkpointer
                 )
             except google.auth.exceptions.RefreshError as e:
                 logger.error("Failed to create agent - token refresh error", extra={
@@ -258,17 +295,20 @@ class SessionManager:
                 logger.debug("Deleting user files", extra={'user_id': telegram_id})
                 shutil.rmtree(user_file_path)
 
-    def store_auth_flow(self, state: str, telegram_id: int):
-        self.cleanup_expired_auth_flows()
+    async def store_auth_flow(self, state: str, telegram_id: int, pkce_verifier: Optional[str] = None):
+        """Async: Store auth flow in DB."""
+        # Cleanup can happen periodically or here. Async non-blocking is better but let's just do it.
+        await self.cleanup_expired_auth_flows()
 
-        logger.debug("Storing auth flow", extra={'user_id': telegram_id})
-        self.auth_flows[state] = (telegram_id, time.time())
+        logger.debug("Storing auth flow", extra={'user_id': telegram_id, 'has_pkce': pkce_verifier is not None})
+        await self.user_tokens_db.add_auth_flow(state, telegram_id, pkce_verifier)
 
-    def get_auth_flow(self, state: str) -> Optional[int]:
-        flow_data = self.auth_flows.get(state)
-        if flow_data:
-            telegram_id, timestamp = flow_data
-            # Check if flow has expired
+    def get_auth_flow(self, state: str) -> Optional[tuple[int, Optional[str]]]:
+        """Sync: Get auth flow from DB (for Flask)."""
+        result = self.user_tokens_db.get_auth_flow_sync(state)
+        if result:
+            telegram_id, pkce_verifier, timestamp = result
+            # Check expiry
             if (time.time() - timestamp) > self.AUTH_FLOW_TIMEOUT:
                 logger.warning("Auth flow expired", extra={
                     'user_id': telegram_id,
@@ -277,36 +317,18 @@ class SessionManager:
                 self.remove_auth_flow(state)
                 return None
             logger.debug("Auth flow retrieved", extra={'user_id': telegram_id})
-            return telegram_id
+            return telegram_id, pkce_verifier
         else:
             logger.warning("Auth flow not found")
         return None
 
     def remove_auth_flow(self, state: str):
-        if state in self.auth_flows:
-            telegram_id, _ = self.auth_flows[state]
-            logger.debug("Removing auth flow", extra={'user_id': telegram_id})
-            del self.auth_flows[state]
+        """Sync: Remove auth flow from DB (for Flask)."""
+        self.user_tokens_db.delete_auth_flow_sync(state)
 
-    def cleanup_expired_auth_flows(self) -> int:
-        """Remove auth flows older than AUTH_FLOW_TIMEOUT."""
-        current_time = time.time()
-        expired_states = [
-            state for state, (telegram_id, timestamp) in self.auth_flows.items()
-            if (current_time - timestamp) > self.AUTH_FLOW_TIMEOUT
-        ]
-
-        if expired_states:
-            logger.info("Cleaning up expired auth flows", extra={
-                'expired_count': len(expired_states)
-            })
-
-        for state in expired_states:
-            telegram_id, _ = self.auth_flows[state]
-            logger.debug("Removing expired auth flow", extra={
-                'user_id': telegram_id,
-                'age_seconds': current_time - self.auth_flows[state][1]
-            })
-            del self.auth_flows[state]
-
-        return len(expired_states)
+    async def cleanup_expired_auth_flows(self) -> int:
+        """Async: Cleanup expired auth flows."""
+        count = await self.user_tokens_db.cleanup_expired_auth_flows(self.AUTH_FLOW_TIMEOUT)
+        if count > 0:
+            logger.info("Cleaned up expired auth flows", extra={'count': count})
+        return count
