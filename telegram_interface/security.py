@@ -1,13 +1,12 @@
 import asyncio
 import logging
-import os
 import time
 from collections import defaultdict, deque
 from pathlib import Path
 from typing import Optional
 from werkzeug.utils import secure_filename
 
-from .config import Config
+from config import Config
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ load_dotenv()
 class Config:
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-    CLIENT_CREDS_PATH = os.getenv("CLIENT_CREDS_PATH")
+    GOOGLE_OAUTH_CLIENT_TOKEN = os.getenv("GOOGLE_OAUTH_CLIENT_TOKEN")
     USER_TOKENS_DB = os.getenv("USER_TOKENS_DB", "user_tokens.db")
     CHECKPOINTER_DB = os.getenv("CHECKPOINTER_DB", "checkpoints.db")
     USER_SESSIONS_DIR = os.getenv("USER_SESSIONS_DIR", "user_sessions")
@@ -57,19 +57,11 @@ class Config:
             errors.append("TELEGRAM_BOT_TOKEN is not set in the environment variables.")
         if not cls.SECRET_KEY:
             errors.append("SECRET_KEY is not set in the environment variables.")
-        if not cls.CLIENT_CREDS_PATH:
-            errors.append("CREDS_PATH is not set in the environment variables.")
-        elif not Path(cls.CLIENT_CREDS_PATH).is_file():
-            errors.append(f"CREDS_PATH '{cls.CLIENT_CREDS_PATH}' does not point to a valid file.")
-        
+        if not cls.GOOGLE_OAUTH_CLIENT_TOKEN:
+            errors.append("GOOGLE_OAUTH_CLIENT_TOKEN is not set in the environment variables.")
         if errors:
             raise ValueError("Configuration errors:\n" + "\n".join(f"- {e}" for e in errors))
         Path(cls.USER_SESSIONS_DIR).mkdir(parents=True, exist_ok=True)
-    
-    @classmethod
-    def get_creds_path(cls, user_id) -> Path | None:
-        if cls.CLIENT_CREDS_PATH:
-            return Path(cls.CLIENT_CREDS_PATH)
         
     @classmethod
     def get_user_session_path(cls, user_id) -> Path:

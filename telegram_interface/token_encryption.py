@@ -5,7 +5,7 @@ from cryptography.hazmat.backends import default_backend
 import base64
 import json
 import logging
-from .config import Config
+from config import Config
 
 logger = logging.getLogger(__name__)
 

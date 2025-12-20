@@ -25,9 +25,10 @@ from telegram.ext import (
 )
 from telegram.request import HTTPXRequest
 
-from telegram_interface.config import Config
+from config import Config
 from telegram_interface.messages import *
 from telegram_interface.session_manager import SessionManager
+from telegram_interface.auth_instance import auth_manager
 from telegram_interface.security import RateLimiter, FileSecurityValidator, FileCleanupManager
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,9 @@ class GoogleAgentBot:
             .post_init(self.post_init) \
             .build()
 
-        self.session_manager = SessionManager(auth_redirect_uri)
+        # Use shared auth_manager instance
+        self.auth_manager = auth_manager
+        self.session_manager = SessionManager(auth_manager)
         self.auth_flows = {}
 
         self.pending_messages: dict[int, MessageData] = defaultdict(lambda: MessageData())
@@ -83,10 +86,10 @@ class GoogleAgentBot:
     async def post_init(self, application: Application):
         """Initialize async components within the bot's event loop."""
         logger.info("Running post_init initialization")
-        
+
         # Initialize database tables
         logger.info("Initializing database tables")
-        await self.session_manager.user_tokens_db._create_tables()
+        await self.auth_manager.user_tokens_db._create_tables()
         
         # Initialize session manager (checkpointer)
         logger.info("Initializing checkpointer for conversation persistence")
@@ -133,15 +136,15 @@ class GoogleAgentBot:
         username = update.effective_user.username
         logger.info("/login command received", extra={'user_id': telegram_id, 'username': username})
 
-        if await self.session_manager.is_user_authenticated(telegram_id):
+        if await self.auth_manager.is_user_authenticated(telegram_id):
             logger.info("User already authenticated", extra={'user_id': telegram_id})
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(ALREADY_AUTHENTICATED_MESSAGE))
             return
 
         try:
             state = os.urandom(16).hex()
-            await self.session_manager.store_auth_flow(state, telegram_id)
-            auth_url = self.session_manager.auth_manager.generate_auth_url(Config.OAUTH_SCOPES, state)
+            await self.auth_manager.store_auth_flow(state, telegram_id)
+            auth_url = self.auth_manager.generate_auth_url(Config.OAUTH_SCOPES, state)
             logger.info("OAuth flow initiated", extra={
                 'user_id': telegram_id,
                 'scopes': Config.OAUTH_SCOPES
@@ -157,7 +160,7 @@ class GoogleAgentBot:
 
     async def status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
-        is_authenticated = await self.session_manager.is_user_authenticated(telegram_id)
+        is_authenticated = await self.auth_manager.is_user_authenticated(telegram_id)
         logger.info("/status command received", extra={
             'user_id': telegram_id,
             'is_authenticated': is_authenticated
@@ -170,7 +173,7 @@ class GoogleAgentBot:
     async def logout(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id = update.effective_user.id
         logger.info("/logout command received", extra={'user_id': telegram_id})
-        await self.session_manager.user_tokens_db.delete_token(telegram_id)
+        await self.auth_manager.delete_user_token(telegram_id)
         self.session_manager.clear_session(telegram_id)
         logger.info("User logged out successfully", extra={'user_id': telegram_id})
         await update.message.reply_markdown_v2(await format_markdown_for_telegram(LOGGED_OUT_MESSAGE))
@@ -192,13 +195,13 @@ class GoogleAgentBot:
         telegram_id = update.effective_user.id
         logger.info("/timezone command received", extra={'user_id': telegram_id})
 
-        if not await self.session_manager.is_user_authenticated(telegram_id):
+        if not await self.auth_manager.is_user_authenticated(telegram_id):
             logger.warning("Timezone command from unauthenticated user", extra={'user_id': telegram_id})
             await update.message.reply_markdown_v2(
                 await format_markdown_for_telegram(TIMEZONE_NOT_AUTHENTICATED_MESSAGE))
             return
 
-        current_tz = await self.session_manager.user_tokens_db.get_timezone(telegram_id)
+        current_tz = await self.auth_manager.user_tokens_db.get_timezone(telegram_id)
         if not current_tz:
             current_tz = "Not set"
         logger.debug("Current timezone retrieved", extra={'user_id': telegram_id, 'current_timezone': current_tz})
@@ -234,7 +237,7 @@ class GoogleAgentBot:
         logger.info("Timezone selection received", extra={'user_id': telegram_id, 'timezone': timezone})
 
         try:
-            await self.session_manager.user_tokens_db.update_timezone(telegram_id, timezone)
+            await self.auth_manager.user_tokens_db.update_timezone(telegram_id, timezone)
             logger.info("Timezone updated successfully", extra={'user_id': telegram_id, 'timezone': timezone})
             await query.edit_message_text(
                 await format_markdown_for_telegram(TIMEZONE_UPDATED_MESSAGE.format(timezone=timezone)),

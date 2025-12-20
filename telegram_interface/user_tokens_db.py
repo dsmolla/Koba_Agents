@@ -6,7 +6,7 @@ import time
 import os
 from typing import Optional
 
-from .config import Config
+from config import Config
 from .token_encryption import TokenEncryption
 from uuid import uuid4
 
