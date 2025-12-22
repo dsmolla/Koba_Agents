@@ -49,6 +49,12 @@ class Config:
     LANGGRAPH_DEBUG = os.getenv("LANGGRAPH_DEBUG", "False").lower() == "true"
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
+    # Webhook settings
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # e.g., https://yourdomain.com
+    WEBHOOK_SECRET_TOKEN = os.getenv("WEBHOOK_SECRET_TOKEN")
+    WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", "80"))
+    WEBHOOK_MAX_CONNECTIONS = int(os.getenv("WEBHOOK_MAX_CONNECTIONS", "100"))
+
     @classmethod
     def validate(cls):
         errors = []
@@ -59,6 +65,13 @@ class Config:
             errors.append("SECRET_KEY is not set in the environment variables.")
         if not cls.GOOGLE_OAUTH_CLIENT_TOKEN:
             errors.append("GOOGLE_OAUTH_CLIENT_TOKEN is not set in the environment variables.")
+
+        # Webhook validation
+        if not cls.WEBHOOK_URL:
+            errors.append("WEBHOOK_URL is not set in the environment variables.")
+        if not cls.WEBHOOK_SECRET_TOKEN:
+            errors.append("WEBHOOK_SECRET_TOKEN is not set in the environment variables.")
+
         if errors:
             raise ValueError("Configuration errors:\n" + "\n".join(f"- {e}" for e in errors))
         Path(cls.USER_SESSIONS_DIR).mkdir(parents=True, exist_ok=True)

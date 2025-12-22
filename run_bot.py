@@ -14,7 +14,7 @@ Config.validate()
 setup_logging(log_level=getLevelName(Config.LOG_LEVEL))
 logger = logging.getLogger(__name__)
 
-bot = GoogleAgentBot('http://localhost:8080/callback')
+bot = GoogleAgentBot(Config.OAUTH_REDIRECT_URI)
 
 
 def main():

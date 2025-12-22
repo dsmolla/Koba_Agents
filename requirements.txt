@@ -21,3 +21,6 @@ cryptography
 werkzeug
 langgraph-checkpoint-sqlite
 waitress
+fastapi
+uvicorn[standard]
+apscheduler

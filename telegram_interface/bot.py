@@ -494,19 +494,19 @@ class GoogleAgentBot:
         if update and update.message:
             await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_PROCESSING_MESSAGE))
 
-    async def _cleanup_sessions(self, context: ContextTypes.DEFAULT_TYPE):
+    async def _cleanup_sessions(self):
         logger.debug("Running session cleanup task")
         cleaned_count = self.session_manager.cleanup_expired_sessions()
         logger.info("Session cleanup completed", extra={'sessions_cleaned': cleaned_count})
 
-    async def _cleanup_old_files(self, context: ContextTypes.DEFAULT_TYPE):
+    async def _cleanup_old_files(self):
         """Periodic job to clean up old files."""
         logger.debug("Running file cleanup task")
         deleted_count = await FileCleanupManager.cleanup_old_files()
         if deleted_count > 0:
             logger.info("File cleanup completed", extra={'files_deleted': deleted_count})
 
-    async def _auto_save_sessions(self, context: ContextTypes.DEFAULT_TYPE):
+    async def _auto_save_sessions(self):
         """Periodic job to automatically save all active sessions."""
         logger.debug("Running auto-save sessions task")
         saved_count = 0
@@ -530,7 +530,8 @@ class GoogleAgentBot:
         })
         await self.application.bot.send_message(chat_id=telegram_id, text=message)
 
-    def run(self):
+    def setup_handlers(self):
+        """Register all bot handlers."""
         logger.info("Registering bot handlers")
         self.application.add_handler(CommandHandler("start", self.start))
         self.application.add_handler(CommandHandler("login", self.login))
@@ -547,6 +548,15 @@ class GoogleAgentBot:
             MessageHandler(filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO, self.handle_files))
 
         self.application.add_error_handler(self.error_handler)
+        logger.info("Bot handlers registered successfully")
+
+    def get_application(self) -> Application:
+        """Get the Telegram Application instance for webhook setup."""
+        return self.application
+
+    def run(self):
+        """Run the bot in polling mode (deprecated - use webhook mode instead)."""
+        self.setup_handlers()
 
         logger.info("Scheduling periodic maintenance jobs")
         # Session cleanup every 300 seconds (5 minutes)
