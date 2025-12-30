@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {supabase} from "../../lib/supabase.js";
+import {updateUserPassword} from "../../lib/supabase.js";
 import {useNavigate} from "react-router-dom";
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthInput from '../../components/auth/AuthInput';
@@ -23,12 +23,10 @@ const UpdatePassword = () => {
         setLoading(true);
 
         try {
-            const {data, error} = await supabase.auth.updateUser({ password: password })
+            const data = await updateUserPassword(password)
 
             if (data.user) alert("Password updated successfully!")
             else throw new Error('Failed to update password');
-
-            if (error) throw new Error(error.message)
 
             navigate('/dashboard')
 

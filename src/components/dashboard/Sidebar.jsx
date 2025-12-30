@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {MessageSquare, Folder, Calendar, LayoutDashboard from 'lucide-react';
+import {MessageSquare, Folder, Calendar} from 'lucide-react';
 
 export default function Sidebar({activeTab, onTabChange, user}) {
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -15,17 +15,17 @@ export default function Sidebar({activeTab, onTabChange, user}) {
             className={`bg-secondary-dark-bg text-white flex flex-col h-full border-r border-dark-border transition-all duration-300 ${
                 isCollapsed ? 'w-20' : 'w-64'
             }`}
-            onClick={() => setIsCollapsed(!isCollapsed)}
         >
             {/* Header */}
-            <div className={`p-6 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+            <div onClick={() => setIsCollapsed(!isCollapsed)} className={`p-6 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
                 <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center w-full' : ''}`}>
-                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center shrink-0">
-                        <LayoutDashboard size={20} className="text-white"/>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
+                        <img src='/logo.png' alt='Logo'/>
+                        {/*<LayoutDashboard size={20} className="text-white"/>*/}
                     </div>
                     {!isCollapsed && (
                         <span className="font-bold text-xl tracking-tight whitespace-nowrap overflow-hidden">
-              AgentDash
+              KOBA
             </span>
                     )}
                 </div>
@@ -67,7 +67,7 @@ export default function Sidebar({activeTab, onTabChange, user}) {
                         ? 'bg-blue-500 border-blue-300 text-white' 
                         : 'bg-gray-600 border-gray-500 text-gray-200'
                     }`}>
-                        {(user?.user_metadata?.first_name[0] || 'U').toUpperCase()}
+                        {(user?.user_metadata?.first_name?.[0] || 'U').toUpperCase()}
                     </div>
 
                     {!isCollapsed && (

@@ -1,6 +1,6 @@
 import React, {useState} from 'react'
 import {useNavigate, Link} from 'react-router-dom'
-import {supabase} from '../../lib/supabase.js'
+import {signInUser, signInWithGoogleProvider} from '../../lib/supabase.js'
 import AuthLayout from '../../components/auth/AuthLayout'
 import AuthInput from '../../components/auth/AuthInput'
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton'
@@ -22,9 +22,12 @@ function Login() {
     }
 
     const signInWithGoogle = async() => {
-        await supabase.auth.signInWithOAuth({
-            provider: 'google'
-        })
+        try {
+            await signInWithGoogleProvider()
+        } catch (error) {
+            console.error(error)
+            setError(error.message)
+        }
     }
 
     const handleSubmit = async (e) => {
@@ -33,13 +36,10 @@ function Login() {
         setLoading(true)
 
         try {
-            const {data, error} = await supabase.auth.signInWithPassword({
+            await signInUser({
                 email: formData.email,
                 password: formData.password
             })
-
-            if (error) throw new Error(error.message)
-
             navigate('/dashboard')
         } catch (error) {
             setError(error.message)

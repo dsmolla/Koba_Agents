@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {supabase} from "../../lib/supabase.js";
+import {resetUserPassword} from "../../lib/supabase.js";
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthInput from '../../components/auth/AuthInput';
 
@@ -14,14 +14,7 @@ const ResetPassword = () => {
         setLoading(true);
 
         try {
-            const {data, error} = await supabase.auth.resetPasswordForEmail(
-                    email,
-                {
-                        redirectTo: 'http://localhost:5173/update-password'
-                    }
-            )
-            if (error) throw new Error(error.message)
-
+            await resetUserPassword(email, 'http://localhost:5173/update-password');
         } catch (error) {
             setError(error.message);
             console.error(error)
@@ -45,7 +38,7 @@ const ResetPassword = () => {
                 
                 <div>
                     <button
-                       type="submit"
+                        type="submit"
                         disabled={loading}
                         className="w-full mt-1 text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
                     >
