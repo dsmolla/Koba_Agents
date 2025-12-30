@@ -43,7 +43,7 @@ export default function FileManager() {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Files</h2>
+                <h2 className="text-2xl font-bold text-white">Files</h2>
                 <div>
                     <input
                         type="file"
@@ -54,7 +54,7 @@ export default function FileManager() {
                     />
                     <button
                         onClick={handleUploadClick}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
                     >
                         <Upload size={18}/>
                         <span>Upload File</span>
@@ -66,25 +66,25 @@ export default function FileManager() {
                 {files.map((file) => (
                     <div
                         key={file.id}
-                        className="group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 flex flex-col items-center justify-center gap-4 hover:shadow-md transition-shadow aspect-square"
+                        className="group relative bg-secondary-dark-bg border border-dark-border rounded-lg p-6 flex flex-col items-center justify-center gap-4 hover:shadow-md hover:bg-primary-800 hover:cursor-pointer transition-shadow aspect-square"
                     >
-                        <div className="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-full">
+                        <div className="p-4 bg-gray-700 rounded-full">
                             {getIcon(file.type)}
                         </div>
 
                         <div className="text-center w-full px-2">
-                            <p className="font-medium text-zinc-900 dark:text-zinc-100 text-sm break-words line-clamp-2"
+                            <p className="font-medium text-white text-sm wrap-break-word line-clamp-2"
                                title={file.name}>
                                 {file.name}
                             </p>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                            <p className="text-xs text-gray-300 mt-1">
                                 {file.size}
                             </p>
                         </div>
 
                         <button
                             onClick={() => handleDelete(file.id)}
-                            className="absolute top-2 right-2 p-1.5 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-2 right-2 p-1.5 text-red-500 bg-red-900/70 hover:bg-red-900/85 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Delete file"
                         >
                             <Trash2 size={16}/>

@@ -1,4 +1,4 @@
-import {useState, useRef, useEffect} from 'react';
+import {useState, useEffect} from 'react';
 import {Clock, Play, Pause, MoreVertical, Plus, X, Trash, Edit} from 'lucide-react';
 
 export default function TaskManager() {
@@ -61,10 +61,10 @@ export default function TaskManager() {
     return (
         <div className="space-y-6 relative">
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Recursive Tasks</h2>
+                <h2 className="text-2xl font-bold text-white">Recursive Tasks</h2>
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
                     <Plus size={18}/>
                     <span>New Task</span>
@@ -74,24 +74,24 @@ export default function TaskManager() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {tasks.map((task) => (
                     <div key={task.id}
-                         className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between relative">
+                         className="bg-secondary-dark-bg p-6 rounded-lg shadow-sm border border-dark-border flex flex-col justify-between relative">
                         <div className="flex justify-between items-start mb-4">
                             <div
-                                className={`p-2 rounded-lg ${task.status === 'active' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                                className={`p-2 rounded-lg ${task.status === 'active' ? 'bg-green-800/30 text-green-400' : 'bg-gray-700 text-zinc-300'}`}>
                                 <Clock size={24}/>
                             </div>
                             <div className="relative" onClick={e => e.stopPropagation()}>
                                 <button
                                     onClick={() => setActiveMenuId(activeMenuId === task.id ? null : task.id)}
-                                    className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                    className="text-gray-300 hover:text-gray-100 p-1 rounded-md hover:bg-gray-700 transition-colors"
                                 >
                                     <MoreVertical size={20}/>
                                 </button>
                                 {activeMenuId === task.id && (
                                     <div
-                                        className="absolute right-0 mt-2 w-32 bg-white dark:bg-zinc-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10 border border-zinc-200 dark:border-zinc-700 py-1">
+                                        className="absolute right-0 mt-2 w-32 bg-gray-700 rounded-md shadow-lg ring-1 ring-gray-600 ring-opacity-5 z-10 border border-gray-600 py-1">
                                         <button
-                                            className="w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center gap-2"
+                                            className="w-full text-left px-4 py-2 text-sm text-gray-100 hover:bg-gray-600 flex items-center gap-2"
                                             onClick={() => {
                                                 // Add edit logic here if needed
                                                 setActiveMenuId(null);
@@ -101,7 +101,7 @@ export default function TaskManager() {
                                         </button>
                                         <button
                                             onClick={() => handleDeleteTask(task.id)}
-                                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                                            className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-800/20 flex items-center gap-2"
                                         >
                                             <Trash size={14}/> Delete
                                         </button>
@@ -111,19 +111,19 @@ export default function TaskManager() {
                         </div>
 
                         <div className="mb-4">
-                            <h3 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100 mb-1">{task.name}</h3>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400">{task.schedule}</p>
+                            <h3 className="font-semibold text-lg text-white mb-1">{task.name}</h3>
+                            <p className="text-sm text-gray-300">{task.schedule}</p>
                         </div>
 
                         <div
-                            className="flex items-center justify-between mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                            <span className="text-xs text-zinc-500">Last run: {task.lastRun}</span>
+                            className="flex items-center justify-between mt-auto pt-4 border-t border-dark-border">
+                            <span className="text-xs text-gray-400">Last run: {task.lastRun}</span>
                             <button
                                 onClick={() => toggleStatus(task.id)}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                                     task.status === 'active'
-                                        ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400'
-                                        : 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
+                                        ? 'hover:bg-amber-200 bg-amber-800/30 text-amber-400'
+                                        : 'hover:bg-green-200 bg-green-800/30 text-green-400'
                                 }`}
                             >
                                 {task.status === 'active' ? (
@@ -145,37 +145,35 @@ export default function TaskManager() {
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div
-                        className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl max-w-md w-full overflow-hidden border border-zinc-200 dark:border-zinc-800">
+                        className="dark:bg-secondary-dark-bg rounded-lg shadow-xl max-w-md w-full overflow-hidden border border-dark-border">
                         <div
-                            className="flex justify-between items-center p-4 border-b border-zinc-200 dark:border-zinc-800">
-                            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Create New Task</h3>
+                            className="flex justify-between items-center p-4 border-b border-dark-border">
+                            <h3 className="text-lg font-semibold text-white">Create New Task</h3>
                             <button onClick={() => setIsModalOpen(false)}
-                                    className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+                                    className="text-gray-400 hover:text-gray-200">
                                 <X size={20}/>
                             </button>
                         </div>
                         <form onSubmit={handleAddTask} className="p-4 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Task
-                                    Name</label>
+                                <label className="block text-sm font-medium text-gray-200 mb-1">Task Name</label>
                                 <input
                                     type="text"
                                     value={newTaskName}
                                     onChange={(e) => setNewTaskName(e.target.value)}
                                     placeholder="e.g., Daily Summary"
-                                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-zinc-900 dark:text-zinc-100"
+                                    className="w-full bg-dark-input-bg border border-dark-input-border placeholder-dark-input-placeholder rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-white"
                                     required
                                 />
                             </div>
                             <div>
-                                <label
-                                    className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Schedule</label>
+                                <label className="block text-sm font-medium text-gray-200 mb-1">Schedule</label>
                                 <input
                                     type="text"
                                     value={newTaskSchedule}
                                     onChange={(e) => setNewTaskSchedule(e.target.value)}
                                     placeholder="e.g., Every day at 9am"
-                                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-zinc-900 dark:text-zinc-100"
+                                    className="w-full bg-dark-input-bg border border-dark-input-border placeholder-dark-input-placeholder rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-white"
                                     required
                                 />
                             </div>
@@ -183,13 +181,13 @@ export default function TaskManager() {
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="px-4 py-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                                    className="px-4 py-2 text-gray-300 hover:text-gray-100"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm transition-colors"
+                                    className="px-4 py-2 bg-primary-dark-btn text-white rounded-md hover:bg-primary-dark-btn-hover shadow-sm transition-colors"
                                 >
                                     Create Task
                                 </button>
