@@ -9,8 +9,7 @@ export default function SettingsView({user}) {
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         email: user?.email || '',
-        firstName: user?.user_metadata?.first_name || '',
-        lastName: user?.user_metadata?.last_name || ''
+        fullName: user?.user_metadata?.full_name || ''
     });
 
     const handleSignOut = async () => {
@@ -34,8 +33,7 @@ export default function SettingsView({user}) {
         try {
             await updateUserData({
                 email: formData.email,
-                firstName: formData.firstName,
-                lastName: formData.lastName,
+                fullName: formData.fullName,
             })
 
             setIsEditing(false);
@@ -53,8 +51,7 @@ export default function SettingsView({user}) {
         if (user) {
             setFormData({
                 email: user.email || '',
-                firstName: user.user_metadata?.first_name || '',
-                lastName: user.user_metadata?.last_name || ''
+                fullName: user.user_metadata?.full_name || ''
             });
         }
     };
@@ -115,23 +112,12 @@ export default function SettingsView({user}) {
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-200 mb-1">First Name</label>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-200 mb-1">Full Name</label>
                                 <input
                                     type="text"
-                                    name="firstName"
-                                    value={formData.firstName}
-                                    onChange={handleInputChange}
-                                    disabled={!isEditing}
-                                    className={`w-full border ${isEditing ? 'border-blue-500/50 bg-dark-input-bg' : 'border-dark-input-border bg-dark-input-bg/50 text-gray-300'} text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all`}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-200 mb-1">Last Name</label>
-                                <input
-                                    type="text"
-                                    name="lastName"
-                                    value={formData.lastName}
+                                    name="fullName"
+                                    value={formData.fullName}
                                     onChange={handleInputChange}
                                     disabled={!isEditing}
                                     className={`w-full border ${isEditing ? 'border-blue-500/50 bg-dark-input-bg' : 'border-dark-input-border bg-dark-input-bg/50 text-gray-300'} text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all`}

@@ -8,8 +8,7 @@ import GoogleSignInButton from '../../components/auth/GoogleSignInButton'
 function Signup() {
     const navigate = useNavigate()
     const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
+        fullName: '',
         email: '',
         password: '',
         confirmPassword: ''
@@ -48,8 +47,7 @@ function Signup() {
             await signUpUser({
                 email: formData.email,
                 password: formData.password,
-                firstName: formData.firstName,
-                lastName: formData.lastName
+                fullName: formData.fullName
             })
             navigate('/dashboard')
         } catch (error) {
@@ -64,24 +62,13 @@ function Signup() {
         <AuthLayout title="Sign Up" error={error}>
             <form className="mt-4 space-y-4 lg:mt-5 md:space-y-5" onSubmit={handleSubmit}>
                 <AuthInput
-                    label="First Name"
-                    id="firstName"
-                    name="firstName"
+                    label="Full Name"
+                    id="fullName"
+                    name="fullName"
                     type="text"
                     required
-                    autoComplete="first-name"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                />
-
-                <AuthInput
-                    label="Last Name"
-                    id="lastName"
-                    name="lastName"
-                    type="text"
-                    required
-                    autoComplete="last-name"
-                    value={formData.lastName}
+                    autoComplete="name"
+                    value={formData.fullName}
                     onChange={handleChange}
                 />
 

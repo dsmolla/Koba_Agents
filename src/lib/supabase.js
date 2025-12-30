@@ -14,14 +14,13 @@ export const signInUser = async ({email, password}) => {
     return data
 }
 
-export const signUpUser = async ({email, password, firstName, lastName}) => {
+export const signUpUser = async ({email, password, fullName}) => {
     const {data, error} = await supabase.auth.signUp({
         email,
         password,
         options: {
             data: {
-                first_name: firstName,
-                last_name: lastName,
+                full_name: fullName,
             },
         },
     })
@@ -46,10 +45,10 @@ export const updateUserPassword = async (password) => {
     return data
 }
 
-export const updateUserData = async ({email, firstName, lastName}) => {
+export const updateUserData = async ({email, fullName}) => {
     const {data, error} = await supabase.auth.updateUser({
         email: email,
-        data: {first_name: firstName, last_name: lastName},
+        data: {full_name: fullName},
     })
     if (error) throw error
     return data

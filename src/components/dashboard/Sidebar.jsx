@@ -67,13 +67,13 @@ export default function Sidebar({activeTab, onTabChange, user}) {
                         ? 'bg-blue-500 border-blue-300 text-white' 
                         : 'bg-gray-600 border-gray-500 text-gray-200'
                     }`}>
-                        {(user?.user_metadata?.first_name?.[0] || 'U').toUpperCase()}
+                        {(user?.user_metadata?.full_name?.[0] || 'U').toUpperCase()}
                     </div>
 
                     {!isCollapsed && (
                         <div className="text-left overflow-hidden text-zinc-100">
                             <p className="text-sm font-medium truncate">
-                                {user?.user_metadata?.first_name || user?.email?.split('@')[0]}
+                                {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
                             </p>
                             <p className={`text-xs truncate ${activeTab === 'settings' ? 'text-blue-100' : 'text-gray-400'}`}>
                                 {user?.role === 'authenticated' ? 'Pro Member' : 'Free Plan'}
