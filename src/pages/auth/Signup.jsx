@@ -49,7 +49,7 @@ function Signup() {
                 password: formData.password,
                 fullName: formData.fullName
             })
-            navigate('/dashboard')
+            navigate('/')
         } catch (error) {
             setError(error.message)
             console.error(error)

@@ -6,11 +6,6 @@ import ProtectedRoute from './components/ProtectedRoute'
 import AuthRoute from './components/AuthRoute'
 import UpdatePassword from "./pages/auth/UpdatePassword.jsx";
 import ResetPassword from "./pages/auth/ResetPassword.jsx";
-import {supabase} from "./lib/supabase.js";
-
-supabase.auth.getSession().then(session => {
-    console.log(session)
-})
 
 function App() {
     return (
@@ -34,14 +29,6 @@ function App() {
                 />
                 <Route
                     path="/"
-                    element={
-                        <ProtectedRoute>
-                            <Dashboard/>
-                        </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="/dashboard"
                     element={
                         <ProtectedRoute>
                             <Dashboard/>

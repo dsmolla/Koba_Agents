@@ -28,7 +28,7 @@ const UpdatePassword = () => {
             if (data.user) alert("Password updated successfully!")
             else throw new Error('Failed to update password');
 
-            navigate('/dashboard')
+            navigate('/')
 
 
         } catch (error) {

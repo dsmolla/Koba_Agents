@@ -40,7 +40,7 @@ function Login() {
                 email: formData.email,
                 password: formData.password
             })
-            navigate('/dashboard')
+            navigate('/')
         } catch (error) {
             setError(error.message)
             console.error(error)

@@ -6,7 +6,7 @@ function AuthRoute({ children }) {
 
   if (loading) return <div>Loading...</div>
 
-  if (user) return <Navigate to="/dashboard" replace />
+  if (user) return <Navigate to="/" replace />
 
   return children
 }

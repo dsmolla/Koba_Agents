@@ -122,8 +122,8 @@ export default function TaskManager() {
                                 onClick={() => toggleStatus(task.id)}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                                     task.status === 'active'
-                                        ? 'hover:bg-amber-200 bg-amber-800/30 text-amber-400'
-                                        : 'hover:bg-green-200 bg-green-800/30 text-green-400'
+                                        ? 'hover:bg-amber-800/50 bg-amber-800/30 text-amber-400'
+                                        : 'hover:bg-green-800 bg-green-800/30 text-green-400'
                                 }`}
                             >
                                 {task.status === 'active' ? (
