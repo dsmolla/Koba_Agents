@@ -14,8 +14,8 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMe
 from langchain_core.globals import set_debug
 from langchain_core.runnables import RunnableConfig
 
-from google_agent.agent import GoogleAgent
-from google_agent.shared.llm_models import LLM_FLASH
+from agents.supervisor import GoogleAgent
+from agents.shared.llm_models import LLM_FLASH
 
 from .auth import AuthManager
 from config import Config

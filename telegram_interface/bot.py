@@ -24,12 +24,14 @@ from telegram.ext import (
     filters
 )
 from telegram.request import HTTPXRequest
+from telegram.error import TimedOut, NetworkError
 
 from config import Config
 from telegram_interface.messages import *
 from telegram_interface.session_manager import SessionManager
 from telegram_interface.auth_instance import auth_manager
 from telegram_interface.security import RateLimiter, FileSecurityValidator, FileCleanupManager
+from agents.shared.exceptions import AgentException, ToolException
 
 logger = logging.getLogger(__name__)
 
@@ -414,6 +416,39 @@ class GoogleAgentBot:
             for i in range(0, len(response_text), max_message_len):
                 await update.message.reply_markdown_v2(formatted_message[i: i + max_message_len])
 
+        except asyncio.TimeoutError:
+            processing_time = time.time() - start_time
+            logger.error("Request timed out", extra={
+                'user_id': telegram_id,
+                'processing_time': f"{processing_time:.2f}s",
+                'message_preview': text[:100]
+            })
+            await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_TIMEOUT_MESSAGE))
+
+        except ToolException as e:
+            processing_time = time.time() - start_time
+            logger.error("Tool execution error", extra={
+                'user_id': telegram_id,
+                'tool_name': e.tool_name,
+                'error': str(e),
+                'processing_time': f"{processing_time:.2f}s"
+            }, exc_info=True)
+            await update.message.reply_markdown_v2(await format_markdown_for_telegram(
+                ERROR_TOOL_EXECUTION_MESSAGE.format(tool_name=e.tool_name, details=e.message)
+            ))
+
+        except AgentException as e:
+            processing_time = time.time() - start_time
+            logger.error("Agent execution error", extra={
+                'user_id': telegram_id,
+                'agent_name': e.agent_name,
+                'error': str(e),
+                'processing_time': f"{processing_time:.2f}s"
+            }, exc_info=True)
+            await update.message.reply_markdown_v2(await format_markdown_for_telegram(
+                f"❌ Error in {e.agent_name}: {e.message}"
+            ))
+
         except Exception as e:
             processing_time = time.time() - start_time
             logger.error("Error processing user message", extra={
@@ -491,8 +526,14 @@ class GoogleAgentBot:
             'error_type': type(error).__name__,
             'error': str(error)
         }, exc_info=error)
+        
         if update and update.message:
-            await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_PROCESSING_MESSAGE))
+            if isinstance(error, TimedOut):
+                await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_TIMEOUT_MESSAGE))
+            elif isinstance(error, NetworkError):
+                await update.message.reply_markdown_v2(await format_markdown_for_telegram("⚠️ Network connection error. Please try again."))
+            else:
+                await update.message.reply_markdown_v2(await format_markdown_for_telegram(ERROR_PROCESSING_MESSAGE))
 
     async def _cleanup_sessions(self):
         logger.debug("Running session cleanup task")

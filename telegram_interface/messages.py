@@ -79,6 +79,10 @@ If you have any questions or need further assistance, just ask!
 """
 
 ERROR_PROCESSING_MESSAGE = "❌ Sorry, I encountered an error processing your request. Please try again or use /clear to start a fresh conversation."
+ERROR_TIMEOUT_MESSAGE = "⏳ Request timed out. The operation took too long to complete."
+ERROR_GOOGLE_API_MESSAGE = "❌ Google services returned an error. Please try again later or check your permissions."
+ERROR_VALIDATION_MESSAGE = "⚠️ Invalid request: {details}"
+ERROR_TOOL_EXECUTION_MESSAGE = "❌ Failed to execute tool '{tool_name}': {details}"
 
 TIMEZONE_PROMPT_MESSAGE = """
 🌍 **Set Your Timezone**
