@@ -31,7 +31,7 @@ from telegram_interface.messages import *
 from telegram_interface.session_manager import SessionManager
 from telegram_interface.auth_instance import auth_manager
 from telegram_interface.security import RateLimiter, FileSecurityValidator, FileCleanupManager
-from agents.shared.exceptions import AgentException, ToolException
+from agents.common.exceptions import AgentException, ToolException
 
 logger = logging.getLogger(__name__)
 

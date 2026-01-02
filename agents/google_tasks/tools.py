@@ -1,15 +1,14 @@
 import json
 from datetime import datetime
-from typing import Optional, Literal, Union
+from typing import Optional, Literal, Union, Annotated
 
 from google_client.services.tasks import TaskQueryBuilder
 from google_client.services.tasks.async_query_builder import AsyncTaskQueryBuilder
 from langchain_core.runnables import RunnableConfig
+from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
-from langchain_core.tools import ArgsSchema
 from pydantic import BaseModel, Field
 
-from agents.google_tasks.task_list_cache import TaskListCache
 from core.auth import get_tasks_service
 
 
@@ -29,7 +28,7 @@ class CreateTaskTool(BaseTool):
     def _run(
             self,
             title: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             notes: Optional[str] = None,
             due: Optional[str] = None,
             task_list_id: str = "@default",
@@ -39,7 +38,7 @@ class CreateTaskTool(BaseTool):
     async def _arun(
             self,
             title: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             notes: Optional[str] = None,
             due: Optional[str] = None,
             task_list_id: str = "@default",
@@ -83,7 +82,7 @@ class ListTasksTool(BaseTool):
 
     def _run(
             self,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             task_list_id: str = "@default",
             max_results: int = 20,
             show_completed: bool = False,
@@ -95,7 +94,7 @@ class ListTasksTool(BaseTool):
 
     async def _arun(
             self,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             task_list_id: str = "@default",
             max_results: int = 20,
             show_completed: bool = False,
@@ -171,10 +170,10 @@ class DeleteTaskTool(BaseTool):
     description: str = "Delete a task"
     args_schema: ArgsSchema = DeleteTaskInput
 
-    def _run(self, task_id: str, config: RunnableConfig, task_list_id: str = "@default") -> str:
+    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, task_id: str, config: RunnableConfig, task_list_id: str = "@default") -> str:
+    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
         try:
             tasks_service = get_tasks_service(config)
             await tasks_service.delete_task(task=task_id, task_list_id=task_list_id)
@@ -195,10 +194,10 @@ class CompleteTaskTool(BaseTool):
     description: str = "Mark a task as completed"
     args_schema: ArgsSchema = CompleteTaskInput
 
-    def _run(self, task_id: str, config: RunnableConfig, task_list_id: str = "@default") -> str:
+    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, task_id: str, config: RunnableConfig, task_list_id: str = "@default") -> str:
+    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
         try:
             tasks_service = get_tasks_service(config)
             task = await tasks_service.mark_completed(task=task_id, task_list_id=task_list_id)
@@ -219,10 +218,10 @@ class ReopenTaskTool(BaseTool):
     description: str = "Reopen a completed task"
     args_schema: ArgsSchema = ReopenTaskInput
 
-    def _run(self, task_id: str, config: RunnableConfig, task_list_id: str = "@default") -> str:
+    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, task_id: str, config: RunnableConfig, task_list_id: str = "@default") -> str:
+    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
         try:
             tasks_service = get_tasks_service(config)
             task = await tasks_service.mark_incomplete(task=task_id, task_list_id=task_list_id)
@@ -249,7 +248,7 @@ class UpdateTaskTool(BaseTool):
     def _run(
             self,
             task_id: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             title: Optional[str] = None,
             notes: Optional[str] = None,
             due: Optional[str] = None,
@@ -260,7 +259,7 @@ class UpdateTaskTool(BaseTool):
     async def _arun(
             self,
             task_id: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             title: Optional[str] = None,
             notes: Optional[str] = None,
             due: Optional[str] = None,
@@ -292,24 +291,13 @@ class CreateTaskListTool(BaseTool):
     description: str = "Create a new task list"
     args_schema: ArgsSchema = CreateTaskListInput
 
-    task_list_cache: TaskListCache
-
-    def __init__(
-        self,
-        task_list_cache: TaskListCache
-    ):
-        super().__init__(
-            task_list_cache=task_list_cache
-        )
-
-    def _run(self, title: str, config: RunnableConfig) -> str:
+    def _run(self, title: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, title: str, config: RunnableConfig) -> str:
+    async def _arun(self, title: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             tasks_service = get_tasks_service(config)
             task_list = await tasks_service.create_task_list(title=title)
-            self.task_list_cache.add_task_list(task_list)
             return f"Task List created successfully. task_list_id: {task_list.task_list_id}"
 
         except Exception as e:
@@ -320,28 +308,13 @@ class ListTaskListsTool(BaseTool):
     name: str = "list_task_lists"
     description: str = "List task lists"
 
-    task_list_cache: TaskListCache
-
-    def __init__(
-        self,
-        task_list_cache: TaskListCache
-    ):
-        super().__init__(
-            task_list_cache=task_list_cache
-        )
-
-    def _run(self, config: RunnableConfig) -> str:
+    def _run(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, config: RunnableConfig) -> str:
+    async def _arun(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             tasks_service = get_tasks_service(config)
-            task_lists = self.task_list_cache.list_task_lists()
-            if len(task_lists) == 0:
-                task_lists = await tasks_service.list_task_lists()
-                self.task_list_cache.update_cache(task_lists)
-                task_lists = self.task_list_cache.list_task_lists()
-
+            task_lists = await tasks_service.list_task_lists()
             return json.dumps(task_lists)
         except Exception as e:
             return "Unable to list task lists due to internal error"

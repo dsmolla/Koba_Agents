@@ -1,11 +1,11 @@
 import json
 import os
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Annotated
 
 from google_client.services.drive.types import DriveFile, DriveFolder, DriveItem
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import ArgsSchema
+from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
@@ -47,7 +47,7 @@ class SearchFilesTool(BaseTool):
 
     def _run(
             self,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             query: Optional[str] = None,
             max_results: Optional[int] = 10,
             extension: Optional[str] = None,
@@ -69,7 +69,7 @@ class SearchFilesTool(BaseTool):
 
     async def _arun(
             self,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             query: Optional[str] = None,
             max_results: Optional[int] = 10,
             extension: Optional[str] = None,
@@ -88,8 +88,8 @@ class SearchFilesTool(BaseTool):
             order_by: Optional[str] = None
     ) -> str:
         try:
-            service = get_drive_service(config)
-            builder = service.query()
+            drive = get_drive_service(config)
+            builder = drive.query()
 
             if max_results:
                 builder = builder.limit(max_results)
@@ -164,13 +164,13 @@ class GetFileTool(BaseTool):
     description: str = "Get detailed information about a specific file or folder by its ID"
     args_schema: ArgsSchema = GetFileInput
 
-    def _run(self, file_id: str, config: RunnableConfig) -> str:
+    def _run(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, file_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            service = get_drive_service(config)
-            item = await service.get(file_id)
+            drive = get_drive_service(config)
+            item = await drive.get(file_id)
 
             item_dict = {
                 "id": item.item_id,
@@ -210,28 +210,19 @@ class DownloadFileTool(BaseTool):
     description: str = "Download file content from Google Drive as bytes"
     args_schema: ArgsSchema = DownloadFileInput
 
-    download_folder: Optional[str] = None
-
-    def __init__(self, download_folder: Optional[str] = None):
-        super().__init__()
-        self.download_folder = download_folder
-
-    def _run(self, file_id: str, config: RunnableConfig) -> str:
+    def _run(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, file_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            service = get_drive_service(config)
-            file = await service.get(file_id)
+            drive = get_drive_service(config)
+            download_folder = config['configurable'].get('download_folder')
+            file = await drive.get(file_id)
             if not isinstance(file, DriveFile):
                 return f"Item {file_id} is a folder, not a file"
 
-            download_folder = self.download_folder or os.path.join(os.path.expanduser("~"), "Downloads", "GoogleDriveFiles")
-            downloaded_path = await service.download_file(file, download_folder)
-
-
+            downloaded_path = await drive.download_file(file, download_folder)
             return f"File downloaded successfully. File Path: {downloaded_path}"
-
         except Exception as e:
             return "Unable to download file due to internal error"
 
@@ -251,7 +242,7 @@ class ListFolderContentsTool(BaseTool):
     def _run(
             self,
             folder_id: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             max_results: Optional[int] = 100,
             include_files: bool = True,
             include_folders: bool = True
@@ -261,18 +252,18 @@ class ListFolderContentsTool(BaseTool):
     async def _arun(
             self,
             folder_id: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             max_results: Optional[int] = 100,
             include_files: bool = True,
             include_folders: bool = True
     ) -> str:
         try:
-            service = get_drive_service(config)
-            folder = await service.get(folder_id)
+            drive = get_drive_service(config)
+            folder = await drive.get(folder_id)
             if not isinstance(folder, DriveFolder):
                 return f"Item {folder_id} is not a folder"
 
-            contents = await service.list_folder_contents(
+            contents = await drive.list_folder_contents(
                 folder=folder,
                 include_files=include_files,
                 include_folders=include_folders,
@@ -312,14 +303,14 @@ class GetPermissionsTool(BaseTool):
     description: str = "Get all sharing permissions for a file or folder"
     args_schema: ArgsSchema = GetPermissionsInput
 
-    def _run(self, file_id: str, config: RunnableConfig) -> str:
+    def _run(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, file_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            service = get_drive_service(config)
-            item = await service.get(file_id)
-            permissions = await service.get_permissions(item)
+            drive = get_drive_service(config)
+            item = await drive.get(file_id)
+            permissions = await drive.get_permissions(item)
 
             permissions_data = [
                 {

@@ -1,11 +1,11 @@
 import json
 from datetime import datetime
-from typing import Optional, Union
+from typing import Optional, Union, Annotated
 
 from google_client.services.gmail import EmailQueryBuilder
 from google_client.services.gmail.async_query_builder import AsyncEmailQueryBuilder
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import ArgsSchema
+from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
@@ -22,10 +22,10 @@ class GetEmailTool(BaseTool):
     description: str = "Get email from Gmail by message_id"
     args_schema: ArgsSchema = GetEmailInput
 
-    def _run(self, message_id: str, config: RunnableConfig) -> str:
+    def _run(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             gmail = get_gmail_service(config)
             email_cache = get_email_cache(config)
@@ -49,10 +49,10 @@ class GetThreadDetailsTool(BaseTool):
     description: str = "Get detailed information about a specific writer thread including all messages"
     args_schema: ArgsSchema = GetThreadDetailsInput
 
-    def _run(self, thread_id: str, config: RunnableConfig) -> str:
+    def _run(self, thread_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, thread_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, thread_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         """Get detailed information about a specific thread"""
         try:
             gmail = get_gmail_service(config)
@@ -186,13 +186,13 @@ class SearchEmailsTool(BaseTool):
             this_month: Optional[bool] = None,
             after_date: Optional[str] = None,
             before_date: Optional[str] = None,
-            config: RunnableConfig = None
+            config: Annotated[RunnableConfig, InjectedToolArg] = None
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
     async def _arun(
             self,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             include_promotions: Optional[bool] = False,
             limit: Optional[int] = 50,
             search: Optional[str] = None,
@@ -280,10 +280,10 @@ class DownloadAttachmentTool(BaseTool):
     description: str = "Download an attachment from an email message"
     args_schema: ArgsSchema = DownloadAttachmentInput
 
-    def _run(self, message_id: str, attachment_id: Optional[str] = None, config: RunnableConfig = None) -> str:
+    def _run(self, message_id: str, attachment_id: Optional[str] = None, config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, config: RunnableConfig, attachment_id: Optional[str] = None) -> str:
+    async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg], attachment_id: Optional[str] = None) -> str:
         try:
             gmail = get_gmail_service(config)
             email_cache = get_email_cache(config)
@@ -339,10 +339,10 @@ class ListUserLabelsTool(BaseTool):
     name: str = "list_user_labels"
     description: str = "List all user-created labels in Gmail. It does not include system organization like INBOX, SENT, SPAM, etc."
 
-    def _run(self, config: RunnableConfig) -> str:
+    def _run(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, config: RunnableConfig) -> str:
+    async def _arun(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             gmail = get_gmail_service(config)
             labels = await gmail.list_labels()

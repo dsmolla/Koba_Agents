@@ -1,7 +1,7 @@
-from typing import Optional, List
+from typing import Optional, List, Annotated
 
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import ArgsSchema
+from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
@@ -25,7 +25,7 @@ class SendEmailTool(BaseTool):
     def _run(
             self,
             to: List[str],
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             subject: Optional[str] = None,
             body_text: Optional[str] = None,
             cc: Optional[List[str]] = None,
@@ -37,7 +37,7 @@ class SendEmailTool(BaseTool):
     async def _arun(
             self,
             to: List[str],
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             subject: Optional[str] = None,
             body_text: Optional[str] = None,
             cc: Optional[List[str]] = None,
@@ -68,7 +68,7 @@ class DraftEmailTool(BaseTool):
     def _run(
             self,
             to: List[str],
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             subject: Optional[str] = None,
             body_text: Optional[str] = None,
             body_html: Optional[str] = None,
@@ -81,7 +81,7 @@ class DraftEmailTool(BaseTool):
     async def _arun(
             self,
             to: List[str],
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             subject: Optional[str] = None,
             body_text: Optional[str] = None,
             body_html: Optional[str] = None,
@@ -120,7 +120,7 @@ class ReplyEmailTool(BaseTool):
     def _run(
             self,
             message_id: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             body_text: Optional[str] = None,
             attachment_paths: Optional[List[str]] = None
     ) -> str:
@@ -129,7 +129,7 @@ class ReplyEmailTool(BaseTool):
     async def _arun(
             self,
             message_id: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             body_text: Optional[str] = None,
             attachment_paths: Optional[List[str]] = None
     ) -> str:
@@ -161,7 +161,7 @@ class ForwardEmailTool(BaseTool):
             self,
             message_id: str,
             to: List[str],
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             include_attachments: Optional[bool] = True
     ) -> str:
         raise NotImplementedError("Use async execution.")
@@ -170,7 +170,7 @@ class ForwardEmailTool(BaseTool):
             self,
             message_id: str,
             to: List[str],
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             include_attachments: Optional[bool] = True
     ) -> str:
         try:

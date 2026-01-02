@@ -1,6 +1,8 @@
+from typing import Annotated
+
 from google_client.services.drive.types import DriveFolder
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import ArgsSchema
+from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
@@ -17,19 +19,19 @@ class MoveFileTool(BaseTool):
     description: str = "Move a file or folder to a different folder"
     args_schema: ArgsSchema = MoveFileInput
 
-    def _run(self, file_id: str, target_folder_id: str, config: RunnableConfig) -> str:
+    def _run(self, file_id: str, target_folder_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, file_id: str, target_folder_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, file_id: str, target_folder_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            service = get_drive_service(config)
-            item = await service.get(file_id)
-            target_folder = await service.get(target_folder_id)
+            drive = get_drive_service(config)
+            item = await drive.get(file_id)
+            target_folder = await drive.get(target_folder_id)
 
             if not isinstance(target_folder, DriveFolder):
                 return f"Target {target_folder_id} is not a folder"
 
-            updated_item = await service.move(
+            updated_item = await drive.move(
                 item=item,
                 target_folder=target_folder,
                 remove_from_current_parents=True
@@ -51,14 +53,14 @@ class RenameFileTool(BaseTool):
     description: str = "Rename a file or folder"
     args_schema: ArgsSchema = RenameFileInput
 
-    def _run(self, file_id: str, new_name: str, config: RunnableConfig) -> str:
+    def _run(self, file_id: str, new_name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, file_id: str, new_name: str, config: RunnableConfig) -> str:
+    async def _arun(self, file_id: str, new_name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            service = get_drive_service(config)
-            item = await service.get(file_id)
-            updated_item = await service.rename(item=item, name=new_name)
+            drive = get_drive_service(config)
+            item = await drive.get(file_id)
+            updated_item = await drive.rename(item=item, name=new_name)
 
             return f"Item renamed successfully to '{updated_item.name}'"
 
@@ -75,14 +77,14 @@ class DeleteFileTool(BaseTool):
     description: str = "Delete a file or folder from Google Drive permanently"
     args_schema: ArgsSchema = DeleteFileInput
 
-    def _run(self, file_id: str, config: RunnableConfig) -> str:
+    def _run(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, file_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            service = get_drive_service(config)
-            item = await service.get(file_id)
-            await service.delete(item)
+            drive = get_drive_service(config)
+            item = await drive.get(file_id)
+            await drive.delete(item)
 
             return f"Item deleted successfully. file_id: {file_id}"
 

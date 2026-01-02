@@ -1,10 +1,14 @@
+from pathlib import Path
 from textwrap import dedent
 
-from agents.shared.base_agent import BaseReactGoogleAgent
+from langchain_core.language_models import BaseChatModel
+from langchain_core.prompts import PromptTemplate
+
+from core.agent import BaseAgent
 from .tools import UploadFileTool, CreateFolderTool, ShareFileTool
 
 
-class WriterAgent(BaseReactGoogleAgent):
+class WriterAgent(BaseAgent):
     name: str = "WriterAgent"
     description: str = dedent("""
         Specialized agent for managing Google Drive files and folders with the following capabilities:
@@ -13,12 +17,17 @@ class WriterAgent(BaseReactGoogleAgent):
             - Share files and folders with other users (needs file_id/folder_id)
     """)
 
-    @property
-    def tools(self):
-        if self._tools is None:
-            self._tools = [
-                UploadFileTool(self.google_service),
-                CreateFolderTool(self.google_service),
-                ShareFileTool(self.google_service),
-            ]
-        return self._tools
+    def __init__(self, model: BaseChatModel):
+        tools = [
+            UploadFileTool(),
+            CreateFolderTool(),
+            ShareFileTool(),
+        ]
+
+        tool_descriptions = []
+        for tool in tools:
+            tool_descriptions.append(f"- {tool.name}: {tool.description}")
+        system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt.txt'))
+        system_prompt = system_prompt.format(tools='\n'.join(tool_descriptions))
+
+        super().__init__(model, tools, system_prompt)

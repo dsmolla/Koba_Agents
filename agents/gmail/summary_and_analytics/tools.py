@@ -1,15 +1,15 @@
 import json
 from textwrap import dedent
-from typing import Optional, Literal
+from typing import Optional, Literal, Annotated
 
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import ArgsSchema
+from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
-from agents.shared.llm_models import MODELS
+from agents.common.llm_models import MODELS
 from core.auth import get_gmail_service
 from core.cache import get_email_cache
 
@@ -26,10 +26,10 @@ class SummarizeEmailsTool(BaseTool):
     args_schema: ArgsSchema = SummarizeEmailsInput
 
     def _run(self, message_ids: list[str], summary_type: Optional[
-        Literal["conversation", "key_points", "action_items"]] = "conversation", config: RunnableConfig = None) -> str:
+        Literal["conversation", "key_points", "action_items"]] = "conversation", config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_ids: list[str], config: RunnableConfig, summary_type: Optional[
+    async def _arun(self, message_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg], summary_type: Optional[
         Literal["conversation", "key_points", "action_items"]] = "conversation") -> str:
         try:
             gmail = get_gmail_service(config)
@@ -138,10 +138,10 @@ class ExtractFromEmailTool(BaseTool):
     description: str = "Extract specific fields or information from emails"
     args_schema: ArgsSchema = ExtractFromEmailInput
 
-    def _run(self, message_ids: list[str], fields: list[str], config: RunnableConfig = None) -> str:
+    def _run(self, message_ids: list[str], fields: list[str], config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_ids: list[str], fields: list[str], config: RunnableConfig) -> str:
+    async def _arun(self, message_ids: list[str], fields: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             gmail = get_gmail_service(config)
             email_cache = get_email_cache(config)
@@ -232,11 +232,11 @@ class ClassifyEmailTool(BaseTool):
     args_schema: ArgsSchema = ClassifyEmailInput
 
     def _run(self, message_ids: list[str], classifications: list[str],
-             config: RunnableConfig = None, include_confidence: Optional[bool] = False) -> str:
+             config: Annotated[RunnableConfig, InjectedToolArg] = None, include_confidence: Optional[bool] = False) -> str:
         raise NotImplementedError("Use async execution.")
 
     async def _arun(self, message_ids: list[str], classifications: list[str],
-                    config: RunnableConfig, include_confidence: Optional[bool] = False) -> str:
+                    config: Annotated[RunnableConfig, InjectedToolArg], include_confidence: Optional[bool] = False) -> str:
         try:
             gmail = get_gmail_service(config)
             email_cache = get_email_cache(config)

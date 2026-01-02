@@ -4,7 +4,7 @@ from textwrap import dedent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 
-from agents.shared.base_agent import BaseAgent
+from core.agent import BaseAgent
 from .tools import SendEmailTool, DraftEmailTool, ReplyEmailTool, ForwardEmailTool
 
 
@@ -28,7 +28,7 @@ class WriterAgent(BaseAgent):
         tool_descriptions = []
         for tool in tools:
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
-        system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt'))
+        system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt.txt'))
         system_prompt = system_prompt.format(tools='\n'.join(tool_descriptions))
 
         super().__init__(model, tools, system_prompt)

@@ -1,11 +1,15 @@
+from pathlib import Path
 from textwrap import dedent
 
-from agents.shared.base_agent import BaseReactGoogleAgent
+from langchain_core.language_models import BaseChatModel
+from langchain_core.prompts import PromptTemplate
+
+from core.agent import BaseAgent
 from .tools import SearchFilesTool, GetFileTool, DownloadFileTool, ListFolderContentsTool, GetPermissionsTool
-from ...shared.tools import CurrentDateTimeTool
+from ...common.tools import CurrentDateTimeTool
 
 
-class SearchAndRetrievalAgent(BaseReactGoogleAgent):
+class SearchAndRetrievalAgent(BaseAgent):
     name: str = "SearchAndRetrievalAgent"
     description: str = dedent("""
         Specialized agent for searching and retrieving Google Drive files and folders with the following capabilities:
@@ -16,19 +20,20 @@ class SearchAndRetrievalAgent(BaseReactGoogleAgent):
             - Get sharing permissions of files and folders (needs file_id or folder_id)
     """)
 
-    def __init__(self, google_service, llm, config=None, download_folder=None):
-        super().__init__(google_service, llm, config)
-        self.download_folder = download_folder
+    def __init__(self, model: BaseChatModel):
+        tools = [
+            CurrentDateTimeTool(),
+            SearchFilesTool(),
+            GetFileTool(),
+            DownloadFileTool(),
+            ListFolderContentsTool(),
+            GetPermissionsTool(),
+        ]
 
-    @property
-    def tools(self):
-        if self._tools is None:
-            self._tools = [
-                CurrentDateTimeTool(self.google_service.timezone),
-                SearchFilesTool(self.google_service),
-                GetFileTool(self.google_service),
-                DownloadFileTool(self.google_service, self.download_folder),
-                ListFolderContentsTool(self.google_service),
-                GetPermissionsTool(self.google_service),
-            ]
-        return self._tools
+        tool_descriptions = []
+        for tool in tools:
+            tool_descriptions.append(f"- {tool.name}: {tool.description}")
+        system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt.txt'))
+        system_prompt = system_prompt.format(tools='\n'.join(tool_descriptions))
+
+        super().__init__(model, tools, system_prompt)

@@ -1,8 +1,8 @@
-from typing import Optional, Literal
+from typing import Optional, Literal, Annotated
 
 from google_client.services.drive.types import DriveFolder
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import ArgsSchema
+from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
@@ -24,7 +24,7 @@ class UploadFileTool(BaseTool):
     def _run(
             self,
             file_path: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             name: Optional[str] = None,
             parent_folder_id: Optional[str] = None,
             description: Optional[str] = None
@@ -34,7 +34,7 @@ class UploadFileTool(BaseTool):
     async def _arun(
             self,
             file_path: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             name: Optional[str] = None,
             parent_folder_id: Optional[str] = None,
             description: Optional[str] = None
@@ -68,7 +68,7 @@ class CreateFolderTool(BaseTool):
     def _run(
             self,
             name: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             parent_folder_id: Optional[str] = None,
             description: Optional[str] = None
     ) -> str:
@@ -77,7 +77,7 @@ class CreateFolderTool(BaseTool):
     async def _arun(
             self,
             name: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             parent_folder_id: Optional[str] = None,
             description: Optional[str] = None
     ) -> str:
@@ -121,7 +121,7 @@ class ShareFileTool(BaseTool):
             self,
             file_id: str,
             email: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             role: str = "reader",
             notify: bool = True,
             message: Optional[str] = None
@@ -132,7 +132,7 @@ class ShareFileTool(BaseTool):
             self,
             file_id: str,
             email: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             role: str = "reader",
             notify: bool = True,
             message: Optional[str] = None

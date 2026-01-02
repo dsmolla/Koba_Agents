@@ -1,11 +1,11 @@
 import json
 from datetime import datetime
-from typing import Optional, List, Literal, Union
+from typing import Optional, List, Literal, Union, Annotated
 
 from google_client.services.calendar import EventQueryBuilder, Attendee
 from google_client.services.calendar.async_query_builder import AsyncEventQueryBuilder
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import ArgsSchema
+from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
@@ -17,10 +17,10 @@ class ListCalendarsTool(BaseTool):
     description: str = "Retrieves all calendars in users calendar list"
     args_schema: ArgsSchema = None
 
-    def _run(self, config: RunnableConfig) -> str:
+    def _run(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, config: RunnableConfig) -> str:
+    async def _arun(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             calendar = get_calendar_service(config)
             calendars = await calendar.list_calendars()
@@ -40,10 +40,10 @@ class CreateCalendarTool(BaseTool):
     description: str = "Creates a new calendar in user's calendar list"
     args_schema: ArgsSchema = CreateCalendarInput
 
-    def _run(self, name: str, config: RunnableConfig) -> str:
+    def _run(self, name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, name: str, config: RunnableConfig) -> str:
+    async def _arun(self, name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             calendar_service = get_calendar_service(config)
             calendar = await calendar_service.create_calendar(name)
@@ -63,10 +63,10 @@ class DeleteCalendarTool(BaseTool):
     description: str = "Deletes a calendar from the user's calendar list"
     args_schema: ArgsSchema = DeleteCalendarInput
 
-    def _run(self, calendar_id: str, config: RunnableConfig) -> str:
+    def _run(self, calendar_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, calendar_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, calendar_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             calendar_service = get_calendar_service(config)
             await calendar_service.delete_calendar(calendar_id)
@@ -87,10 +87,10 @@ class GetEventsTool(BaseTool):
     description: str = "Retrieve full event detail"
     args_schema: ArgsSchema = GetEventsInput
 
-    def _run(self, event_id: str, config: RunnableConfig, calendar_id: str = 'primary') -> str:
+    def _run(self, event_id: str, config: Annotated[RunnableConfig, InjectedToolArg], calendar_id: str = 'primary') -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, event_id: str, config: RunnableConfig, calendar_id: str = 'primary') -> str:
+    async def _arun(self, event_id: str, config: Annotated[RunnableConfig, InjectedToolArg], calendar_id: str = 'primary') -> str:
         try:
             calendar_service = get_calendar_service(config)
             event = await calendar_service.get_event(event_id, calendar_id)
@@ -125,7 +125,7 @@ class ListEventsTool(BaseTool):
 
     def _run(
             self,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             calendar_id: str = 'primary',
             max_results: int = 100,
             datetime_min: str = None,
@@ -138,7 +138,7 @@ class ListEventsTool(BaseTool):
 
     async def _arun(
             self,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             calendar_id: str = 'primary',
             max_results: Optional[int] = 100,
             datetime_min: Optional[str] = None,
@@ -216,7 +216,7 @@ class CreateEventTool(BaseTool):
             summary: str,
             start_datetime: str,
             end_datetime: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             description: Optional[str] = None,
             location: Optional[str] = None,
             attendees: Optional[List[str]] = None,
@@ -230,7 +230,7 @@ class CreateEventTool(BaseTool):
             summary: str,
             start_datetime: str,
             end_datetime: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             description: Optional[str] = None,
             location: Optional[str] = None,
             attendees: Optional[List[str]] = None,
@@ -268,10 +268,10 @@ class DeleteEventTool(BaseTool):
     description: str = "Delete an event from the user's primary calendar"
     args_schema: ArgsSchema = DeleteEventInput
 
-    def _run(self, event_id: str, config: RunnableConfig, calendar_id: str = 'primary') -> str:
+    def _run(self, event_id: str, config: Annotated[RunnableConfig, InjectedToolArg], calendar_id: str = 'primary') -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, event_id: str, config: RunnableConfig, calendar_id: str = 'primary') -> str:
+    async def _arun(self, event_id: str, config: Annotated[RunnableConfig, InjectedToolArg], calendar_id: str = 'primary') -> str:
         try:
             calendar_service = get_calendar_service(config)
             await calendar_service.delete_event(event=event_id, calendar_id=calendar_id)
@@ -309,7 +309,7 @@ class UpdateEventTool(BaseTool):
     def _run(
             self,
             event_id: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             calendar_id: str = 'primary',
             summary: Optional[str] = None,
             start_datetime: Optional[str] = None,
@@ -326,7 +326,7 @@ class UpdateEventTool(BaseTool):
     async def _arun(
             self,
             event_id: str,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             calendar_id: str = 'primary',
             summary: Optional[str] = None,
             start_datetime: Optional[str] = None,
@@ -385,7 +385,7 @@ class FindFreeSlotsTool(BaseTool):
     def _run(
             self,
             duration_minutes: int,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             datetime_min: Optional[str] = None,
             datetime_max: Optional[str] = None,
             calendar_ids: Optional[str] = None
@@ -395,7 +395,7 @@ class FindFreeSlotsTool(BaseTool):
     async def _arun(
             self,
             duration_minutes: int,
-            config: RunnableConfig,
+            config: Annotated[RunnableConfig, InjectedToolArg],
             datetime_min: Optional[str] = None,
             datetime_max: Optional[str] = None,
             calendar_ids: List[str] = None

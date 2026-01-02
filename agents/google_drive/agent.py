@@ -1,44 +1,32 @@
-from agents.shared.base_agent import BaseSupervisorGoogleAgent
+from pathlib import Path
+
+from langchain_core.language_models import BaseChatModel
+from langchain_core.prompts import PromptTemplate
+
+from core.agent import BaseAgent, agent_to_tool
 from .organization.agent import OrganizationAgent
 from .search_and_retrieval.agent import SearchAndRetrievalAgent
 from .writer.agent import WriterAgent
-from ..shared.tools import CurrentDateTimeTool
+from ..common.tools import CurrentDateTimeTool
 
 
-class DriveAgent(BaseSupervisorGoogleAgent):
+class DriveAgent(BaseAgent):
     name: str = "DriveAgent"
     description: str = "A Google Drive expert that can handle complex tasks and queries related to Google Drive file management"
 
-    def __init__(self, google_service, llm, config=None, download_folder=None):
-        super().__init__(google_service, llm, config)
-        self.download_folder = download_folder
-
-    @property
-    def tools(self):
-        if self._tools is None:
-            self._tools = [CurrentDateTimeTool(self.google_service.timezone)]
-
-        return self._tools
-
-    @property
-    def sub_agents(self):
-        if self._sub_agents is None:
-            self._sub_agents = [
-                OrganizationAgent(
-                    self.google_service,
-                    self.llm,
-                    self.config,
-                ),
-                SearchAndRetrievalAgent(
-                    self.google_service,
-                    self.llm,
-                    self.config,
-                    self.download_folder,
-                ),
-                WriterAgent(
-                    self.google_service,
-                    self.llm,
-                    self.config,
-                ),
+    def __init__(self, model: BaseChatModel):
+        tools = [
+            agent_to_tool(agent) for agent in [
+                OrganizationAgent(model),
+                SearchAndRetrievalAgent(model),
+                WriterAgent(model)
             ]
-        return self._sub_agents
+        ] + [CurrentDateTimeTool()]
+
+        tool_descriptions = []
+        for tool in tools:
+            tool_descriptions.append(f"- {tool.name}: {tool.description}")
+        system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt.txt'))
+        system_prompt = system_prompt.format(tools='\n'.join(tool_descriptions))
+
+        super().__init__(model, tools, system_prompt)

@@ -1,7 +1,8 @@
 from textwrap import dedent
+from typing import Annotated
 
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import ArgsSchema
+from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
@@ -32,10 +33,10 @@ class ApplyLabelTool(BaseTool):
     description: str = "Mark an email with a specific label in Gmail."
     args_schema: ArgsSchema = ApplyLabelInput
 
-    def _run(self, message_id: str, label_id: str, config: RunnableConfig) -> str:
+    def _run(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, label_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             gmail = get_gmail_service(config)
             status = await gmail.add_label(email=message_id, labels=[label_id])
@@ -72,10 +73,10 @@ class RemoveLabelTool(BaseTool):
     description: str = "Remove a label from an email."
     args_schema: ArgsSchema = RemoveLabelInput
 
-    def _run(self, message_id: str, label_id: str, config: RunnableConfig) -> str:
+    def _run(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, label_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             gmail = get_gmail_service(config)
             if await gmail.remove_label(email=message_id, labels=[label_id]):
@@ -96,10 +97,10 @@ class CreateLabelTool(BaseTool):
     description: str = "Create a new user label in Gmail"
     args_schema: ArgsSchema = CreateLabelInput
 
-    def _run(self, name: str, config: RunnableConfig) -> str:
+    def _run(self, name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, name: str, config: RunnableConfig) -> str:
+    async def _arun(self, name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             gmail = get_gmail_service(config)
             label = await gmail.create_label(name=name)
@@ -118,10 +119,10 @@ class DeleteLabelTool(BaseTool):
     description: str = "Delete a user-created label in Gmail"
     args_schema: ArgsSchema = DeleteLabelInput
 
-    def _run(self, label_id: str, config: RunnableConfig) -> str:
+    def _run(self, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, label_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             gmail = get_gmail_service(config)
             if await gmail.delete_label(label=label_id):
@@ -143,10 +144,10 @@ class RenameLabelTool(BaseTool):
     description: str = "Rename a user-created label in Gmail"
     args_schema: ArgsSchema = RenameLabelInput
 
-    def _run(self, label_id: str, new_name: str, config: RunnableConfig) -> str:
+    def _run(self, label_id: str, new_name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, label_id: str, new_name: str, config: RunnableConfig) -> str:
+    async def _arun(self, label_id: str, new_name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             gmail = get_gmail_service(config)
             label = await gmail.update_label(
@@ -168,10 +169,10 @@ class DeleteEmailTool(BaseTool):
     description: str = "Delete an email message from Gmail. Email is moved to Trash by default"
     args_schema: ArgsSchema = DeleteEmailInput
 
-    def _run(self, message_id: str, config: RunnableConfig) -> str:
+    def _run(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, config: RunnableConfig) -> str:
+    async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             gmail = get_gmail_service(config)
             if await gmail.delete_email(email=message_id, permanent=False):
