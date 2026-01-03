@@ -4,7 +4,7 @@ from textwrap import dedent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 
-from core.agent import BaseAgent
+from agents.common.agent import BaseAgent
 from .tools import UploadFileTool, CreateFolderTool, ShareFileTool
 
 

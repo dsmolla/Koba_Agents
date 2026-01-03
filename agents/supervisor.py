@@ -7,7 +7,7 @@ from agents.gmail.agent import GmailAgent
 from agents.google_calendar.agent import CalendarAgent
 from agents.google_drive.agent import DriveAgent
 from agents.google_tasks.agent import TasksAgent
-from core.agent import BaseAgent, agent_to_tool
+from agents.common.agent import BaseAgent, agent_to_tool
 from .common.tools import CurrentDateTimeTool
 
 

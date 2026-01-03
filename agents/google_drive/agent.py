@@ -3,7 +3,7 @@ from pathlib import Path
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 
-from core.agent import BaseAgent, agent_to_tool
+from agents.common.agent import BaseAgent, agent_to_tool
 from .organization.agent import OrganizationAgent
 from .search_and_retrieval.agent import SearchAndRetrievalAgent
 from .writer.agent import WriterAgent
