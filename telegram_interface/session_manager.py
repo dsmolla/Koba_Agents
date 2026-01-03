@@ -14,7 +14,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMe
 from langchain_core.globals import set_debug
 from langchain_core.runnables import RunnableConfig
 
-from agents.supervisor import GoogleAgent
+from agents.supervisor import SupervisorAgent
 from agents.common.llm_models import LLM_FLASH
 
 from .auth import AuthManager
@@ -27,7 +27,7 @@ class UserSession:
     def __init__(self, telegram_id: int):
         self.telegram_id = telegram_id
         self.messages: list[BaseMessage] = []
-        self.agent: Optional[GoogleAgent] = None
+        self.agent: Optional[SupervisorAgent] = None
         self.last_activity: float = time.time()
 
     def update_activity(self):
@@ -144,7 +144,7 @@ class SessionManager:
             })
             return session
 
-    async def create_agent(self, telegram_id: int) -> Optional[GoogleAgent]:
+    async def create_agent(self, telegram_id: int) -> Optional[SupervisorAgent]:
         """Create a GoogleAgent instance for the user."""
         logger.debug("Attempting to create agent", extra={'user_id': telegram_id})
 
@@ -160,7 +160,7 @@ class SessionManager:
             'timezone': timezone
         })
 
-        return GoogleAgent(
+        return SupervisorAgent(
             google_service=google_service,
             llm=LLM_FLASH,
             config=RunnableConfig(configurable={"thread_id": telegram_id}),
