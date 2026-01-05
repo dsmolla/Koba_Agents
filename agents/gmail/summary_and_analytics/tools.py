@@ -8,6 +8,7 @@ from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
+from langchain_core.callbacks import adispatch_custom_event
 
 from agents.common.llm_models import MODELS
 from core.auth import get_gmail_service
@@ -32,7 +33,11 @@ class SummarizeEmailsTool(BaseTool):
     async def _arun(self, message_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg], summary_type: Optional[
         Literal["conversation", "key_points", "action_items"]] = "conversation") -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Summarizing Emails...", "icon": "📝"}
+            )
+            gmail = await get_gmail_service(config)
             email_cache = get_email_cache(config)
 
             emails = []
@@ -143,7 +148,11 @@ class ExtractFromEmailTool(BaseTool):
 
     async def _arun(self, message_ids: list[str], fields: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Extracting Data...", "icon": "📊"}
+            )
+            gmail = await get_gmail_service(config)
             email_cache = get_email_cache(config)
 
             emails = []
@@ -238,7 +247,11 @@ class ClassifyEmailTool(BaseTool):
     async def _arun(self, message_ids: list[str], classifications: list[str],
                     config: Annotated[RunnableConfig, InjectedToolArg], include_confidence: Optional[bool] = False) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Classifying Emails...", "icon": "🏷️"}
+            )
+            gmail = await get_gmail_service(config)
             email_cache = get_email_cache(config)
 
             emails = []

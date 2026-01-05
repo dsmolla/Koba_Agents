@@ -1,3 +1,5 @@
+psycopg
+psycopg-pool
 python-dotenv
 google-api-client-wrapper
 langgraph
@@ -24,3 +26,4 @@ waitress
 fastapi
 uvicorn[standard]
 apscheduler
+supabase

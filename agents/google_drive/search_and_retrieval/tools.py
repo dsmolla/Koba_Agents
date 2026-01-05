@@ -8,6 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+from langchain_core.callbacks import adispatch_custom_event
 
 from core.auth import get_drive_service
 
@@ -88,7 +89,11 @@ class SearchFilesTool(BaseTool):
             order_by: Optional[str] = None
     ) -> str:
         try:
-            drive = get_drive_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Searching Files...", "icon": "🔍"}
+            )
+            drive = await get_drive_service(config)
             builder = drive.query()
 
             if max_results:
@@ -169,7 +174,11 @@ class GetFileTool(BaseTool):
 
     async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            drive = get_drive_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Retrieving File Metadata...", "icon": "📄"}
+            )
+            drive = await get_drive_service(config)
             item = await drive.get(file_id)
 
             item_dict = {
@@ -215,7 +224,11 @@ class DownloadFileTool(BaseTool):
 
     async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            drive = get_drive_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Downloading File...", "icon": "⬇️"}
+            )
+            drive = await get_drive_service(config)
             download_folder = config['configurable'].get('download_folder')
             file = await drive.get(file_id)
             if not isinstance(file, DriveFile):
@@ -258,7 +271,11 @@ class ListFolderContentsTool(BaseTool):
             include_folders: bool = True
     ) -> str:
         try:
-            drive = get_drive_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Listing Folder Contents...", "icon": "📂"}
+            )
+            drive = await get_drive_service(config)
             folder = await drive.get(folder_id)
             if not isinstance(folder, DriveFolder):
                 return f"Item {folder_id} is not a folder"
@@ -308,7 +325,11 @@ class GetPermissionsTool(BaseTool):
 
     async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            drive = get_drive_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Retrieving Permissions...", "icon": "🔒"}
+            )
+            drive = await get_drive_service(config)
             item = await drive.get(file_id)
             permissions = await drive.get_permissions(item)
 

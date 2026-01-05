@@ -4,6 +4,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+from langchain_core.callbacks import adispatch_custom_event
 
 from core.auth import get_gmail_service
 
@@ -45,7 +46,11 @@ class SendEmailTool(BaseTool):
             attachment_paths: Optional[List[str]] = None
     ) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Sending Email...", "icon": "📤"}
+            )
+            gmail = await get_gmail_service(config)
             email = await gmail.send_email(
                 to=to,
                 subject=subject,
@@ -90,7 +95,11 @@ class DraftEmailTool(BaseTool):
             attachment_paths: Optional[List[str]] = None
     ) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Creating Draft...", "icon": "📝"}
+            )
+            gmail = await get_gmail_service(config)
             draft = await gmail.create_draft(
                 to=to,
                 subject=subject,
@@ -134,7 +143,11 @@ class ReplyEmailTool(BaseTool):
             attachment_paths: Optional[List[str]] = None
     ) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Sending Reply...", "icon": "↩️"}
+            )
+            gmail = await get_gmail_service(config)
             reply = await gmail.reply(
                 original_email=message_id,
                 body_text=body_text,
@@ -174,7 +187,11 @@ class ForwardEmailTool(BaseTool):
             include_attachments: Optional[bool] = True
     ) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Forwarding Email...", "icon": "⏩"}
+            )
+            gmail = await get_gmail_service(config)
             forward = await gmail.forward(
                 original_email=message_id,
                 to=to,

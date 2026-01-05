@@ -8,6 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+from langchain_core.callbacks import adispatch_custom_event
 
 from core.auth import get_gmail_service
 from core.cache import get_email_cache
@@ -27,7 +28,11 @@ class GetEmailTool(BaseTool):
 
     async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Retrieving Email...", "icon": "📩"}
+            )
+            gmail = await get_gmail_service(config)
             email_cache = get_email_cache(config)
             if (email := email_cache.get(message_id)) is None:
                 email = email_cache.save(
@@ -55,7 +60,11 @@ class GetThreadDetailsTool(BaseTool):
     async def _arun(self, thread_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         """Get detailed information about a specific thread"""
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Retrieving Thread Details...", "icon": "🧵"}
+            )
+            gmail = await get_gmail_service(config)
             thread = await gmail.get_thread(thread_id)
 
             result = {
@@ -215,7 +224,11 @@ class SearchEmailsTool(BaseTool):
             before_date: Optional[str] = None
     ) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Searching Emails...", "icon": "🔍"}
+            )
+            gmail = await get_gmail_service(config)
             email_cache = get_email_cache(config)
             params = {
                 "include_promotions": include_promotions,
@@ -285,7 +298,11 @@ class DownloadAttachmentTool(BaseTool):
 
     async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg], attachment_id: Optional[str] = None) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Downloading Attachment...", "icon": "📎"}
+            )
+            gmail = await get_gmail_service(config)
             email_cache = get_email_cache(config)
             download_folder = config['configurable'].get('download_folder')
 
@@ -344,7 +361,11 @@ class ListUserLabelsTool(BaseTool):
 
     async def _arun(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Listing Labels...", "icon": "🏷️"}
+            )
+            gmail = await get_gmail_service(config)
             labels = await gmail.list_labels()
             user_labels = [label for label in labels if label.type == "user"]
             user_labels = [{

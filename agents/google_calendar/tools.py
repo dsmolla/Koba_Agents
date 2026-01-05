@@ -8,6 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+from langchain_core.callbacks import adispatch_custom_event
 
 from core.auth import get_calendar_service
 
@@ -22,6 +23,10 @@ class ListCalendarsTool(BaseTool):
 
     async def _arun(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Listing Calendars...", "icon": "📅"}
+            )
             calendar = get_calendar_service(config)
             calendars = await calendar.list_calendars()
             calendars = [{'name': calendar.summary, 'id': calendar.id} for calendar in calendars]
@@ -45,7 +50,11 @@ class CreateCalendarTool(BaseTool):
 
     async def _arun(self, name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            calendar_service = get_calendar_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Creating Calendar...", "icon": "📅"}
+            )
+            calendar_service = await get_calendar_service(config)
             calendar = await calendar_service.create_calendar(name)
             calendar_data = [{'name': calendar.summary, 'id': calendar.id}]
             return json.dumps(calendar_data)
@@ -68,7 +77,11 @@ class DeleteCalendarTool(BaseTool):
 
     async def _arun(self, calendar_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            calendar_service = get_calendar_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Deleting Calendar...", "icon": "🗑️"}
+            )
+            calendar_service = await get_calendar_service(config)
             await calendar_service.delete_calendar(calendar_id)
             return "Calendar deleted"
 
@@ -92,7 +105,11 @@ class GetEventsTool(BaseTool):
 
     async def _arun(self, event_id: str, config: Annotated[RunnableConfig, InjectedToolArg], calendar_id: str = 'primary') -> str:
         try:
-            calendar_service = get_calendar_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Retrieving Event...", "icon": "📅"}
+            )
+            calendar_service = await get_calendar_service(config)
             event = await calendar_service.get_event(event_id, calendar_id)
             event_dict = event.to_dict()
             return json.dumps(event_dict)
@@ -148,7 +165,11 @@ class ListEventsTool(BaseTool):
             by_attendee: Optional[str] = None
     ) -> str:
         try:
-            calendar_service = get_calendar_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Getting Events...", "icon": "📅"}
+            )
+            calendar_service = await get_calendar_service(config)
             params = {
                 "calendar_id": calendar_id,
                 "max_results": max_results,
@@ -239,9 +260,13 @@ class CreateEventTool(BaseTool):
             calendar_id: str = 'primary'
     ) -> str:
         try:
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Creating Event...", "icon": "📅"}
+            )
             if attendees is None:
                 attendees = []
-            calendar_service = get_calendar_service(config)
+            calendar_service = await get_calendar_service(config)
             event = await calendar_service.create_event(
                 start=datetime.fromisoformat(start_datetime),
                 end=datetime.fromisoformat(end_datetime),
@@ -274,7 +299,11 @@ class DeleteEventTool(BaseTool):
 
     async def _arun(self, event_id: str, config: Annotated[RunnableConfig, InjectedToolArg], calendar_id: str = 'primary') -> str:
         try:
-            calendar_service = get_calendar_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Deleting Event...", "icon": "🗑️"}
+            )
+            calendar_service = await get_calendar_service(config)
             await calendar_service.delete_event(event=event_id, calendar_id=calendar_id)
             return f"Event deleted successfully. event_id: {event_id}"
 
@@ -340,7 +369,11 @@ class UpdateEventTool(BaseTool):
             recurrence: Optional[List[str]] = None
     ) -> str:
         try:
-            calendar_service = get_calendar_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Updating Event...", "icon": "📅"}
+            )
+            calendar_service = await get_calendar_service(config)
             event = await calendar_service.get_event(event_id=event_id, calendar_id=calendar_id)
             if summary:
                 event.summary = summary
@@ -402,7 +435,11 @@ class FindFreeSlotsTool(BaseTool):
             calendar_ids: List[str] = None
     ) -> str:
         try:
-            calendar_service = get_calendar_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Finding Free Slots...", "icon": "🕒"}
+            )
+            calendar_service = await get_calendar_service(config)
             free_slots = await calendar_service.find_free_slots(
                 duration_minutes=duration_minutes,
                 start=datetime.fromisoformat(datetime_min) if datetime_min else None,
