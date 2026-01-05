@@ -5,6 +5,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+from langchain_core.callbacks import adispatch_custom_event
 
 from core.auth import get_drive_service
 
@@ -24,7 +25,11 @@ class MoveFileTool(BaseTool):
 
     async def _arun(self, file_id: str, target_folder_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            drive = get_drive_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Moving File...", "icon": "📦"}
+            )
+            drive = await get_drive_service(config)
             item = await drive.get(file_id)
             target_folder = await drive.get(target_folder_id)
 
@@ -58,7 +63,11 @@ class RenameFileTool(BaseTool):
 
     async def _arun(self, file_id: str, new_name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            drive = get_drive_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Renaming File...", "icon": "✏️"}
+            )
+            drive = await get_drive_service(config)
             item = await drive.get(file_id)
             updated_item = await drive.rename(item=item, name=new_name)
 
@@ -82,7 +91,11 @@ class DeleteFileTool(BaseTool):
 
     async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            drive = get_drive_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Deleting File...", "icon": "🗑️"}
+            )
+            drive = await get_drive_service(config)
             item = await drive.get(file_id)
             await drive.delete(item)
 

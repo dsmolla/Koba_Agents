@@ -7,6 +7,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from core.auth import get_gmail_service
+from langchain_core.callbacks import adispatch_custom_event
 
 
 class ApplyLabelInput(BaseModel):
@@ -38,7 +39,11 @@ class ApplyLabelTool(BaseTool):
 
     async def _arun(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Applying Labels...", "icon": "📩"}
+            )
+            gmail = await get_gmail_service(config)
             status = await gmail.add_label(email=message_id, labels=[label_id])
             if status:
                 return f"Label {label_id} applied to email (message_id={message_id})"
@@ -78,7 +83,11 @@ class RemoveLabelTool(BaseTool):
 
     async def _arun(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Removing Label...", "icon": "🏷️"}
+            )
+            gmail = await get_gmail_service(config)
             if await gmail.remove_label(email=message_id, labels=[label_id]):
                 return f"Label {label_id} removed from email with message_id: {message_id}"
 
@@ -102,7 +111,11 @@ class CreateLabelTool(BaseTool):
 
     async def _arun(self, name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Creating Label...", "icon": "🏷️"}
+            )
+            gmail = await get_gmail_service(config)
             label = await gmail.create_label(name=name)
             return f"Created label {label.name} with label_id {label.id}"
 
@@ -124,7 +137,11 @@ class DeleteLabelTool(BaseTool):
 
     async def _arun(self, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Deleting Label...", "icon": "🗑️"}
+            )
+            gmail = await get_gmail_service(config)
             if await gmail.delete_label(label=label_id):
                 return f"Label with label_id {label_id} deleted"
 
@@ -149,7 +166,11 @@ class RenameLabelTool(BaseTool):
 
     async def _arun(self, label_id: str, new_name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Renaming Label...", "icon": "🏷️"}
+            )
+            gmail = await get_gmail_service(config)
             label = await gmail.update_label(
                 label=label_id,
                 new_name=new_name,
@@ -174,7 +195,11 @@ class DeleteEmailTool(BaseTool):
 
     async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            gmail = get_gmail_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Deleting Email...", "icon": "🗑️"}
+            )
+            gmail = await get_gmail_service(config)
             if await gmail.delete_email(email=message_id, permanent=False):
                 return f"Email with message_id {message_id} deleted"
 

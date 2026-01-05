@@ -8,6 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+from langchain_core.callbacks import adispatch_custom_event
 
 from core.auth import get_tasks_service
 
@@ -44,7 +45,11 @@ class CreateTaskTool(BaseTool):
             task_list_id: str = "@default",
     ) -> str:
         try:
-            tasks_service = get_tasks_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Creating Task...", "icon": "✅"}
+            )
+            tasks_service = await get_tasks_service(config)
             due = datetime.strptime(due, "%Y-%m-%d") if due else None
             task = await tasks_service.create_task(
                 title=title,
@@ -103,7 +108,11 @@ class ListTasksTool(BaseTool):
             date_filter: Optional[Literal["TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK"]] = None,
     ) -> str:
         try:
-            tasks_service = get_tasks_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Listing Tasks...", "icon": "📋"}
+            )
+            tasks_service = await get_tasks_service(config)
             params = {
                 "task_list_id": task_list_id,
                 "max_results": max_results,
@@ -175,7 +184,11 @@ class DeleteTaskTool(BaseTool):
 
     async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
         try:
-            tasks_service = get_tasks_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Deleting Task...", "icon": "🗑️"}
+            )
+            tasks_service = await get_tasks_service(config)
             await tasks_service.delete_task(task=task_id, task_list_id=task_list_id)
             return f"Task deleted successfully. task_id: {task_id}, task_list_id: {task_list_id}"
 
@@ -199,7 +212,11 @@ class CompleteTaskTool(BaseTool):
 
     async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
         try:
-            tasks_service = get_tasks_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Completing Task...", "icon": "✅"}
+            )
+            tasks_service = await get_tasks_service(config)
             task = await tasks_service.mark_completed(task=task_id, task_list_id=task_list_id)
             return f"Task marked as completed. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
@@ -223,7 +240,11 @@ class ReopenTaskTool(BaseTool):
 
     async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
         try:
-            tasks_service = get_tasks_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Reopening Task...", "icon": "🔄"}
+            )
+            tasks_service = await get_tasks_service(config)
             task = await tasks_service.mark_incomplete(task=task_id, task_list_id=task_list_id)
             return f"Task reopened successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
@@ -266,7 +287,11 @@ class UpdateTaskTool(BaseTool):
             task_list_id: str = "@default",
     ) -> str:
         try:
-            tasks_service = get_tasks_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Updating Task...", "icon": "✏️"}
+            )
+            tasks_service = await get_tasks_service(config)
             task = await tasks_service.get_task(task_id=task_id, task_list_id=task_list_id)
             if title is not None:
                 task.title = title
@@ -296,7 +321,11 @@ class CreateTaskListTool(BaseTool):
 
     async def _arun(self, title: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            tasks_service = get_tasks_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Creating Task List...", "icon": "📝"}
+            )
+            tasks_service = await get_tasks_service(config)
             task_list = await tasks_service.create_task_list(title=title)
             return f"Task List created successfully. task_list_id: {task_list.task_list_id}"
 
@@ -313,7 +342,11 @@ class ListTaskListsTool(BaseTool):
 
     async def _arun(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
-            tasks_service = get_tasks_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Listing Task Lists...", "icon": "📋"}
+            )
+            tasks_service = await get_tasks_service(config)
             task_lists = await tasks_service.list_task_lists()
             return json.dumps(task_lists)
         except Exception as e:

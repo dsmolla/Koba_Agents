@@ -1,6 +1,7 @@
 from typing import Optional, Literal, Annotated
 
 from google_client.services.drive.types import DriveFolder
+from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
@@ -40,8 +41,12 @@ class UploadFileTool(BaseTool):
             description: Optional[str] = None
     ) -> str:
         try:
-            service = get_drive_service(config)
-            file = await service.upload_file(
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Uploading File...", "icon": "⬆️"}
+            )
+            drive = await get_drive_service(config)
+            file = await drive.upload_file(
                 file_path=file_path,
                 name=name,
                 parent_folder_id=parent_folder_id,
@@ -82,14 +87,18 @@ class CreateFolderTool(BaseTool):
             description: Optional[str] = None
     ) -> str:
         try:
-            service = get_drive_service(config)
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Creating Folder...", "icon": "📁"}
+            )
+            drive = await get_drive_service(config)
             parent_folder = None
             if parent_folder_id:
-                parent_folder = await service.get(parent_folder_id)
+                parent_folder = await drive.get(parent_folder_id)
                 if not isinstance(parent_folder, DriveFolder):
                     return f"Parent ID {parent_folder_id} is not a folder"
 
-            folder = await service.create_folder(
+            folder = await drive.create_folder(
                 name=name,
                 parent_folder=parent_folder,
                 description=description
@@ -138,9 +147,13 @@ class ShareFileTool(BaseTool):
             message: Optional[str] = None
     ) -> str:
         try:
-            service = get_drive_service(config)
-            item = await service.get(file_id)
-            permission = await service.share(
+            await adispatch_custom_event(
+                "tool_status",
+                {"text": "Sharing File...", "icon": "🤝"}
+            )
+            drive = await get_drive_service(config)
+            item = await drive.get(file_id)
+            permission = await drive.share(
                 item=item,
                 email=email,
                 role=role,
