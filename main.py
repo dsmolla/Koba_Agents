@@ -36,6 +36,33 @@ app.add_middleware(
 logger = logging.getLogger("uvicorn")
 
 
+class GoogleCredentials(BaseModel):
+    token: str
+    refresh_token: str | None = None
+    token_uri: str | None = None
+    client_id: str | None = None
+    client_secret: str | None = None
+    scopes: list[str] | None = None
+    expiry: str | None = None
+    
+    class Config:
+        extra = "allow"
+
+
+@app.post("/integrations/google")
+async def save_google_credentials(
+    creds: GoogleCredentials,
+    user: Any = Depends(get_current_user_http),
+    database: Any = Depends(get_db)
+):
+    try:
+        await database.insert_provider_token(user.id, 'google', creds.model_dump())
+        return {"status": "success", "message": "Google credentials saved."}
+    except Exception as e:
+        logger.error(f"Failed to save credentials: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
 # --- 3. WebSocket Endpoint (Real-time Chat) ---
 @app.websocket("/ws/chat")
 async def websocket_endpoint(

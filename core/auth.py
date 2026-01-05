@@ -14,6 +14,7 @@ def get_google_service(user_token: str, timezone: str):
 async def get_gmail_service(config: RunnableConfig):
     user_id = config['configurable'].get('thread_id')
     token = await db.get_provider_token(user_id, 'google')
+    token = json.dumps(token)
     timezone = config['configurable'].get('timezone')
 
     api_service = get_google_service(token, timezone)
@@ -21,7 +22,8 @@ async def get_gmail_service(config: RunnableConfig):
 
 async def get_calendar_service(config: RunnableConfig):
     user_id = config['configurable'].get('thread_id')
-    token = db.get_provider_token(user_id, 'google')
+    token = await db.get_provider_token(user_id, 'google')
+    token = json.dumps(token)
     timezone = config['configurable'].get('timezone')
 
     api_service = get_google_service(token, timezone)
@@ -29,7 +31,8 @@ async def get_calendar_service(config: RunnableConfig):
 
 async def get_drive_service(config: RunnableConfig):
     user_id = config['configurable'].get('thread_id')
-    token = db.get_provider_token(user_id, 'google')
+    token = await db.get_provider_token(user_id, 'google')
+    token = json.dumps(token)
     timezone = config['configurable'].get('timezone')
 
     api_service = get_google_service(token, timezone)
@@ -37,7 +40,8 @@ async def get_drive_service(config: RunnableConfig):
 
 async def get_tasks_service(config: RunnableConfig):
     user_id = config['configurable'].get('thread_id')
-    token = db.get_provider_token(user_id, 'google')
+    token = await db.get_provider_token(user_id, 'google')
+    token = json.dumps(token)
     timezone = config['configurable'].get('timezone')
 
     api_service = get_google_service(token, timezone)
