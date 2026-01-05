@@ -1,4 +1,5 @@
 import logging
+import json
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -6,6 +7,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPExcept
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
+from pydantic import BaseModel
 
 from agents.common.llm_models import LLM_FLASH
 from agents.supervisor import SupervisorAgent
