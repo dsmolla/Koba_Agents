@@ -188,8 +188,8 @@ class ListEventsTool(BaseTool):
             params = {
                 "calendar_id": calendar_id,
                 "max_results": max_results,
-                "datetime_min": datetime.fromisoformat(datetime_min) if datetime_min else None,
-                "datetime_max": datetime.fromisoformat(datetime_max) if datetime_max else None,
+                "datetime_min": datetime.fromisoformat(datetime_min.replace('Z', '')) if datetime_min else None,
+                "datetime_max": datetime.fromisoformat(datetime_max.replace('Z', '')) if datetime_max else None,
                 "date_filter": date_filter,
                 "search": query,
                 "by_attendee": by_attendee
