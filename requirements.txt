@@ -27,3 +27,6 @@ fastapi
 uvicorn[standard]
 apscheduler
 supabase
+psycopg[binary]
+langgraph-checkpoint-postgres
+asyncstdlib

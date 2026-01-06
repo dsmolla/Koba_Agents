@@ -2,17 +2,17 @@ import json
 from textwrap import dedent
 from typing import Optional, Literal, Annotated
 
+from agents.common.llm_models import MODELS
+from core.auth import get_gmail_service
+from core.cache import get_email_cache
+from core.exceptions import ProviderNotConnectedError
+from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
-from langchain_core.callbacks import adispatch_custom_event
-
-from agents.common.llm_models import MODELS
-from core.auth import get_gmail_service
-from core.cache import get_email_cache
 
 
 class SummarizeEmailsInput(BaseModel):
@@ -27,11 +27,13 @@ class SummarizeEmailsTool(BaseTool):
     args_schema: ArgsSchema = SummarizeEmailsInput
 
     def _run(self, message_ids: list[str], summary_type: Optional[
-        Literal["conversation", "key_points", "action_items"]] = "conversation", config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
+        Literal["conversation", "key_points", "action_items"]] = "conversation",
+             config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg], summary_type: Optional[
-        Literal["conversation", "key_points", "action_items"]] = "conversation") -> str:
+    async def _arun(self, message_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg],
+                    summary_type: Optional[
+                        Literal["conversation", "key_points", "action_items"]] = "conversation") -> str:
         try:
             await adispatch_custom_event(
                 "tool_status",
@@ -129,6 +131,9 @@ class SummarizeEmailsTool(BaseTool):
 
             return final_answer.content
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to summarize emails due to internal error"
 
@@ -143,10 +148,12 @@ class ExtractFromEmailTool(BaseTool):
     description: str = "Extract specific fields or information from emails"
     args_schema: ArgsSchema = ExtractFromEmailInput
 
-    def _run(self, message_ids: list[str], fields: list[str], config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
+    def _run(self, message_ids: list[str], fields: list[str],
+             config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_ids: list[str], fields: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+    async def _arun(self, message_ids: list[str], fields: list[str],
+                    config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             await adispatch_custom_event(
                 "tool_status",
@@ -226,6 +233,9 @@ class ExtractFromEmailTool(BaseTool):
 
             return final_answer.content
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to extract from emails due to internal error"
 
@@ -241,11 +251,13 @@ class ClassifyEmailTool(BaseTool):
     args_schema: ArgsSchema = ClassifyEmailInput
 
     def _run(self, message_ids: list[str], classifications: list[str],
-             config: Annotated[RunnableConfig, InjectedToolArg] = None, include_confidence: Optional[bool] = False) -> str:
+             config: Annotated[RunnableConfig, InjectedToolArg] = None,
+             include_confidence: Optional[bool] = False) -> str:
         raise NotImplementedError("Use async execution.")
 
     async def _arun(self, message_ids: list[str], classifications: list[str],
-                    config: Annotated[RunnableConfig, InjectedToolArg], include_confidence: Optional[bool] = False) -> str:
+                    config: Annotated[RunnableConfig, InjectedToolArg],
+                    include_confidence: Optional[bool] = False) -> str:
         try:
             await adispatch_custom_event(
                 "tool_status",
@@ -320,6 +332,9 @@ class ClassifyEmailTool(BaseTool):
             ])
 
             return final_answer.content
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to classify emails due to internal error"

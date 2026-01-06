@@ -1,13 +1,13 @@
 from typing import Optional, Literal, Annotated
 
+from core.auth import get_drive_service
+from core.exceptions import ProviderNotConnectedError
 from google_client.services.drive.types import DriveFolder
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
-
-from core.auth import get_drive_service
 
 
 class UploadFileInput(BaseModel):
@@ -54,6 +54,9 @@ class UploadFileTool(BaseTool):
             )
 
             return f"File uploaded successfully. file_id: {file.file_id}, name: {file.name}"
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to upload file due to internal error"
@@ -105,6 +108,9 @@ class CreateFolderTool(BaseTool):
             )
 
             return f"Folder created successfully. folder_id: {folder.folder_id}, name: {folder.name}"
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to create folder due to internal error"
@@ -162,6 +168,9 @@ class ShareFileTool(BaseTool):
             )
 
             return f"File shared successfully with {email} as {role}. permission_id: {permission.permission_id}"
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to share file due to internal error"

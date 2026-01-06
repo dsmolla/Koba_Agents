@@ -1,13 +1,13 @@
 from typing import Annotated
 
+from core.auth import get_drive_service
+from core.exceptions import ProviderNotConnectedError
 from google_client.services.drive.types import DriveFolder
+from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
-from langchain_core.callbacks import adispatch_custom_event
-
-from core.auth import get_drive_service
 
 
 class MoveFileInput(BaseModel):
@@ -23,7 +23,8 @@ class MoveFileTool(BaseTool):
     def _run(self, file_id: str, target_folder_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, file_id: str, target_folder_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+    async def _arun(self, file_id: str, target_folder_id: str,
+                    config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         try:
             await adispatch_custom_event(
                 "tool_status",
@@ -43,6 +44,9 @@ class MoveFileTool(BaseTool):
             )
 
             return f"{updated_item.name} moved successfully to folder {target_folder.name}"
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to move item due to internal error"
@@ -73,6 +77,9 @@ class RenameFileTool(BaseTool):
 
             return f"Item renamed successfully to '{updated_item.name}'"
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to rename item due to internal error"
 
@@ -100,6 +107,9 @@ class DeleteFileTool(BaseTool):
             await drive.delete(item)
 
             return f"Item deleted successfully. file_id: {file_id}"
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to delete item due to internal error"

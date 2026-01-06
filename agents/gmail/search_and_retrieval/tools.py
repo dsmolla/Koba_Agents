@@ -2,16 +2,16 @@ import json
 from datetime import datetime
 from typing import Optional, Union, Annotated
 
+from core.auth import get_gmail_service
+from core.cache import get_email_cache
+from core.exceptions import ProviderNotConnectedError
 from google_client.services.gmail import EmailQueryBuilder
 from google_client.services.gmail.async_query_builder import AsyncEmailQueryBuilder
+from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
-from langchain_core.callbacks import adispatch_custom_event
-
-from core.auth import get_gmail_service
-from core.cache import get_email_cache
 
 
 class GetEmailInput(BaseModel):
@@ -40,6 +40,9 @@ class GetEmailTool(BaseTool):
                 )
 
             return json.dumps(email)
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to fetch email due to internal error"
@@ -93,6 +96,9 @@ class GetThreadDetailsTool(BaseTool):
                 ]
             }
             return json.dumps(result)
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to get thread details due to internal error"
@@ -278,6 +284,9 @@ class SearchEmailsTool(BaseTool):
 
             return json.dumps(result)
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to search emails due to internal error"
 
@@ -293,10 +302,12 @@ class DownloadAttachmentTool(BaseTool):
     description: str = "Download an attachment from an email message"
     args_schema: ArgsSchema = DownloadAttachmentInput
 
-    def _run(self, message_id: str, attachment_id: Optional[str] = None, config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
+    def _run(self, message_id: str, attachment_id: Optional[str] = None,
+             config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg], attachment_id: Optional[str] = None) -> str:
+    async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+                    attachment_id: Optional[str] = None) -> str:
         try:
             await adispatch_custom_event(
                 "tool_status",
@@ -348,6 +359,9 @@ class DownloadAttachmentTool(BaseTool):
 
             return f"Downloaded attachments: {', '.join(attachments_downloaded)}"
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to download attachment due to internal error"
 
@@ -374,5 +388,8 @@ class ListUserLabelsTool(BaseTool):
             } for label in user_labels
             ]
             return json.dumps(user_labels)
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to list user labels due to internal error"

@@ -46,20 +46,12 @@ class BaseAgent(ABC):
 
     async def arun(self, task: str, config: RunnableConfig):
         input = {"messages": [("user", task)]}
-        response = []
-        async for chunk in self.agent.astream(input, stream_mode="updates", config=config):
-            for step, data in chunk.items():
-                if step == "model":
-                    print(f"step: {step} [{self.name}]")
-                else:
-                    print(f"step: {step} [{data['messages'][-1].name}]")
-                if data["messages"][-1].content:
-                    print(f"content: {data['messages'][-1].content}")
-                if hasattr(data["messages"][-1], 'tool_calls') and data["messages"][-1].tool_calls:
-                    print(f"tool_calls: {data['messages'][-1].tool_calls}")
-            response.append(chunk.get('model', chunk.get('tools'))['messages'][-1])
-
-        return response[-1].content[0].get('text')
+        response = await self.agent.ainvoke(input, config=config)
+        content = response['messages'][-1].content
+        if isinstance(content, str):
+            return content
+        elif isinstance(content, list):
+            return content[0].get('text', "ERROR!")
 
 
 class AgentInput(BaseModel):

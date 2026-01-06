@@ -1,16 +1,15 @@
 import json
-import os
 from datetime import datetime
 from typing import Optional, Annotated
 
+from core.auth import get_drive_service
+from core.exceptions import ProviderNotConnectedError
 from google_client.services.drive.types import DriveFile, DriveFolder, DriveItem
+from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
-from langchain_core.callbacks import adispatch_custom_event
-
-from core.auth import get_drive_service
 
 
 class SearchFilesInput(BaseModel):
@@ -131,6 +130,9 @@ class SearchFilesTool(BaseTool):
 
             return json.dumps(items_data)
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to search files due to internal error"
 
@@ -206,6 +208,9 @@ class GetFileTool(BaseTool):
 
             return json.dumps(item_dict)
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to get file due to internal error"
 
@@ -236,6 +241,9 @@ class DownloadFileTool(BaseTool):
 
             downloaded_path = await drive.download_file(file, download_folder)
             return f"File downloaded successfully. File Path: {downloaded_path}"
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to download file due to internal error"
 
@@ -290,6 +298,9 @@ class ListFolderContentsTool(BaseTool):
             items_data = [self._item_to_dict(item) for item in contents]
 
             return json.dumps(items_data)
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to list folder contents due to internal error"
@@ -346,6 +357,9 @@ class GetPermissionsTool(BaseTool):
             ]
 
             return json.dumps(permissions_data)
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to get permissions due to internal error"

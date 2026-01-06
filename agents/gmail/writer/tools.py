@@ -1,12 +1,12 @@
 from typing import Optional, List, Annotated
 
+from core.auth import get_gmail_service
+from core.exceptions import ProviderNotConnectedError
+from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
-from langchain_core.callbacks import adispatch_custom_event
-
-from core.auth import get_gmail_service
 
 
 class WriteEmailInput(BaseModel):
@@ -61,6 +61,9 @@ class SendEmailTool(BaseTool):
             )
             return f"Email sent successfully. message_id: {email.message_id}, thread_id: {email.thread_id}"
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to send email due to internal error"
 
@@ -111,6 +114,9 @@ class DraftEmailTool(BaseTool):
             )
             return f"Draft created successfully. message_id: {draft.message_id}, thread_id: {draft.thread_id}"
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to create draft due to internal error"
 
@@ -155,6 +161,9 @@ class ReplyEmailTool(BaseTool):
             )
             return f"Reply sent successfully. message_id: {reply.message_id}, thread_id: {reply.thread_id}"
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to send reply due to internal error"
 
@@ -198,6 +207,9 @@ class ForwardEmailTool(BaseTool):
                 include_attachments=include_attachments
             )
             return f"Email forwarded successfully. message_id: {forward.message_id}, thread_id: {forward.thread_id}"
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to forward email due to internal error"

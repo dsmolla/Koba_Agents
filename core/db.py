@@ -1,11 +1,11 @@
 import os
-
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from psycopg.rows import dict_row
-from psycopg_pool import AsyncConnectionPool
 from contextlib import asynccontextmanager
 
 from core.exceptions import ProviderNotConnectedError
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
+from psycopg_pool import AsyncConnectionPool
 
 
 class Database:
@@ -44,7 +44,8 @@ class Database:
     async def get_provider_token(self, user_id, provider) -> dict:
         async with self._pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
-                await cur.execute("SELECT * FROM public.user_integrations WHERE user_id = %s AND provider = %s ", (user_id, provider))
+                await cur.execute("SELECT * FROM public.user_integrations WHERE user_id = %s AND provider = %s ",
+                                  (user_id, provider))
                 row = await cur.fetchone()
                 if not row:
                     raise ProviderNotConnectedError(provider)
@@ -56,12 +57,11 @@ class Database:
             VALUES (%s, %s, %s, NOW())
             ON CONFLICT (user_id, provider)
             DO UPDATE SET 
-                credentials = EXCLUDED.credentials,
-                updated_at = NOW();
+                credentials = EXCLUDED.credentials, updated_at = NOW()
         """
         async with self._pool.connection() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(query, (user_id, provider, token))
+                await cur.execute(query, (user_id, provider, Jsonb(token)))
 
     @asynccontextmanager
     async def connection(self):

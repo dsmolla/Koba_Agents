@@ -3,17 +3,23 @@ import json
 from contextlib import asynccontextmanager
 from typing import Any
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
+from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel
 
-from agents.common.llm_models import LLM_FLASH
 from agents.supervisor import SupervisorAgent
+from agents.common.llm_models import MODELS
+from core.exceptions import ProviderNotConnectedError
 from core.db import db
 from core.dependencies import get_current_user_ws, get_current_user_http, get_db
 
+
+load_dotenv(r'C:\Users\Dagmawi\Projects\Koba_Agents\backend\.env')
+LLM_FLASH = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash'])
 
 supervisor_agent: SupervisorAgent | None = None
 
@@ -81,8 +87,8 @@ async def websocket_endpoint(
         }
     )
 
-    try:
-        while True:
+    while True:
+        try:
             data = await websocket.receive_json()
             user_message = data.get("message")
 
@@ -93,10 +99,11 @@ async def websocket_endpoint(
             async for event in supervisor_agent.agent.astream_events(
                     {"messages": [input_message]},
                     config=config,
-                    version="v1"
             ):
+                print(event)
+                print('\n\n')
                 kind = event["event"]
-                if kind == "on_custom_event" and event["name"] == "user_status":
+                if kind == "on_custom_event" and event["name"] == "tool_status":
                     data = event["data"]
                     await websocket.send_json({
                         "type": "status",
@@ -104,20 +111,21 @@ async def websocket_endpoint(
                         "icon": data.get("icon", "⏳")
                     })
                 elif kind == 'on_chain_end' and event['name'] == 'SupervisorAgent':
+                    print(event)
+                    content = event['data']['output']['messages'][-1].content
+                    if isinstance(content, list):
+                        content = content[0].get('text', "ERROR!")
                     await websocket.send_json({
                         "type": "agent_output",
-                        "content": event['data']['output']['messages'][-1].content[0]['text']
+                        "content": content
                     })
-
-    except WebSocketDisconnect:
-        logger.info(f"User {user_id} disconnected")
-    except Exception as e:
-        logger.error(f"Error in chat loop: {e}")
-        try:
-            await websocket.send_json({"type": "error", "content": "Internal error occurred. Try again later."})
-        except:
-            pass
-
+        except WebSocketDisconnect:
+            logger.info(f"User {user_id} disconnected")
+            break
+        except ProviderNotConnectedError as e:
+            await websocket.send_json({
+                "type": "google_not_connected",
+            })
 
 @app.delete("/chat/clear")
 async def clear_chat(
@@ -131,7 +139,7 @@ async def clear_chat(
     user_id = str(user.id)
 
     try:
-        await database.clear_chat(user_id)
+        await database.clear_thread(user_id)
         return {"status": "deleted", "content": "Memory wiped."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

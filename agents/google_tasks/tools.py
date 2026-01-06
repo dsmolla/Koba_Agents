@@ -2,15 +2,15 @@ import json
 from datetime import datetime
 from typing import Optional, Literal, Union, Annotated
 
+from core.auth import get_tasks_service
+from core.exceptions import ProviderNotConnectedError
 from google_client.services.tasks import TaskQueryBuilder
 from google_client.services.tasks.async_query_builder import AsyncTaskQueryBuilder
+from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
-from langchain_core.callbacks import adispatch_custom_event
-
-from core.auth import get_tasks_service
 
 
 class CreateTaskInput(BaseModel):
@@ -58,6 +58,9 @@ class CreateTaskTool(BaseTool):
                 task_list_id=task_list_id
             )
             return f"Task '{task.title}' created successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to create task due to internal error"
@@ -138,6 +141,9 @@ class ListTasksTool(BaseTool):
                 )
 
             return json.dumps(tasks_data)
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to list tasks due to internal error"
 
@@ -179,10 +185,12 @@ class DeleteTaskTool(BaseTool):
     description: str = "Delete a task"
     args_schema: ArgsSchema = DeleteTaskInput
 
-    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
+    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+             task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
+    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+                    task_list_id: str = "@default") -> str:
         try:
             await adispatch_custom_event(
                 "tool_status",
@@ -191,6 +199,9 @@ class DeleteTaskTool(BaseTool):
             tasks_service = await get_tasks_service(config)
             await tasks_service.delete_task(task=task_id, task_list_id=task_list_id)
             return f"Task deleted successfully. task_id: {task_id}, task_list_id: {task_list_id}"
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to delete task due to internal error"
@@ -207,10 +218,12 @@ class CompleteTaskTool(BaseTool):
     description: str = "Mark a task as completed"
     args_schema: ArgsSchema = CompleteTaskInput
 
-    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
+    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+             task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
+    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+                    task_list_id: str = "@default") -> str:
         try:
             await adispatch_custom_event(
                 "tool_status",
@@ -219,6 +232,9 @@ class CompleteTaskTool(BaseTool):
             tasks_service = await get_tasks_service(config)
             task = await tasks_service.mark_completed(task=task_id, task_list_id=task_list_id)
             return f"Task marked as completed. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to complete task due to internal error"
@@ -235,10 +251,12 @@ class ReopenTaskTool(BaseTool):
     description: str = "Reopen a completed task"
     args_schema: ArgsSchema = ReopenTaskInput
 
-    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
+    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+             task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg], task_list_id: str = "@default") -> str:
+    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+                    task_list_id: str = "@default") -> str:
         try:
             await adispatch_custom_event(
                 "tool_status",
@@ -247,6 +265,9 @@ class ReopenTaskTool(BaseTool):
             tasks_service = await get_tasks_service(config)
             task = await tasks_service.mark_incomplete(task=task_id, task_list_id=task_list_id)
             return f"Task reopened successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
+
+        except ProviderNotConnectedError as e:
+            raise e
 
         except Exception as e:
             return "Unable to reopen task due to internal error"
@@ -303,6 +324,9 @@ class UpdateTaskTool(BaseTool):
             updated_task = await tasks_service.update_task(task=task, task_list_id=task_list_id)
             return f"Task updated successfully. task_id: {updated_task.task_id}, task_list_id: {updated_task.task_list_id}"
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to update task due to internal error"
 
@@ -329,6 +353,9 @@ class CreateTaskListTool(BaseTool):
             task_list = await tasks_service.create_task_list(title=title)
             return f"Task List created successfully. task_list_id: {task_list.task_list_id}"
 
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to create task list due to internal error"
 
@@ -349,5 +376,8 @@ class ListTaskListsTool(BaseTool):
             tasks_service = await get_tasks_service(config)
             task_lists = await tasks_service.list_task_lists()
             return json.dumps(task_lists)
+        except ProviderNotConnectedError as e:
+            raise e
+
         except Exception as e:
             return "Unable to list task lists due to internal error"
