@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {MessageSquare, Folder, Calendar} from 'lucide-react';
 
 export default function Sidebar({activeTab, onTabChange, user}) {
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(true);
 
     const navItems = [
         {id: 'chat', label: 'Chat Assistant', icon: MessageSquare},

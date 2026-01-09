@@ -1,14 +1,14 @@
 import {useState, useRef, useEffect} from 'react';
 import {Send, Paperclip, Bot, User, FileText, Image, Film, Music, X} from 'lucide-react';
+import { useChat } from "../../hooks/useChat.js";
+import Markdown from "react-markdown";
 
 export default function ChatView() {
-    const [messages, setMessages] = useState([
-        {id: 1, text: "Hello! How can I help you today?", sender: 'bot', timestamp: new Date()}
-    ]);
     const [inputText, setInputText] = useState("");
     const [stagedFiles, setStagedFiles] = useState([]);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
+    const { messages, sendMessage, status, isConnected } = useChat();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({behavior: "smooth"});
@@ -22,53 +22,10 @@ export default function ChatView() {
         e.preventDefault();
         if (!inputText.trim() && stagedFiles.length === 0) return;
 
-        const timestamp = new Date();
-        const newMessages = [];
+        sendMessage(inputText)
 
-        // Add text message if it exists
-        if (inputText.trim()) {
-            newMessages.push({
-                id: Date.now(),
-                text: inputText,
-                sender: 'user',
-                timestamp: timestamp
-            });
-        }
-
-        // Add staged files as messages
-        stagedFiles.forEach((file, index) => {
-            newMessages.push({
-                id: Date.now() + index + 1,
-                text: `Sent a file: ${file.name}`,
-                sender: 'user',
-                timestamp: timestamp,
-                isFile: true,
-                fileName: file.name,
-                fileSize: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-                fileType: file.type.split('/')[0] || 'unknown'
-            });
-        });
-
-        setMessages(prev => [...prev, ...newMessages]);
-        
-        // Clear inputs
         setInputText("");
         setStagedFiles([]);
-
-        // Simulate bot response
-        setTimeout(() => {
-            let botText = "I received your message.";
-            if (stagedFiles.length > 0) {
-                botText += ` I've also received ${stagedFiles.length} file(s): ${stagedFiles.map(f => f.name).join(', ')}.`;
-            }
-
-            setMessages(prev => [...prev, {
-                id: prev.length + 100,
-                text: botText + " I am a stateless bot, so this conversation will disappear when you leave.",
-                sender: 'bot',
-                timestamp: new Date()
-            }]);
-        }, 1000);
     };
 
     const handleFileClick = () => {
@@ -98,9 +55,9 @@ export default function ChatView() {
         <div
             className="flex flex-col h-full bg-secondary-dark-bg rounded-lg shadow-sm border border-dark-border overflow-hidden">
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.map((msg) => (
+                {messages.map((msg, idx) => (
                     <div
-                        key={msg.id}
+                        key={ idx }
                         className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                         <div
@@ -117,28 +74,38 @@ export default function ChatView() {
                                     ? 'bg-blue-500 text-white rounded-tr-none'
                                     : 'bg-gray-700 text-white rounded-tl-none'
                             }`}>
-                                {msg.isFile ? (
-                                    <div className="flex items-center gap-3 min-w-50">
-                                        <div className="p-2 bg-white/30 rounded-lg">
-                                            {getFileIcon(msg.fileType, 24)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate">{msg.fileName}</p>
-                                            <p className="text-xs opacity-85">{msg.fileSize}</p>
-                                        </div>
+                                {msg.content && <p className="text-sm whitespace-pre-wrap"><Markdown>{msg.content}</Markdown></p>}
+                                {msg.files && msg.files.length > 0 && (
+                                    <div className={`flex flex-col gap-2 ${msg.content ? 'mt-2' : ''}`}>
+                                        {msg.files.map((file, fileIdx) => (
+                                            <div key={fileIdx} className="flex items-center gap-3 bg-black/20 p-2 rounded-lg">
+                                                <div className="p-2 bg-white/20 rounded-lg shrink-0">
+                                                    {getFileIcon(file.mime_type?.split('/')[0], 24)}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium truncate">{file.filename}</p>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ) : (
-                                    <p className="text-sm">{msg.text}</p>
                                 )}
-                                <span className="text-xs opacity-85 mt-1 block">
-                  {msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
-                </span>
+                                <span className="text-xs opacity-75 mt-1 block text-right">
+                                    {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : ''}
+                                </span>
                             </div>
                         </div>
                     </div>
                 ))}
                 <div ref={messagesEndRef}/>
             </div>
+
+            {/* Status Display */}
+            {status && (
+                <div className="px-4 py-2 bg-secondary-dark-bg text-xs text-zinc-400 flex items-center gap-2 border-t border-dark-border">
+                    {status.icon && <span className="text-base">{status.icon}</span>}
+                    <span>{status.content}</span>
+                </div>
+            )}
 
             {/* Staged Files Preview */}
             {stagedFiles.length > 0 && (
@@ -181,7 +148,7 @@ export default function ChatView() {
                     />
                     <button
                         type="submit"
-                        disabled={!inputText.trim() && stagedFiles.length === 0}
+                        disabled={!isConnected || (isConnected && !inputText.trim() && stagedFiles.length === 0)}
                         className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         <Send size={20}/>
