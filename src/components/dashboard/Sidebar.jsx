@@ -21,7 +21,6 @@ export default function Sidebar({activeTab, onTabChange, user}) {
                 <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center w-full' : ''}`}>
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
                         <img src='/logo.png' alt='Logo'/>
-                        {/*<LayoutDashboard size={20} className="text-white"/>*/}
                     </div>
                     {!isCollapsed && (
                         <span className="font-bold text-xl tracking-tight whitespace-nowrap overflow-hidden">

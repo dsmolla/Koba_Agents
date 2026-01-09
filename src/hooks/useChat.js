@@ -12,7 +12,8 @@ export const useChat = () => {
         switch (data.type) {
             case 'history':
                 console.log(data);
-                setMessages(data.messages)
+                setMessages(data.messages);
+                setStatus(null);
                 break;
 
             case 'message':
@@ -22,6 +23,7 @@ export const useChat = () => {
                     files: data.files,
                     timestamp: data.timestamp 
                 }]);
+                setStatus(null);
                 break;
 
             case 'status':
@@ -31,10 +33,11 @@ export const useChat = () => {
             case 'error':
                 if (data.code === 'AUTH_REQUIRED') {
                     console.error("Auth required:", data.content);
-                    // You might want to trigger a logout or redirect here
                     alert(`Authentication Session Expired: ${data.content}`);
+                    setStatus(null);
                 } else {
                     alert(`Error: ${data.content}`);
+                    setStatus(null);
                 }
                 break;
 
@@ -85,7 +88,7 @@ export const useChat = () => {
         return () => socket.close();
     }, [session]);
 
-    const sendMessage = useCallback((text, fileData = null) => {
+    const sendMessage = useCallback((text, fileData = [null]) => {
         if (ws.current?.readyState === WebSocket.OPEN) {
             const timestamp = Date.now();
             setMessages(prev => [...prev, {

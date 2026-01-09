@@ -5,11 +5,13 @@ import ChatView from '../components/dashboard/ChatView';
 import FileManager from '../components/dashboard/FileManager';
 import TaskManager from '../components/dashboard/TaskManager';
 import SettingsView from '../components/dashboard/SettingsView';
+import {useChat} from "../hooks/useChat.js";
 
 function Dashboard() {
     const [user, setUser] = useState(null);
     const [activeTab, setActiveTab] = useState('chat');
     const [loading, setLoading] = useState(true);
+    const { messages, sendMessage, status, isConnected } = useChat();
 
     useEffect(() => {
         const getUser = async () => {
@@ -36,7 +38,7 @@ function Dashboard() {
     const renderContent = () => {
         switch (activeTab) {
             case 'chat':
-                return <ChatView/>;
+                return <ChatView messages={messages} sendMessage={sendMessage} status={status} isConnected={isConnected}/>;
             case 'files':
                 return <FileManager/>;
             case 'tasks':

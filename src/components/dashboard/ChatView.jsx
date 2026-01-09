@@ -1,21 +1,15 @@
 import {useState, useRef, useEffect} from 'react';
 import {Send, Paperclip, Bot, User, FileText, Image, Film, Music, X} from 'lucide-react';
-import { useChat } from "../../hooks/useChat.js";
 import Markdown from "react-markdown";
 
-export default function ChatView() {
+export default function ChatView({ messages, sendMessage, status, isConnected }) {
     const [inputText, setInputText] = useState("");
     const [stagedFiles, setStagedFiles] = useState([]);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
-    const { messages, sendMessage, status, isConnected } = useChat();
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({behavior: "smooth"});
-    };
 
     useEffect(() => {
-        scrollToBottom();
+        messagesEndRef.current?.scrollIntoView({behavior: "instant"});
     }, [messages]);
 
     const handleSend = (e) => {
@@ -37,7 +31,7 @@ export default function ChatView() {
         if (files.length === 0) return;
 
         setStagedFiles(prev => [...prev, ...files]);
-        e.target.value = null; // Reset input so same file can be selected again if removed
+        e.target.value = null;
     };
 
     const removeFile = (indexToRemove) => {
@@ -99,7 +93,6 @@ export default function ChatView() {
                 <div ref={messagesEndRef}/>
             </div>
 
-            {/* Status Display */}
             {status && (
                 <div className="px-4 py-2 bg-secondary-dark-bg text-xs text-zinc-400 flex items-center gap-2 border-t border-dark-border">
                     {status.icon && <span className="text-base">{status.icon}</span>}
