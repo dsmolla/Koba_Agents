@@ -16,7 +16,7 @@ export default function ChatView({ messages, sendMessage, status, isConnected })
         e.preventDefault();
         if (!inputText.trim() && stagedFiles.length === 0) return;
 
-        sendMessage(inputText)
+        sendMessage(inputText, stagedFiles)
 
         setInputText("");
         setStagedFiles([]);
