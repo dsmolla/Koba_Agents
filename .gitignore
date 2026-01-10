@@ -5,7 +5,7 @@
 nul
 __pycache__
 
-*.log
+.logs/
 .data/
 
 google_client/

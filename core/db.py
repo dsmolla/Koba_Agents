@@ -1,11 +1,12 @@
-import os
 from contextlib import asynccontextmanager
 
-from core.exceptions import ProviderNotConnectedError
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
+
+from config import Config
+from core.exceptions import ProviderNotConnectedError
 
 
 class Database:
@@ -17,7 +18,7 @@ class Database:
     async def connect(self):
         if self._pool is None:
             self._pool = AsyncConnectionPool(
-                conninfo=os.environ.get("SUPABASE_DB_URL"),
+                conninfo=Config.SUPABASE_DB_URL,
                 max_size=30,
                 min_size=2,
                 open=False,
@@ -49,6 +50,7 @@ class Database:
                 row = await cur.fetchone()
                 if not row:
                     raise ProviderNotConnectedError(provider)
+
                 return row['credentials']
 
     async def insert_provider_token(self, user_id, provider, token):

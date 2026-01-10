@@ -1,10 +1,12 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Annotated
+from datetime import datetime, timezone
+from typing import Annotated, Any, Coroutine
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema
 from langchain_core.tools import BaseTool, InjectedToolArg
@@ -47,11 +49,8 @@ class BaseAgent(ABC):
     async def arun(self, task: str, config: RunnableConfig):
         input = {"messages": [("user", task)]}
         response = await self.agent.ainvoke(input, config=config)
-        content = response['messages'][-1].content
-        if isinstance(content, str):
-            return content
-        elif isinstance(content, list):
-            return content[0].get('text', "ERROR!")
+        content = response['messages'][-1].text
+        return AIMessage(content=content, additional_kwargs={"timestamp": datetime.now(tz=timezone.utc).isoformat()})
 
 
 class AgentInput(BaseModel):
@@ -67,7 +66,7 @@ def agent_to_tool(agent: BaseAgent) -> BaseTool:
         def _run(self, task_description: str) -> str:
             raise NotImplementedError("Use async execution.")
 
-        async def _arun(self, task_description: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+        async def _arun(self, task_description: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> AIMessage:
             return await agent.arun(task_description, config)
 
     return Tool()

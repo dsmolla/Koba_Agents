@@ -18,5 +18,5 @@ class CurrentDateTimeTool(BaseTool):
             "tool_status",
             {"text": "Checking Time...", "icon": "🕒"}
         )
-        timezone = config["configurable"].get("user_timezone", "UTC")
+        timezone = config["configurable"].get("timezone", "UTC")
         return current_datetime(timezone).strftime("%Y-%m-%dT%H:%M:%S")
