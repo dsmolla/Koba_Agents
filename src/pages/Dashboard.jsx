@@ -35,7 +35,7 @@ function Dashboard() {
     const renderContent = () => {
         switch (activeTab) {
             case 'chat':
-                return <ChatView messages={messages} sendMessage={sendMessage} status={status} isConnected={isConnected}/>;
+                return <ChatView messages={messages} sendMessage={sendMessage} status={status} isConnected={isConnected} files={files}/>;
             case 'files':
                 return <FileManager files={files} setFiles={setFiles}/>;
             case 'tasks':

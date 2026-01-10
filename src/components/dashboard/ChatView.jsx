@@ -1,13 +1,16 @@
-import {useState, useRef, useEffect} from 'react';
+import {useState, useRef, useEffect, Children} from 'react';
 import {Send, Paperclip, Bot, User, FileText, Image, Film, Music, X} from 'lucide-react';
 import Markdown from "react-markdown";
 import {downloadFile} from "../../lib/fileService.js";
 
-export default function ChatView({ messages, sendMessage, status, isConnected }) {
+export default function ChatView({ messages, sendMessage, status, isConnected, files = [] }) {
     const [inputText, setInputText] = useState("");
     const [stagedFiles, setStagedFiles] = useState([]);
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
+    const inputRef = useRef(null);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({behavior: "instant"});
@@ -17,10 +20,48 @@ export default function ChatView({ messages, sendMessage, status, isConnected })
         e.preventDefault();
         if (!inputText.trim() && stagedFiles.length === 0) return;
 
-        sendMessage(inputText, stagedFiles)
+        const referencedFiles = files.filter(file =>
+            inputText.includes(`@${file.filename}`)
+        );
+
+        sendMessage(inputText, stagedFiles, referencedFiles)
 
         setInputText("");
         setStagedFiles([]);
+    };
+
+    const handleInputChange = (e) => {
+        const text = e.target.value;
+        setInputText(text);
+
+        const lastAt = text.lastIndexOf('@');
+        if (lastAt !== -1) {
+            const isStart = lastAt === 0;
+            const isPrecededBySpace = !isStart && text[lastAt - 1] === ' ';
+
+            if (isStart || isPrecededBySpace) {
+                const query = text.slice(lastAt + 1);
+                if (!query.includes(' ')) {
+                    const matches = files.filter(f =>
+                        f.filename.toLowerCase().startsWith(query.toLowerCase())
+                    );
+                    setSuggestions(matches);
+                    setShowSuggestions(matches.length > 0);
+                    return;
+                }
+            }
+        }
+        setShowSuggestions(false);
+    };
+
+    const insertSuggestion = (filename) => {
+        const lastAt = inputText.lastIndexOf('@');
+        if (lastAt !== -1) {
+            const prefix = inputText.slice(0, lastAt);
+            setInputText(`${prefix}@${filename} `);
+            setShowSuggestions(false);
+            inputRef.current?.focus();
+        }
     };
 
     const handleFileClick = () => {
@@ -29,7 +70,6 @@ export default function ChatView({ messages, sendMessage, status, isConnected })
 
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files || []);
-        console.error(files)
         if (files.length === 0) return;
 
         setStagedFiles(prev => [...prev, ...files]);
@@ -45,6 +85,34 @@ export default function ChatView({ messages, sendMessage, status, isConnected })
         if (type === 'video') return <Film size={size} className="text-red-500"/>;
         if (type === 'audio') return <Music size={size} className="text-yellow-500"/>;
         return <FileText size={size} className="text-blue-500"/>;
+    };
+
+    const renderMessageContent = (content) => {
+        if (!content) return null;
+
+        return (
+            <Markdown
+                components={{
+                    p: ({node, children, ...props}) => {
+                        const processedChildren = Children.map(children, child => {
+                            if (typeof child === 'string') {
+                                const parts = child.split(/(\s@\S+|^@\S+)/g);
+                                return parts.map((part, i) => {
+                                    if (part.trim().startsWith('@')) {
+                                        return <span key={i} className="text-blue-900 font-medium">{part}</span>;
+                                    }
+                                    return part;
+                                });
+                            }
+                            return child;
+                        });
+                        return <p className="text-sm whitespace-pre-wrap" {...props}>{processedChildren}</p>;
+                    }
+                }}
+            >
+                {content}
+            </Markdown>
+        );
     };
 
     return (
@@ -70,7 +138,7 @@ export default function ChatView({ messages, sendMessage, status, isConnected })
                                     ? 'bg-blue-500 text-white rounded-tr-none'
                                     : 'bg-gray-700 text-white rounded-tl-none'
                             }`}>
-                                {msg.content && <p className="text-sm whitespace-pre-wrap"><Markdown>{msg.content}</Markdown></p>}
+                                {msg.content && renderMessageContent(msg.content)}
                                 {msg.files && msg.files.length > 0 && (
                                     <div className={`flex flex-col gap-2 ${msg.content ? 'mt-2' : ''}`}>
                                         {msg.files.map((file, idx) => (
@@ -116,7 +184,21 @@ export default function ChatView({ messages, sendMessage, status, isConnected })
             )}
 
             <form onSubmit={handleSend}
-                  className="p-4 bg-secondary-dark-bg border-t border-dark-border">
+                  className="p-4 bg-secondary-dark-bg border-t border-dark-border relative">
+                {showSuggestions && (
+                    <div className="absolute bottom-full left-0 w-full mb-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10 mx-4 w-[calc(100%-2rem)]">
+                        {suggestions.map((file) => (
+                            <div
+                                key={file.id}
+                                className="flex items-center gap-2 p-2 hover:bg-gray-700 cursor-pointer text-gray-200"
+                                onClick={() => insertSuggestion(file.filename)}
+                            >
+                                {getFileIcon(file.mime_type?.split('/')[0], 16)}
+                                <span className="text-sm truncate">{file.filename}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
                 <div className="flex items-center gap-2">
                     <input
                         type="file"
@@ -135,9 +217,10 @@ export default function ChatView({ messages, sendMessage, status, isConnected })
                     </button>
                     <input
                         type="text"
+                        ref={inputRef}
                         value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        placeholder="Type your message..."
+                        onChange={handleInputChange}
+                        placeholder="Type your message... (@ to reference files)"
                         className="text-sm rounded-lg block w-full p-2.5 bg-dark-input-bg border-gray-600 placeholder-dark-input-placeholder text-white outline-none"
                     />
                     <button

@@ -87,7 +87,7 @@ export const useChat = () => {
         return () => socket.close();
     }, [session]);
 
-    const sendMessage = useCallback(async (text, stagedFiles = []) => {
+    const sendMessage = useCallback(async (text, stagedFiles = [], referencedFiles = []) => {
         if (ws.current?.readyState === WebSocket.OPEN) {
             const timestamp = Date.now();
 
@@ -96,27 +96,32 @@ export const useChat = () => {
                 try {
                     setStatus({content: "Uploading files...", icon: "📤"});
                     uploadedFiles = await uploadFiles(session.user.id, stagedFiles)
-                    setMessages(prev => [...prev, {
-                        type: 'message',
-                        sender: 'user',
-                        content: text,
-                        files: uploadedFiles,
-                        timestamp: timestamp
-                    }]);
-
-                    ws.current.send(JSON.stringify({
-                        type: 'message',
-                        sender: 'user',
-                        content: text,
-                        files: uploadedFiles,
-                        timestamp: timestamp
-                    }));
                 } catch {
                     alert("Failed to upload files. Please try again.");
-                } finally {
                     setStatus(null);
+                    return;
                 }
             }
+
+            const allFiles = [...uploadedFiles, ...referencedFiles];
+
+            setMessages(prev => [...prev, {
+                type: 'message',
+                sender: 'user',
+                content: text,
+                files: allFiles,
+                timestamp: timestamp
+            }]);
+
+            ws.current.send(JSON.stringify({
+                type: 'message',
+                sender: 'user',
+                content: text,
+                files: allFiles,
+                timestamp: timestamp
+            }));
+            
+            setStatus(null);
         } else {
             alert("Connection lost. Please wait...");
         }
