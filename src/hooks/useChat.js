@@ -1,5 +1,6 @@
 import {useState, useEffect, useRef, useCallback} from 'react';
 import {supabase} from "../lib/supabase.js";
+import {uploadFiles} from "../lib/fileService.js";
 
 export const useChat = () => {
     const [messages, setMessages] = useState([]);
@@ -7,7 +8,6 @@ export const useChat = () => {
     const [isConnected, setIsConnected] = useState(false);
     const ws = useRef(null);
     const [session, setSession] = useState(null);
-    const bucket = import.meta.env.VITE_SUPABASE_USER_FILE_BUCKET
 
     const handleServerMessage = (data) => {
         switch (data.type) {
@@ -93,52 +93,34 @@ export const useChat = () => {
 
             let uploadedFiles = [];
             if (stagedFiles.length > 0) {
-                setStatus({content: "Uploading files...", icon: "📤"});
                 try {
-                    for (const file of stagedFiles) {
-                        const fileExt = file.name.split('.').pop();
-                        const fileName = `${file.name.split('.')[0]}-${Date.now()}.${fileExt}`;
-                        const filePath = `${session.user.id}/${fileName}`;
+                    setStatus({content: "Uploading files...", icon: "📤"});
+                    uploadedFiles = await uploadFiles(session.user.id, stagedFiles)
+                    setMessages(prev => [...prev, {
+                        type: 'message',
+                        sender: 'user',
+                        content: text,
+                        files: uploadedFiles,
+                        timestamp: timestamp
+                    }]);
 
-                        const {data, error} = await supabase.storage.from(bucket).upload(filePath, file);
-
-                        if (error) throw error;
-
-                        uploadedFiles.push({
-                            filename: file.name,
-                            path: data.path,
-                            mime_type: file.type,
-                            size: file.size
-                        });
-                    }
-                } catch (error) {
-                    console.error("Error uploading files:", error);
+                    ws.current.send(JSON.stringify({
+                        type: 'message',
+                        sender: 'user',
+                        content: text,
+                        files: uploadedFiles,
+                        timestamp: timestamp
+                    }));
+                } catch {
                     alert("Failed to upload files. Please try again.");
+                } finally {
                     setStatus(null);
-                    return;
                 }
             }
-
-            setMessages(prev => [...prev, {
-                type: 'message',
-                sender: 'user',
-                content: text,
-                files: uploadedFiles,
-                timestamp: timestamp
-            }]);
-
-            ws.current.send(JSON.stringify({
-                type: 'message',
-                sender: 'user',
-                content: text,
-                files: uploadedFiles,
-                timestamp: timestamp
-            }));
-            setStatus(null);
         } else {
             alert("Connection lost. Please wait...");
         }
-    }, [session, bucket]);
+    }, [session]);
 
     return {messages, sendMessage, status, isConnected};
 };

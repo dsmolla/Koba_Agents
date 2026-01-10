@@ -1,31 +1,28 @@
-import {useState, useEffect} from 'react';
-import {getCurrentUser} from '../lib/supabase';
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/dashboard/Sidebar';
 import ChatView from '../components/dashboard/ChatView';
 import FileManager from '../components/dashboard/FileManager';
 import TaskManager from '../components/dashboard/TaskManager';
 import SettingsView from '../components/dashboard/SettingsView';
-import {useChat} from "../hooks/useChat.js";
+import { useChat } from "../hooks/useChat.js";
+import { useAuth } from "../hooks/useAuth.js";
+import {listFiles} from "../lib/fileService.js";
 
 function Dashboard() {
-    const [user, setUser] = useState(null);
+    const { user, loading } = useAuth();
     const [activeTab, setActiveTab] = useState('chat');
-    const [loading, setLoading] = useState(true);
     const { messages, sendMessage, status, isConnected } = useChat();
+    const [files, setFiles] = useState([]);
 
     useEffect(() => {
-        const getUser = async () => {
-            try {
-                const user = await getCurrentUser();
-                setUser(user);
-            } catch (error) {
-                console.error("Error fetching user:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        getUser();
-    }, []);
+        if (!user) return;
+
+        const loadFiles = async () => {
+            const files = await listFiles(user.id);
+            setFiles(files);
+        }
+        loadFiles();
+    }, [user]);
 
     if (loading) {
         return (
@@ -40,7 +37,7 @@ function Dashboard() {
             case 'chat':
                 return <ChatView messages={messages} sendMessage={sendMessage} status={status} isConnected={isConnected}/>;
             case 'files':
-                return <FileManager/>;
+                return <FileManager files={files} setFiles={setFiles}/>;
             case 'tasks':
                 return <TaskManager/>;
             case 'settings':

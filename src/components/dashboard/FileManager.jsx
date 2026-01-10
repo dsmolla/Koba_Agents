@@ -1,64 +1,20 @@
-import {useState, useRef, useEffect} from 'react';
+import {useState, useRef} from 'react';
 import {FileText, Trash2, Upload, Image, Film, Music, Loader2} from 'lucide-react';
-import {getCurrentUser, supabase} from "../../lib/supabase.js";
+import {useAuth} from "../../hooks/useAuth.js";
+import {bytesToSize, deleteFile, downloadFile, uploadFiles} from "../../lib/fileService.js";
 
-export default function FileManager() {
-    const [files, setFiles] = useState([]);
+export default function FileManager({ files, setFiles }) {
+    const { user, loading } = useAuth()
     const [isUploading, setIsUploading] = useState(false);
-    const [user, setUser] = useState(null);
     const fileInputRef = useRef(null);
-    const bucket = import.meta.env.VITE_SUPABASE_USER_FILE_BUCKET
-
-    useEffect(() => {
-        getCurrentUser().then((user) => {
-            setUser(user);
-
-            const files = []
-            supabase.storage.from(bucket).list(
-                user.id,
-                {
-                    limit: 100,
-                    offset: 0,
-                    sortBy: { column: 'name', order: 'asc' },
-                }).then(({data, error}) => {
-                    // console.log(data)
-                    for (const file of data) {
-                        console.log(file)
-                        files.push({
-                            'filename': file.name,
-                            'path': `${user.id}/${file.name}`,
-                            'mime_type': file.metadata?.mimetype,
-                            'size': file.metadata?.size,
-                        });
-                    }
-                    setFiles(files);
-            })
-        })
-        
-    }, []);
-
-    const bytesToSize = (bytes) => {
-        if (bytes === 0) return '0 Bytes';
-
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    };
 
     const handleDelete = async (file) => {
         if (!user) return;
         
         try {
-            const { error } = await supabase.storage
-                .from(bucket)
-                .remove([file.path]);
-            
-            if (error) throw error;
+            await deleteFile(file)
             setFiles(files.filter(f => f.id !== file.id));
-        } catch (error) {
-            console.error("Error deleting file:", error);
+        } catch {
             alert("Failed to delete file.");
         }
     };
@@ -71,50 +27,17 @@ export default function FileManager() {
         const filesList = Array.from(e.target.files || []);
         if (filesList.length === 0 || !user) return;
 
-        setIsUploading(true);
-        const uploadedFiles = [];
-
         try {
-            for (const file of filesList) {
-                const filePath = `${user.id}/${file.name}`;
-
-                const { data, error } = await supabase.storage
-                    .from(bucket)
-                    .upload(filePath, file);
-
-                if (error) throw error;
-
-                uploadedFiles.push({
-                    filename: file.name,
-                    path: filePath,
-                    mime_type: file.type,
-                    size: file.size
-                });
-            }
+            setIsUploading(true);
+            const uploadedFiles = await uploadFiles(user.id, filesList);
             setFiles(prev => [...uploadedFiles, ...prev]);
-        } catch (error) {
-            console.error("Error uploading files:", error);
+        } catch {
             alert("Failed to upload files.");
         } finally {
             setIsUploading(false);
-            e.target.value = null; // Reset input
+            e.target.value = null;
         }
     };
-
-    const downloadFile = async (file) => {
-        const {data, error} = await supabase.storage.from(bucket).download(file.path);
-        if (data) {
-            const url = URL.createObjectURL(data)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = file.filename
-            document.body.appendChild(a)
-            a.click()
-
-            document.body.removeChild(a)
-            URL.revokeObjectURL(url)
-        }
-    }
 
     const getIcon = (type, size = 48) => {
         if (type === 'image') return <Image size={size} className="text-purple-500"/>;
@@ -148,7 +71,7 @@ export default function FileManager() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {files.map((file) => (
                     <div
-                        key={file.filename}
+                        key={file.id}
                         className="group relative bg-secondary-dark-bg border border-dark-border rounded-lg p-6 flex flex-col items-center justify-center gap-4 hover:shadow-md hover:bg-primary-800 hover:cursor-pointer transition-shadow aspect-square"
                         onClick={() => downloadFile(file)}
                     >

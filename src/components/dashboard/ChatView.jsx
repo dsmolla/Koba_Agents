@@ -1,6 +1,7 @@
 import {useState, useRef, useEffect} from 'react';
 import {Send, Paperclip, Bot, User, FileText, Image, Film, Music, X} from 'lucide-react';
 import Markdown from "react-markdown";
+import {downloadFile} from "../../lib/fileService.js";
 
 export default function ChatView({ messages, sendMessage, status, isConnected }) {
     const [inputText, setInputText] = useState("");
@@ -28,6 +29,7 @@ export default function ChatView({ messages, sendMessage, status, isConnected })
 
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files || []);
+        console.error(files)
         if (files.length === 0) return;
 
         setStagedFiles(prev => [...prev, ...files]);
@@ -71,8 +73,8 @@ export default function ChatView({ messages, sendMessage, status, isConnected })
                                 {msg.content && <p className="text-sm whitespace-pre-wrap"><Markdown>{msg.content}</Markdown></p>}
                                 {msg.files && msg.files.length > 0 && (
                                     <div className={`flex flex-col gap-2 ${msg.content ? 'mt-2' : ''}`}>
-                                        {msg.files.map((file, fileIdx) => (
-                                            <div key={fileIdx} className="flex items-center gap-3 bg-black/20 p-2 rounded-lg">
+                                        {msg.files.map((file, idx) => (
+                                            <div key={file?.id || idx} className="flex items-center gap-3 bg-black/20 p-2 rounded-lg cursor-pointer hover:bg-black/50" onClick={() => downloadFile(file)}>
                                                 <div className="p-2 bg-white/20 rounded-lg shrink-0">
                                                     {getFileIcon(file.mime_type?.split('/')[0], 24)}
                                                 </div>
@@ -100,7 +102,6 @@ export default function ChatView({ messages, sendMessage, status, isConnected })
                 </div>
             )}
 
-            {/* Staged Files Preview */}
             {stagedFiles.length > 0 && (
                 <div className="px-4 py-2 flex flex-wrap gap-2 border-t border-dark-border bg-secondary-dark-bg">
                     {stagedFiles.map((file, index) => (
