@@ -13,14 +13,13 @@ class Database:
     def __init__(self):
         self._checkpointer = None
         self._pool = None
-        self._supabase = None
 
     async def connect(self):
         if self._pool is None:
             self._pool = AsyncConnectionPool(
                 conninfo=Config.SUPABASE_DB_URL,
                 max_size=30,
-                min_size=2,
+                min_size=1,
                 open=False,
             )
             await self._pool.open()

@@ -1,13 +1,16 @@
+import shutil
 from typing import Optional, Literal, Annotated
 
-from core.auth import get_drive_service
-from core.exceptions import ProviderNotConnectedError
 from google_client.services.drive.types import DriveFolder
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from agents.common.download_supabase_to_disk import download_to_disk
+from core.auth import get_drive_service
+from core.exceptions import ProviderNotConnectedError
 
 
 class UploadFileInput(BaseModel):
@@ -46,12 +49,14 @@ class UploadFileTool(BaseTool):
                 {"text": "Uploading File...", "icon": "⬆️"}
             )
             drive = await get_drive_service(config)
+            folder, downloaded_file = download_to_disk([file_path])
             file = await drive.upload_file(
-                file_path=file_path,
+                file_path=downloaded_file[0],
                 name=name,
                 parent_folder_id=parent_folder_id,
                 description=description
             )
+            shutil.rmtree(folder)
 
             return f"File uploaded successfully. file_id: {file.file_id}, name: {file.name}"
 

@@ -1,3 +1,4 @@
+aiofiles
 psycopg
 psycopg-pool
 python-dotenv

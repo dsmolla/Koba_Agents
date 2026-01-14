@@ -1,12 +1,15 @@
+import shutil
 from typing import Optional, List, Annotated
 
-from core.auth import get_gmail_service
-from core.exceptions import ProviderNotConnectedError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from agents.common.download_supabase_to_disk import download_to_disk
+from core.auth import get_gmail_service
+from core.exceptions import ProviderNotConnectedError
 
 
 class WriteEmailInput(BaseModel):
@@ -51,14 +54,20 @@ class SendEmailTool(BaseTool):
                 {"text": "Sending Email...", "icon": "📤"}
             )
             gmail = await get_gmail_service(config)
+            folder, downloaded_files = None, None
+            if attachment_paths:
+                folder, downloaded_files = download_to_disk(attachment_paths)
+
             email = await gmail.send_email(
                 to=to,
                 subject=subject,
                 body_text=body_text,
                 cc=cc,
                 bcc=bcc,
-                attachment_paths=attachment_paths,
+                attachment_paths=downloaded_files,
             )
+            if folder: shutil.rmtree(folder)  # clean up
+
             return f"Email sent successfully. message_id: {email.message_id}, thread_id: {email.thread_id}"
 
         except ProviderNotConnectedError as e:
@@ -103,6 +112,10 @@ class DraftEmailTool(BaseTool):
                 {"text": "Creating Draft...", "icon": "📝"}
             )
             gmail = await get_gmail_service(config)
+            folder, downloaded_files = None, None
+            if attachment_paths:
+                folder, downloaded_files = download_to_disk(attachment_paths)
+
             draft = await gmail.create_draft(
                 to=to,
                 subject=subject,
@@ -110,8 +123,10 @@ class DraftEmailTool(BaseTool):
                 body_html=body_html,
                 cc=cc,
                 bcc=bcc,
-                attachment_paths=attachment_paths,
+                attachment_paths=downloaded_files,
             )
+            if folder: shutil.rmtree(folder)
+
             return f"Draft created successfully. message_id: {draft.message_id}, thread_id: {draft.thread_id}"
 
         except ProviderNotConnectedError as e:
@@ -154,11 +169,17 @@ class ReplyEmailTool(BaseTool):
                 {"text": "Sending Reply...", "icon": "↩️"}
             )
             gmail = await get_gmail_service(config)
+            folder, downloaded_files = None, None
+            if attachment_paths:
+                folder, downloaded_files = download_to_disk(attachment_paths)
+
             reply = await gmail.reply(
                 original_email=message_id,
                 body_text=body_text,
-                attachment_paths=attachment_paths,
+                attachment_paths=downloaded_files,
             )
+            if folder: shutil.rmtree(folder)
+
             return f"Reply sent successfully. message_id: {reply.message_id}, thread_id: {reply.thread_id}"
 
         except ProviderNotConnectedError as e:

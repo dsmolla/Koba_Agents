@@ -1,6 +1,9 @@
 import json
+import uuid
 from datetime import datetime
 from typing import Optional, Union, Annotated
+
+import filetype
 
 from core.auth import get_gmail_service
 from core.cache import get_email_cache
@@ -12,6 +15,8 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from core.supabase_client import upload_to_supabase
 
 
 class GetEmailInput(BaseModel):
@@ -127,57 +132,58 @@ class SearchEmailsInput(BaseModel):
     before_date: Optional[str] = Field(default=None, description="Filter emails before date (YYYY-MM-DD)")
 
 
+def build_query(service, params: dict) -> Union[EmailQueryBuilder, AsyncEmailQueryBuilder]:
+    query_builder = service.query()
+    if params.get("include_promotions"):
+        query_builder = query_builder.without_label(['promotions'])
+    if params.get("limit"):
+        query_builder = query_builder.limit(params.get("limit"))
+    if params.get("search"):
+        query_builder = query_builder.search(params.get("search"))
+    if params.get("from_sender"):
+        query_builder = query_builder.from_sender(params.get("from_sender"))
+    if params.get("to_recipient"):
+        query_builder = query_builder.to_recipient(params.get("to_recipient"))
+    if params.get("with_subject"):
+        query_builder = query_builder.with_subject(params.get("with_subject"))
+    if params.get("with_attachments"):
+        query_builder = query_builder.with_attachments()
+    if params.get("is_read"):
+        query_builder = query_builder.is_read()
+    if params.get("is_unread"):
+        query_builder = query_builder.is_unread()
+    if params.get("is_starred"):
+        query_builder = query_builder.is_starred()
+    if params.get("is_important"):
+        query_builder = query_builder.is_important()
+    if params.get("in_folder"):
+        query_builder = query_builder.in_folder(params.get("in_folder"))
+    if params.get("with_labels"):
+        query_builder = query_builder.with_label(params.get("with_labels"))
+    if params.get("today"):
+        query_builder = query_builder.today()
+    if params.get("yesterday"):
+        query_builder = query_builder.yesterday()
+    if params.get("last_days"):
+        query_builder = query_builder.last_days(params.get("last_days"))
+    if params.get("this_week")        :
+        query_builder = query_builder.this_week()
+    if params.get("this_month"):
+        query_builder = query_builder.this_month()
+    if params.get("after_date"):
+        after_date = datetime.strptime(params.get("after_date"), "%Y-%m-%d")
+        query_builder = query_builder.after_date(after_date)
+    if params.get("before_date"):
+        before_date = datetime.strptime(params.get("before_date"), "%Y-%m-%d")
+        query_builder = query_builder.before_date(before_date)
+
+    return query_builder
+
+
 class SearchEmailsTool(BaseTool):
     name: str = "search_emails"
     description: str = "search and retrieve emails from Gmail based on various filters. Returns email snippets"
     args_schema: ArgsSchema = SearchEmailsInput
-
-    def build_query(self, service, params: dict) -> Union[EmailQueryBuilder, AsyncEmailQueryBuilder]:
-        query_builder = service.query()
-        if params.get("include_promotions") is not True:
-            query_builder = query_builder.without_label(['promotions'])
-        if params.get("limit") is not None:
-            query_builder = query_builder.limit(params.get("limit"))
-        if params.get("search") is not None:
-            query_builder = query_builder.search(params.get("search"))
-        if params.get("from_sender") is not None:
-            query_builder = query_builder.from_sender(params.get("from_sender"))
-        if params.get("to_recipient") is not None:
-            query_builder = query_builder.to_recipient(params.get("to_recipient"))
-        if params.get("with_subject") is not None:
-            query_builder = query_builder.with_subject(params.get("with_subject"))
-        if params.get("with_attachments") is True:
-            query_builder = query_builder.with_attachments()
-        if params.get("is_read") is True:
-            query_builder = query_builder.is_read()
-        if params.get("is_unread") is not None:
-            query_builder = query_builder.is_unread()
-        if params.get("is_starred") is not None:
-            query_builder = query_builder.is_starred()
-        if params.get("is_important") is True:
-            query_builder = query_builder.is_important()
-        if params.get("in_folder") is not None:
-            query_builder = query_builder.in_folder(params.get("in_folder"))
-        if params.get("with_labels") is not None:
-            query_builder = query_builder.with_label(params.get("with_labels"))
-        if params.get("today") is True:
-            query_builder = query_builder.today()
-        if params.get("yesterday") is True:
-            query_builder = query_builder.yesterday()
-        if params.get("last_days") is not None:
-            query_builder = query_builder.last_days(params.get("last_days"))
-        if params.get("this_week") is True:
-            query_builder = query_builder.this_week()
-        if params.get("this_month") is True:
-            query_builder = query_builder.this_month()
-        if params.get("after_date") is not None:
-            after_date = datetime.strptime(params.get("after_date"), "%Y-%m-%d")
-            query_builder = query_builder.after_date(after_date)
-        if params.get("before_date") is not None:
-            before_date = datetime.strptime(params.get("before_date"), "%Y-%m-%d")
-            query_builder = query_builder.before_date(before_date)
-
-        return query_builder
 
     def _run(
             self,
@@ -259,7 +265,7 @@ class SearchEmailsTool(BaseTool):
                 "before_date": before_date
             }
 
-            query = self.build_query(gmail, params)
+            query = build_query(gmail, params)
             message_ids = await query.execute()
 
             result = []
@@ -315,7 +321,7 @@ class DownloadAttachmentTool(BaseTool):
             )
             gmail = await get_gmail_service(config)
             email_cache = get_email_cache(config)
-            download_folder = config['configurable'].get('download_folder')
+            user_id = config['configurable'].get('thread_id')
 
             email = email_cache.get(message_id)
             if email is None:
@@ -329,14 +335,29 @@ class DownloadAttachmentTool(BaseTool):
                     attachment_data = {
                         "message_id": message_id,
                         "attachment_id": attachment["attachment_id"],
-                        "filename": attachment["filename"],
                     }
 
-                    downloaded_path = await gmail.download_attachment(
-                        attachment=attachment_data,
-                        download_folder=download_folder
+                    file_id = str(uuid.uuid4())
+                    filename = attachment["filename"]
+                    upload_path = f"{user_id}/{filename} ** {file_id}"
+                    attachment_bytes = await gmail.get_attachment_payload(attachment_data)
+                    mime_type = filetype.guess_mime(attachment_bytes)
+                    size = len(attachment_bytes)
+
+
+                    storage_path = await upload_to_supabase(
+                        path=upload_path,
+                        file_bytes=attachment_bytes,
                     )
-                    attachments_downloaded.append(downloaded_path)
+                    attachments_downloaded.append(
+                        {
+                            "id": file_id,
+                            "filename": filename,
+                            "path": storage_path,
+                            "mime_type": mime_type,
+                            "size": size,
+                        }
+                    )
 
             else:
                 filename = ""
@@ -348,16 +369,28 @@ class DownloadAttachmentTool(BaseTool):
                 attachment_data = {
                     "message_id": message_id,
                     "attachment_id": attachment_id,
-                    "filename": filename,
                 }
+                file_id = str(uuid.uuid4())
+                upload_path = f"{user_id}/{filename} ** {file_id}"
+                attachment_bytes = await gmail.get_attachment_payload(attachment_data)
+                mime_type = filetype.guess_mime(attachment_bytes)
+                size = len(attachment_bytes)
 
-                downloaded_path = await gmail.download_attachment(
-                    attachment=attachment_data,
-                    download_folder=download_folder
+                storage_path = await upload_to_supabase(
+                    path=upload_path,
+                    file_bytes=attachment_bytes,
                 )
-                attachments_downloaded.append(downloaded_path)
+                attachments_downloaded.append(
+                    {
+                        "id": file_id,
+                        "filename": filename,
+                        "path": storage_path,
+                        "mime_type": mime_type,
+                        "size": size,
+                    }
+                )
 
-            return f"Downloaded attachments: {', '.join(attachments_downloaded)}"
+            return json.dumps(attachments_downloaded)
 
         except ProviderNotConnectedError as e:
             raise e

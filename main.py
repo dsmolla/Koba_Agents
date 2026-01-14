@@ -147,8 +147,15 @@ async def websocket_endpoint(
             logger.info(f"Received message: {data}")
             user_message = UserMessage(**data)
 
-            input_message = HumanMessage(content=user_message.content, name='RealUser',
-                                         additional_kwargs={'message': data})
+            full_message = user_message.content
+            if user_message.files:
+                full_message += "\n\n----------- Attached files -----------\n"
+                for file in user_message.files:
+                    full_message += "\n"
+                    full_message += f"File name: {file.filename}"
+                    full_message += f"File Path: {file.path}"
+
+            input_message = HumanMessage(content=full_message, name='RealUser', additional_kwargs={'message': data})
             async for event in supervisor_agent.agent.astream_events({"messages": [input_message]}, config=config):
                 kind = event["event"]
                 if kind == "on_custom_event" and event["name"] == "tool_status":

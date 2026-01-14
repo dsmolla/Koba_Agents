@@ -1,6 +1,9 @@
 import json
+import uuid
 from datetime import datetime
 from typing import Optional, Annotated
+
+import filetype
 
 from core.auth import get_drive_service
 from core.exceptions import ProviderNotConnectedError
@@ -10,6 +13,8 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from core.supabase_client import upload_to_supabase
 
 
 class SearchFilesInput(BaseModel):
@@ -234,13 +239,32 @@ class DownloadFileTool(BaseTool):
                 {"text": "Downloading File...", "icon": "⬇️"}
             )
             drive = await get_drive_service(config)
-            download_folder = config['configurable'].get('download_folder')
+            user_id = config['configurable'].get('thread_id')
             file = await drive.get(file_id)
             if not isinstance(file, DriveFile):
                 return f"Item {file_id} is a folder, not a file"
 
-            downloaded_path = await drive.download_file(file, download_folder)
-            return f"File downloaded successfully. File Path: {downloaded_path}"
+            file_id = str(uuid.uuid4())
+            filename = file.name
+            upload_path = f"{user_id}/{filename} ** {file_id}"
+            file_bytes = await drive.get_file_payload(file)
+            mime_type = filetype.guess_mime(file_bytes)
+            size = len(file_bytes)
+
+            storage_path = await upload_to_supabase(
+                path=upload_path,
+                file_bytes=file_bytes,
+            )
+            file_dict = {
+                "id": file_id,
+                "filename": filename,
+                "path": storage_path,
+                "mime_type": mime_type,
+                "size": size,
+            }
+
+            return json.dumps(file_dict)
+
         except ProviderNotConnectedError as e:
             raise e
 

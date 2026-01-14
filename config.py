@@ -22,6 +22,7 @@ class Config:
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
     SUPABASE_DB_URL = os.getenv("SUPABASE_DB_URL")
+    SUPABASE_USER_FILE_BUCKET = os.getenv("SUPABASE_USER_FILE_BUCKET")
 
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
