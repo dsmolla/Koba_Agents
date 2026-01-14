@@ -1,9 +1,9 @@
 import {useState, useRef, useEffect, Children} from 'react';
-import {Send, Paperclip, Bot, User, FileText, Image, Film, Music, X} from 'lucide-react';
+import {Send, Paperclip, Bot, User, FileText, Image, Film, Music, X, Trash2} from 'lucide-react';
 import Markdown from "react-markdown";
 import {downloadFile} from "../../lib/fileService.js";
 
-export default function ChatView({ messages, sendMessage, status, isConnected, files = [] }) {
+export default function ChatView({ messages, sendMessage, clearMessages, status, isConnected, files = [] }) {
     const [inputText, setInputText] = useState("");
     const [stagedFiles, setStagedFiles] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
@@ -99,7 +99,7 @@ export default function ChatView({ messages, sendMessage, status, isConnected, f
                                 const parts = child.split(/(\s@\S+|^@\S+)/g);
                                 return parts.map((part, i) => {
                                     if (part.trim().startsWith('@')) {
-                                        return <span key={i} className="text-blue-900 font-medium">{part}</span>;
+                                        return <span key={i} className="text-blue-400 font-medium">{part}</span>;
                                     }
                                     return part;
                                 });
@@ -118,6 +118,17 @@ export default function ChatView({ messages, sendMessage, status, isConnected, f
     return (
         <div
             className="flex flex-col h-full bg-secondary-dark-bg rounded-lg shadow-sm border border-dark-border overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-dark-border bg-gray-800/50">
+                <span className="text-sm font-medium text-zinc-300">Chat</span>
+                <button
+                    onClick={clearMessages}
+                    className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-zinc-400 hover:text-red-400 hover:cursor-pointer hover:bg-red-400/10 rounded transition-colors"
+                    title="Clear chat"
+                >
+                    <Trash2 size={14} />
+                    Clear Chat
+                </button>
+            </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg, idx) => (
                     <div
@@ -186,7 +197,7 @@ export default function ChatView({ messages, sendMessage, status, isConnected, f
             <form onSubmit={handleSend}
                   className="p-4 bg-secondary-dark-bg border-t border-dark-border relative">
                 {showSuggestions && (
-                    <div className="absolute bottom-full left-0 w-full mb-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10 mx-4 w-[calc(100%-2rem)]">
+                    <div className="absolute bottom-full left-0 w-full mb-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10 mx-4">
                         {suggestions.map((file) => (
                             <div
                                 key={file.id}

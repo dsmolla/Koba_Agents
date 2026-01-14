@@ -120,12 +120,34 @@ export const useChat = () => {
                 files: allFiles,
                 timestamp: timestamp
             }));
-            
+
             setStatus(null);
         } else {
             alert("Connection lost. Please wait...");
         }
     }, [session]);
 
-    return {messages, sendMessage, status, isConnected};
+    const clearMessages = useCallback(async () => {
+        if (!session?.access_token) return;
+
+        try {
+            const response = await fetch('http://localhost:8000/chat/clear', {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to clear chat history');
+            }
+
+            setMessages([]);
+        } catch (error) {
+            console.error('Error clearing chat:', error);
+            alert('Failed to clear chat history');
+        }
+    }, [session]);
+
+    return {messages, sendMessage, clearMessages, status, isConnected};
 };
