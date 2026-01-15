@@ -56,7 +56,8 @@ class SendEmailTool(BaseTool):
             gmail = await get_gmail_service(config)
             folder, downloaded_files = None, None
             if attachment_paths:
-                folder, downloaded_files = download_to_disk(attachment_paths)
+                print(f"Attachment paths: {attachment_paths}")
+                folder, downloaded_files = await download_to_disk(attachment_paths)
 
             email = await gmail.send_email(
                 to=to,
@@ -74,6 +75,7 @@ class SendEmailTool(BaseTool):
             raise e
 
         except Exception as e:
+            raise e
             return "Unable to send email due to internal error"
 
 
@@ -114,7 +116,7 @@ class DraftEmailTool(BaseTool):
             gmail = await get_gmail_service(config)
             folder, downloaded_files = None, None
             if attachment_paths:
-                folder, downloaded_files = download_to_disk(attachment_paths)
+                folder, downloaded_files = await download_to_disk(attachment_paths)
 
             draft = await gmail.create_draft(
                 to=to,
@@ -171,7 +173,7 @@ class ReplyEmailTool(BaseTool):
             gmail = await get_gmail_service(config)
             folder, downloaded_files = None, None
             if attachment_paths:
-                folder, downloaded_files = download_to_disk(attachment_paths)
+                folder, downloaded_files = await download_to_disk(attachment_paths)
 
             reply = await gmail.reply(
                 original_email=message_id,

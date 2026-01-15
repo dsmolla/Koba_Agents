@@ -1,6 +1,8 @@
 import json
+import secrets
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, Union, Annotated
 
 import filetype
@@ -337,9 +339,10 @@ class DownloadAttachmentTool(BaseTool):
                         "attachment_id": attachment["attachment_id"],
                     }
 
-                    file_id = str(uuid.uuid4())
-                    filename = attachment["filename"]
-                    upload_path = f"{user_id}/{filename} ** {file_id}"
+                    short_id = secrets.token_hex(2)
+                    file = Path(attachment["filename"])
+                    filename = f"{file.stem}_{short_id}{file.suffix}"
+                    upload_path = f"{user_id}/{filename}"
                     attachment_bytes = await gmail.get_attachment_payload(attachment_data)
                     mime_type = filetype.guess_mime(attachment_bytes)
                     size = len(attachment_bytes)
@@ -351,7 +354,6 @@ class DownloadAttachmentTool(BaseTool):
                     )
                     attachments_downloaded.append(
                         {
-                            "id": file_id,
                             "filename": filename,
                             "path": storage_path,
                             "mime_type": mime_type,
@@ -360,18 +362,19 @@ class DownloadAttachmentTool(BaseTool):
                     )
 
             else:
-                filename = ""
+                file = None
                 for attachment in email["attachments"]:
                     if attachment["attachment_id"] == attachment_id:
-                        filename = attachment["filename"]
+                        file = Path(attachment["filename"])
                         break
 
                 attachment_data = {
                     "message_id": message_id,
                     "attachment_id": attachment_id,
                 }
-                file_id = str(uuid.uuid4())
-                upload_path = f"{user_id}/{filename} ** {file_id}"
+                short_id = secrets.token_hex(2)
+                filename = f"{file.stem}_{short_id}{file.suffix}"
+                upload_path = f"{user_id}/{filename}"
                 attachment_bytes = await gmail.get_attachment_payload(attachment_data)
                 mime_type = filetype.guess_mime(attachment_bytes)
                 size = len(attachment_bytes)
@@ -382,7 +385,6 @@ class DownloadAttachmentTool(BaseTool):
                 )
                 attachments_downloaded.append(
                     {
-                        "id": file_id,
                         "filename": filename,
                         "path": storage_path,
                         "mime_type": mime_type,

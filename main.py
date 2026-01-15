@@ -1,7 +1,7 @@
 import logging
+import time
 from contextlib import asynccontextmanager
-from datetime import datetime
-from typing import Any, Literal, List
+from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
@@ -9,51 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
-from pydantic import BaseModel, Field, field_validator
+from langgraph.checkpoint.memory import MemorySaver
 
 from agents.supervisor import SupervisorAgent
 from core.db import db
 from core.dependencies import get_current_user_ws, get_current_user_http, get_db
 from core.exceptions import ProviderNotConnectedError
-
-
-class FileAttachment(BaseModel):
-    id: str
-    filename: str
-    path: str
-    mime_type: str
-    size: int
-
-
-class UserMessage(BaseModel):
-    type: Literal["message"]
-    sender: Literal["bot", "user"]
-    content: str
-    files: List[FileAttachment] = Field(default_factory=list)
-    timestamp: datetime
-
-    @field_validator("timestamp", mode="before")
-    def parse_timestamp(cls, v):
-        if isinstance(v, str):
-            try:
-                return datetime.fromisoformat(v)
-            except ValueError:
-                raise ValueError("Invalid timestamp format")
-        return v
-
-
-class GoogleCredentials(BaseModel):
-    token: str
-    refresh_token: str | None = None
-    token_uri: str | None = None
-    client_id: str | None = None
-    client_secret: str | None = None
-    scopes: list[str] | None = None
-    expiry: str | None = None
-
-    class Config:
-        extra = "allow"
-
+from core.models import GoogleCredentials, UserMessage, BotMessage
 
 load_dotenv()
 LLM_FLASH = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
@@ -64,6 +26,7 @@ supervisor_agent: SupervisorAgent | None = None
 async def lifespan(app: FastAPI):
     await db.connect()
     checkpointer = await db.get_checkpointer()
+    # checkpointer = MemorySaver()
     global supervisor_agent
     supervisor_agent = SupervisorAgent(model=LLM_FLASH, checkpointer=checkpointer)
     yield
@@ -120,15 +83,9 @@ async def websocket_endpoint(
                 original_msg = msg.additional_kwargs.get("message", {})
                 history_payload.append(original_msg)
             elif isinstance(msg, AIMessage) and msg.name == "SupervisorAgent":
-                if msg.text and not msg.tool_calls:
+                if msg.tool_calls and msg.tool_calls[0]['name'] == 'BotMessage':
                     history_payload.append(
-                        {
-                            'type': 'message',
-                            'sender': 'bot',
-                            'content': msg.text,
-                            'files': [],
-                            'timestamp': msg.additional_kwargs.get("timestamp", None),
-                        }
+                        BotMessage.model_validate(msg.tool_calls[0]['args']).model_dump()
                     )
 
         logger.info("History payload sent")
@@ -147,16 +104,19 @@ async def websocket_endpoint(
             logger.info(f"Received message: {data}")
             user_message = UserMessage(**data)
 
+            message_received_at = time.time()
+
             full_message = user_message.content
             if user_message.files:
                 full_message += "\n\n----------- Attached files -----------\n"
                 for file in user_message.files:
                     full_message += "\n"
-                    full_message += f"File name: {file.filename}"
+                    full_message += f"File name: {file.filename}\n"
                     full_message += f"File Path: {file.path}"
 
             input_message = HumanMessage(content=full_message, name='RealUser', additional_kwargs={'message': data})
             async for event in supervisor_agent.agent.astream_events({"messages": [input_message]}, config=config):
+                logger.info(f"Received event: \n{event}\n\n")
                 kind = event["event"]
                 if kind == "on_custom_event" and event["name"] == "tool_status":
                     data = event["data"]
@@ -169,16 +129,12 @@ async def websocket_endpoint(
                         }
                     )
                 elif kind == 'on_chain_end' and event['name'] == 'SupervisorAgent':
-                    content = event['data']['output']['messages'][-1].text
-                    logger.info(f"Agent Response Sent: {content}")
+                    bot_message: BotMessage = event['data']['output']['structured_response']
+                    bot_message = bot_message.model_dump()
+                    logger.info(f"Agent Response Sent: {bot_message}")
+                    logger.info(f"Response time: {time.time() - message_received_at}s")
                     await websocket.send_json(
-                        {
-                            "type": "message",
-                            "sender": "bot",
-                            "content": content,
-                            "files": [],
-                            "timestamp": datetime.now().isoformat(),
-                        }
+                        bot_message
                     )
         except WebSocketDisconnect:
             logger.info(f"User {user_id} disconnected")

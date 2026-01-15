@@ -49,7 +49,7 @@ class UploadFileTool(BaseTool):
                 {"text": "Uploading File...", "icon": "⬆️"}
             )
             drive = await get_drive_service(config)
-            folder, downloaded_file = download_to_disk([file_path])
+            folder, downloaded_file = await download_to_disk([file_path])
             file = await drive.upload_file(
                 file_path=downloaded_file[0],
                 name=name,

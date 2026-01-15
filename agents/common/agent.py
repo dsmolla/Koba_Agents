@@ -5,6 +5,7 @@ from typing import Annotated, Any, Coroutine
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
+from langchain.agents.structured_output import ResponseFormat
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
@@ -37,6 +38,7 @@ class BaseAgent(ABC):
             tools: list[BaseTool],
             system_prompt: str,
             checkpointer: BaseCheckpointSaver = None,
+            response_format: ResponseFormat = None
     ):
         self.agent = create_agent(
             name=self.name,
@@ -44,6 +46,7 @@ class BaseAgent(ABC):
             tools=tools,
             system_prompt=system_prompt,
             checkpointer=checkpointer,
+            response_format=response_format
         )
 
     async def arun(self, task: str, config: RunnableConfig):

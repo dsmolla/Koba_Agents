@@ -3,7 +3,6 @@ from google_client.api_service import APIServiceLayer
 from langchain_core.runnables import RunnableConfig
 from core.db import db
 
-
 @lru_cache(maxsize=100)
 async def get_google_service(user_id: str, timezone: str):
     user_token = await db.get_provider_token(user_id, 'google')

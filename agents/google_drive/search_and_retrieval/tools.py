@@ -1,6 +1,8 @@
 import json
+import secrets
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, Annotated
 
 import filetype
@@ -244,9 +246,10 @@ class DownloadFileTool(BaseTool):
             if not isinstance(file, DriveFile):
                 return f"Item {file_id} is a folder, not a file"
 
-            file_id = str(uuid.uuid4())
-            filename = file.name
-            upload_path = f"{user_id}/{filename} ** {file_id}"
+            short_id = secrets.token_hex(2)
+            file = Path(file.name)
+            filename = f"{file.stem}_{short_id}{file.suffix}"
+            upload_path = f"{user_id}/{filename}"
             file_bytes = await drive.get_file_payload(file)
             mime_type = filetype.guess_mime(file_bytes)
             size = len(file_bytes)
@@ -256,7 +259,6 @@ class DownloadFileTool(BaseTool):
                 file_bytes=file_bytes,
             )
             file_dict = {
-                "id": file_id,
                 "filename": filename,
                 "path": storage_path,
                 "mime_type": mime_type,

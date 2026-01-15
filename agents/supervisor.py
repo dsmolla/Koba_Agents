@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from langchain.agents.structured_output import ToolStrategy
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -9,6 +10,7 @@ from agents.gmail.agent import GmailAgent
 from agents.google_calendar.agent import CalendarAgent
 from agents.google_drive.agent import DriveAgent
 from agents.google_tasks.agent import TasksAgent
+from core.models import BotMessage
 from .common.tools import CurrentDateTimeTool
 
 
@@ -32,4 +34,6 @@ class SupervisorAgent(BaseAgent):
         system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt.txt'))
         system_prompt = system_prompt.format(tools='\n'.join(tool_descriptions))
 
-        super().__init__(model, tools, system_prompt, checkpointer)
+        response_format = ToolStrategy(BotMessage)
+
+        super().__init__(model, tools, system_prompt, checkpointer, response_format)
