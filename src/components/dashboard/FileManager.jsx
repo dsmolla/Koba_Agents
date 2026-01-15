@@ -13,7 +13,7 @@ export default function FileManager({ files, setFiles }) {
         
         try {
             await deleteFile(file)
-            setFiles(files.filter(f => f.id !== file.id));
+            setFiles(files.filter(f => f.filename !== file.filename));
         } catch {
             alert("Failed to delete file.");
         }
@@ -71,7 +71,7 @@ export default function FileManager({ files, setFiles }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {files.map((file) => (
                     <div
-                        key={file.id}
+                        key={file.filename}
                         className="group relative bg-secondary-dark-bg border border-dark-border rounded-lg p-6 flex flex-col items-center justify-center gap-4 hover:shadow-md hover:bg-primary-800 hover:cursor-pointer transition-shadow aspect-square"
                         onClick={() => downloadFile(file)}
                     >

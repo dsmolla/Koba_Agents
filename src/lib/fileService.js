@@ -1,7 +1,8 @@
 import {supabase} from "./supabase.js";
-import {v4 as uuid4} from "uuid"
+import {customAlphabet} from "nanoid";
 
 const bucket = import.meta.env.VITE_SUPABASE_USER_FILE_BUCKET;
+const generateShortID = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 4)
 
 export const downloadFile = async (file) => {
     const {data, error} = await supabase.storage.from(bucket).download(file.path);
@@ -25,13 +26,21 @@ export const uploadFiles = async (user_id, files) => {
     if (files.length === 0) return;
     const uploadedFiles = [];
     for (const file of files) {
-        const id = uuid4();
-        const filePath = `${user_id}/${file.name} ** ${id}`;
+        const short_id = generateShortID();
+        const lastDotIndex = file.name.lastIndexOf('.');
+        let filename = ''
+        if (lastDotIndex === -1) {
+            filename = `${file.name}_${short_id}`
+        } else {
+            const name = file.name.substring(0, lastDotIndex)
+            const ext = file.name.substring(lastDotIndex)
+            filename = `${name}_${short_id}${ext}`
+        }
+        const filePath = `${user_id}/${filename}`;
         const {data, error} = await supabase.storage.from(bucket).upload(filePath, file);
         if (error) throw error;
         uploadedFiles.push({
-            id: id,
-            filename: file.name,
+            filename: filename,
             path: filePath,
             mime_type: file.type,
             size: file.size
@@ -58,8 +67,7 @@ export const listFiles = async (user_id) => {
     if (data) {
         for (const file of data) {
             files.push({
-                'id': file.name.split(' ** ')[1],
-                'filename': file.name.split(' ** ')[0],
+                'filename': file.name,
                 'path': `${user_id}/${file.name}`,
                 'mime_type': file.metadata?.mimetype,
                 'size': file.metadata?.size,
