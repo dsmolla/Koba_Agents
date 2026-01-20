@@ -54,7 +54,6 @@ export const updateUserData = async ({email, fullName}) => {
     return data
 }
 
-
 export const resetUserPassword = async (email, redirectTo) => {
     const {data, error} = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
@@ -63,9 +62,16 @@ export const resetUserPassword = async (email, redirectTo) => {
     return data
 }
 
-export const signInWithGoogleProvider = async () => {
+export const signInWithGoogleProvider = async (scopes = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.readonly') => {
     const {data, error} = await supabase.auth.signInWithOAuth({
         provider: 'google',
+        options: {
+            queryParams: {
+                access_type: 'offline',
+                prompt: 'consent',
+            },
+            scopes: scopes,
+        },
     })
     if (error) throw error
     return data
