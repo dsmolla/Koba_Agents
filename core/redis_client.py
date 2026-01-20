@@ -12,7 +12,7 @@ class RedisClient:
             username=Config.REDIS_USERNAME,
             password=Config.REDIS_PASSWORD,
             decode_responses=True,
-            ssl=True,
+            # ssl=True,
             max_connections=20,
             socket_timeout=10.0,
             socket_connect_timeout=5.0,

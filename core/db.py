@@ -21,6 +21,13 @@ class Database:
                 max_size=30,
                 min_size=1,
                 open=False,
+                check=AsyncConnectionPool.check_connection,
+                kwargs={
+                    "keepalives": 1,
+                    "keepalives_idle": 30,
+                    "keepalives_interval": 10,
+                    "keepalives_count": 5,
+                }
             )
             await self._pool.open()
             await self._pool.wait()

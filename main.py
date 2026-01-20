@@ -26,7 +26,7 @@ setup_logging(Config.LOG_LEVEL)
 
 logger = logging.getLogger(__name__)
 
-LLM= ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+LLM = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 supervisor_agent: SupervisorAgent | None = None
 
 
@@ -59,7 +59,7 @@ async def save_google_credentials(
 ):
     try:
         await database.set_provider_token(user.id, 'google', creds.model_dump())
-        await redis_client.delete(user.id, 'google')
+        await redis_client.delete_provider_token(user.id, 'google')
     except Exception as e:
         logger.error(f"Failed to save credentials: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")

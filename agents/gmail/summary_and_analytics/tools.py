@@ -12,7 +12,6 @@ from langchain_core.tools import BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
-from agents.common.llm_models import MODELS
 from core.auth import get_gmail_service
 from core.cache import get_email_cache
 from core.exceptions import ProviderNotConnectedError
@@ -67,7 +66,7 @@ class SummarizeEmailsTool(BaseTool):
                 When a user asks you to summarize, extract action items or identify key points, respond with that and NO ADDITIONAL TEXT.
                 """
             )
-            llm = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash'])
+            llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
             summaries = []
 
             for i in range(0, len(emails), 5):
@@ -190,7 +189,7 @@ class ExtractFromEmailTool(BaseTool):
                 """
             )
 
-            llm = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash'])
+            llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
             extracted_data = []
 
             for i in range(0, len(emails), 5):
@@ -295,7 +294,7 @@ class ClassifyEmailTool(BaseTool):
                 """
             )
 
-            llm = ChatGoogleGenerativeAI(model=MODELS['gemini']['flash'])
+            llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
             classified_emails = []
 
             for i in range(0, len(emails), 5):
