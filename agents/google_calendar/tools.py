@@ -1,9 +1,9 @@
 import json
+import logging
 from datetime import datetime
 from typing import Optional, List, Literal, Union, Annotated
 
-from core.auth import get_calendar_service
-from core.exceptions import ProviderNotConnectedError
+from google.auth.exceptions import RefreshError
 from google_client.services.calendar import EventQueryBuilder, Attendee
 from google_client.services.calendar.async_query_builder import AsyncEventQueryBuilder
 from langchain_core.callbacks import adispatch_custom_event
@@ -11,6 +11,11 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from core.auth import get_calendar_service
+from core.exceptions import ProviderNotConnectedError
+
+logger = logging.getLogger(__name__)
 
 
 class ListCalendarsTool(BaseTool):
@@ -32,11 +37,11 @@ class ListCalendarsTool(BaseTool):
             calendars = [{'name': calendar.summary, 'id': calendar.id} for calendar in calendars]
             return json.dumps(calendars)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
-            raise e
+            logger.error(f"Error in ListCalendarsTool: {e}", exc_info=True)
             return "Unable to list calendars due to internal error"
 
 
@@ -63,10 +68,11 @@ class CreateCalendarTool(BaseTool):
             calendar_data = [{'name': calendar.summary, 'id': calendar.id}]
             return json.dumps(calendar_data)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in CreateCalendarTool: {e}", exc_info=True)
             return "Unable to create calendar due to internal error"
 
 
@@ -92,10 +98,11 @@ class DeleteCalendarTool(BaseTool):
             await calendar_service.delete_calendar(calendar_id)
             return "Calendar deleted"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in DeleteCalendarTool: {e}", exc_info=True)
             return "Unable to delete calendar due to internal error"
 
 
@@ -126,10 +133,11 @@ class GetEventsTool(BaseTool):
             event_dict = event.to_dict()
             return json.dumps(event_dict)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in GetEventsTool: {e}", exc_info=True)
             return "Unable to find event due to internal error"
 
 
@@ -199,11 +207,11 @@ class ListEventsTool(BaseTool):
             events_data = [event.to_dict() for event in events]
             return json.dumps(events_data)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
-            raise e
+            logger.error(f"Error in ListEventsTool: {e}", exc_info=True)
             return "Unable to list events due to internal error"
 
     def query_builder(self, service, params: dict) -> Union[EventQueryBuilder, AsyncEventQueryBuilder]:
@@ -297,10 +305,11 @@ class CreateEventTool(BaseTool):
             )
             return f"Event created successfully. event_id: {event.event_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in CreateEventTool: {e}", exc_info=True)
             return "Unable to create event due to internal error"
 
 
@@ -330,10 +339,11 @@ class DeleteEventTool(BaseTool):
             await calendar_service.delete_event(event=event_id, calendar_id=calendar_id)
             return f"Event deleted successfully. event_id: {event_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in DeleteEventTool: {e}", exc_info=True)
             return "Unable to delete event due to internal error"
 
 
@@ -425,10 +435,11 @@ class UpdateEventTool(BaseTool):
             updated_event = await calendar_service.update_event(event=event)
             return f"Event updated successfully. event_id: {updated_event.event_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in UpdateEventTool: {e}", exc_info=True)
             return "Unable to update event due to internal error"
 
 
@@ -481,8 +492,9 @@ class FindFreeSlotsTool(BaseTool):
 
             return json.dumps(free_slots)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in FindFreeSlotsTool: {e}", exc_info=True)
             return "Unable to find free slots due to internal error"

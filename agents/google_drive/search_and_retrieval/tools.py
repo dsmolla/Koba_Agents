@@ -1,14 +1,12 @@
 import json
+import logging
 import secrets
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Annotated
 
 import filetype
-
-from core.auth import get_drive_service
-from core.exceptions import ProviderNotConnectedError
+from google.auth.exceptions import RefreshError
 from google_client.services.drive.types import DriveFile, DriveFolder, DriveItem
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
@@ -16,7 +14,11 @@ from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from core.auth import get_drive_service
+from core.exceptions import ProviderNotConnectedError
 from core.supabase_client import upload_to_supabase
+
+logger = logging.getLogger(__name__)
 
 
 class SearchFilesInput(BaseModel):
@@ -137,10 +139,11 @@ class SearchFilesTool(BaseTool):
 
             return json.dumps(items_data)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in SearchFilesTool: {e}", exc_info=True)
             return "Unable to search files due to internal error"
 
     def _item_to_dict(self, item: DriveItem) -> dict:
@@ -215,10 +218,11 @@ class GetFileTool(BaseTool):
 
             return json.dumps(item_dict)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in GetFileTool: {e}", exc_info=True)
             return "Unable to get file due to internal error"
 
 
@@ -267,10 +271,11 @@ class DownloadFileTool(BaseTool):
 
             return json.dumps(file_dict)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in DownloadFileTool: {e}", exc_info=True)
             return "Unable to download file due to internal error"
 
 
@@ -325,10 +330,11 @@ class ListFolderContentsTool(BaseTool):
 
             return json.dumps(items_data)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in ListFolderContentsTool: {e}", exc_info=True)
             return "Unable to list folder contents due to internal error"
 
     def _item_to_dict(self, item: DriveItem) -> dict:
@@ -384,8 +390,9 @@ class GetPermissionsTool(BaseTool):
 
             return json.dumps(permissions_data)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in GetPermissionsTool: {e}", exc_info=True)
             return "Unable to get permissions due to internal error"

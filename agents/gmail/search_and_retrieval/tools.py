@@ -1,15 +1,12 @@
 import json
+import logging
 import secrets
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union, Annotated
 
 import filetype
-
-from core.auth import get_gmail_service
-from core.cache import get_email_cache
-from core.exceptions import ProviderNotConnectedError
+from google.auth.exceptions import RefreshError
 from google_client.services.gmail import EmailQueryBuilder
 from google_client.services.gmail.async_query_builder import AsyncEmailQueryBuilder
 from langchain_core.callbacks import adispatch_custom_event
@@ -18,7 +15,12 @@ from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from core.auth import get_gmail_service
+from core.cache import get_email_cache
+from core.exceptions import ProviderNotConnectedError
 from core.supabase_client import upload_to_supabase
+
+logger = logging.getLogger(__name__)
 
 
 class GetEmailInput(BaseModel):
@@ -48,10 +50,11 @@ class GetEmailTool(BaseTool):
 
             return json.dumps(email)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in GetEmailTool: {e}", exc_info=True)
             return "Unable to fetch email due to internal error"
 
 
@@ -104,10 +107,11 @@ class GetThreadDetailsTool(BaseTool):
             }
             return json.dumps(result)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in GetThreadDetailsTool: {e}", exc_info=True)
             return "Unable to get thread details due to internal error"
 
 
@@ -168,7 +172,7 @@ def build_query(service, params: dict) -> Union[EmailQueryBuilder, AsyncEmailQue
         query_builder = query_builder.yesterday()
     if params.get("last_days"):
         query_builder = query_builder.last_days(params.get("last_days"))
-    if params.get("this_week")        :
+    if params.get("this_week"):
         query_builder = query_builder.this_week()
     if params.get("this_month"):
         query_builder = query_builder.this_month()
@@ -292,10 +296,11 @@ class SearchEmailsTool(BaseTool):
 
             return json.dumps(result)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in SearchEmailsTool: {e}", exc_info=True)
             return "Unable to search emails due to internal error"
 
 
@@ -347,7 +352,6 @@ class DownloadAttachmentTool(BaseTool):
                     mime_type = filetype.guess_mime(attachment_bytes)
                     size = len(attachment_bytes)
 
-
                     storage_path = await upload_to_supabase(
                         path=upload_path,
                         file_bytes=attachment_bytes,
@@ -394,10 +398,11 @@ class DownloadAttachmentTool(BaseTool):
 
             return json.dumps(attachments_downloaded)
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in DownloadAttachmentTool: {e}", exc_info=True)
             return "Unable to download attachment due to internal error"
 
 
@@ -423,8 +428,9 @@ class ListUserLabelsTool(BaseTool):
             } for label in user_labels
             ]
             return json.dumps(user_labels)
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in ListUserLabelsTool: {e}", exc_info=True)
             return "Unable to list user labels due to internal error"

@@ -1,13 +1,18 @@
+import logging
 from typing import Annotated
 
-from core.auth import get_drive_service
-from core.exceptions import ProviderNotConnectedError
+from google.auth.exceptions import RefreshError
 from google_client.services.drive.types import DriveFolder
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from core.auth import get_drive_service
+from core.exceptions import ProviderNotConnectedError
+
+logger = logging.getLogger(__name__)
 
 
 class MoveFileInput(BaseModel):
@@ -45,10 +50,11 @@ class MoveFileTool(BaseTool):
 
             return f"{updated_item.name} moved successfully to folder {target_folder.name}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in MoveFileTool: {e}", exc_info=True)
             return "Unable to move item due to internal error"
 
 
@@ -77,10 +83,11 @@ class RenameFileTool(BaseTool):
 
             return f"Item renamed successfully to '{updated_item.name}'"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in RenameFileTool: {e}", exc_info=True)
             return "Unable to rename item due to internal error"
 
 
@@ -108,8 +115,9 @@ class DeleteFileTool(BaseTool):
 
             return f"Item deleted successfully. file_id: {file_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in DeleteFileTool: {e}", exc_info=True)
             return "Unable to delete item due to internal error"

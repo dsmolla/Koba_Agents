@@ -1,9 +1,9 @@
 import json
+import logging
 from datetime import datetime
 from typing import Optional, Literal, Union, Annotated
 
-from core.auth import get_tasks_service
-from core.exceptions import ProviderNotConnectedError
+from google.auth.exceptions import RefreshError
 from google_client.services.tasks import TaskQueryBuilder
 from google_client.services.tasks.async_query_builder import AsyncTaskQueryBuilder
 from langchain_core.callbacks import adispatch_custom_event
@@ -11,6 +11,11 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from core.auth import get_tasks_service
+from core.exceptions import ProviderNotConnectedError
+
+logger = logging.getLogger(__name__)
 
 
 class CreateTaskInput(BaseModel):
@@ -59,10 +64,11 @@ class CreateTaskTool(BaseTool):
             )
             return f"Task '{task.title}' created successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in CreateTaskTool: {e}", exc_info=True)
             return "Unable to create task due to internal error"
 
 
@@ -141,10 +147,11 @@ class ListTasksTool(BaseTool):
                 )
 
             return json.dumps(tasks_data)
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in ListTasksTool: {e}", exc_info=True)
             return "Unable to list tasks due to internal error"
 
     def query_builder(self, service, params: dict) -> Union[TaskQueryBuilder, AsyncTaskQueryBuilder]:
@@ -200,10 +207,11 @@ class DeleteTaskTool(BaseTool):
             await tasks_service.delete_task(task=task_id, task_list_id=task_list_id)
             return f"Task deleted successfully. task_id: {task_id}, task_list_id: {task_list_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in DeleteTaskTool: {e}", exc_info=True)
             return "Unable to delete task due to internal error"
 
 
@@ -233,10 +241,11 @@ class CompleteTaskTool(BaseTool):
             task = await tasks_service.mark_completed(task=task_id, task_list_id=task_list_id)
             return f"Task marked as completed. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in CompleteTaskTool: {e}", exc_info=True)
             return "Unable to complete task due to internal error"
 
 
@@ -266,10 +275,11 @@ class ReopenTaskTool(BaseTool):
             task = await tasks_service.mark_incomplete(task=task_id, task_list_id=task_list_id)
             return f"Task reopened successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in ReopenTaskTool: {e}", exc_info=True)
             return "Unable to reopen task due to internal error"
 
 
@@ -324,10 +334,11 @@ class UpdateTaskTool(BaseTool):
             updated_task = await tasks_service.update_task(task=task, task_list_id=task_list_id)
             return f"Task updated successfully. task_id: {updated_task.task_id}, task_list_id: {updated_task.task_list_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in UpdateTaskTool: {e}", exc_info=True)
             return "Unable to update task due to internal error"
 
 
@@ -353,10 +364,11 @@ class CreateTaskListTool(BaseTool):
             task_list = await tasks_service.create_task_list(title=title)
             return f"Task List created successfully. task_list_id: {task_list.task_list_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in CreateTaskListTool: {e}", exc_info=True)
             return "Unable to create task list due to internal error"
 
 
@@ -376,8 +388,9 @@ class ListTaskListsTool(BaseTool):
             tasks_service = await get_tasks_service(config)
             task_lists = await tasks_service.list_task_lists()
             return json.dumps(task_lists)
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in ListTaskListsTool: {e}", exc_info=True)
             return "Unable to list task lists due to internal error"

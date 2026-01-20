@@ -3,6 +3,8 @@ from typing import Literal, List
 
 from pydantic import BaseModel, Field
 
+from config import Config
+
 
 class FileAttachment(BaseModel):
     filename: str
@@ -29,12 +31,6 @@ class BotMessage(BaseModel):
 
 class GoogleCredentials(BaseModel):
     token: str
-    refresh_token: str | None = None
-    token_uri: str | None = None
-    client_id: str | None = None
-    client_secret: str | None = None
-    scopes: list[str] | None = None
-    expiry: str | None = None
-
-    class Config:
-        extra = "allow"
+    refresh_token: str
+    client_id: str = Config.GOOGLE_OAUTH_CLIENT_ID
+    client_secret: str = Config.GOOGLE_OAUTH_CLIENT_SECRET

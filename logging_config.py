@@ -17,7 +17,7 @@ from typing import Optional, Dict, Any
 from pythonjsonlogger import json
 
 # Create logs directory
-LOGS_DIR = Path(__file__).parent.parent / ".logs"
+LOGS_DIR = Path(__file__).parent / ".logs"
 LOGS_DIR.mkdir(exist_ok=True)
 
 LOG_FILE = LOGS_DIR / "bot.log"
@@ -208,5 +208,3 @@ def setup_logging(log_level: int = logging.DEBUG) -> None:
         'console_output': True,
         'json_output': True
     })
-
-

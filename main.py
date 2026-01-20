@@ -4,55 +4,62 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from google.auth.exceptions import RefreshError
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langgraph.checkpoint.memory import MemorySaver
 
 from agents.supervisor import SupervisorAgent
-from core.db import db
-from core.dependencies import get_current_user_ws, get_current_user_http, get_db
+from config import Config
+from core.dependencies import get_current_user_ws, get_current_user_http
 from core.exceptions import ProviderNotConnectedError
 from core.models import GoogleCredentials, UserMessage, BotMessage
+from core.db import database
+from core.redis_client import redis_client
+from logging_config import setup_logging
 
 load_dotenv()
-LLM_FLASH = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+Config.validate()
+setup_logging(Config.LOG_LEVEL)
+
+logger = logging.getLogger(__name__)
+
+LLM= ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 supervisor_agent: SupervisorAgent | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await db.connect()
-    checkpointer = await db.get_checkpointer()
-    # checkpointer = MemorySaver()
+    await database.connect()
+    checkpointer = await database.get_checkpointer()
     global supervisor_agent
-    supervisor_agent = SupervisorAgent(model=LLM_FLASH, checkpointer=checkpointer)
+    supervisor_agent = SupervisorAgent(model=LLM, checkpointer=checkpointer)
     yield
-    await db.disconnect()
+    await database.disconnect()
 
 
 app = FastAPI(lifespan=lifespan)
+
+# TODO: Update allow_origins with specific domains for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-logger = logging.getLogger("uvicorn")
-
 
 @app.post("/integrations/google")
 async def save_google_credentials(
         creds: GoogleCredentials,
-        user: Any = Depends(get_current_user_http),
-        database: Any = Depends(get_db)
+        user: Any = Depends(get_current_user_http)
 ):
     try:
-        await database.insert_provider_token(user.id, 'google', creds.model_dump())
+        await database.set_provider_token(user.id, 'google', creds.model_dump())
+        await redis_client.delete(user.id, 'google')
     except Exception as e:
         logger.error(f"Failed to save credentials: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
@@ -116,8 +123,8 @@ async def websocket_endpoint(
 
             input_message = HumanMessage(content=full_message, name='RealUser', additional_kwargs={'message': data})
             async for event in supervisor_agent.agent.astream_events({"messages": [input_message]}, config=config):
-                logger.info(f"Received event: \n{event}\n\n")
                 kind = event["event"]
+                logger.info(f"Received event: {event}\n\n")
                 if kind == "on_custom_event" and event["name"] == "tool_status":
                     data = event["data"]
                     logger.info(f"Tool Status sent {data['text']}")
@@ -149,13 +156,20 @@ async def websocket_endpoint(
                     "content": "Please authenticate your Google account."
                 }
             )
+        except RefreshError as e:
+            logger.error(f"Failed to fetch messages: {e}")
+            await websocket.send_json(
+                {
+                    "type": "error",
+                    "code": "AUTH_EXPIRED",
+                    "provider": "Google",
+                    "content": "Please re-authenticate your Google account."
+                }
+            )
 
 
 @app.delete("/chat/clear")
-async def clear_chat(
-        user: Any = Depends(get_current_user_http),
-        database: Any = Depends(get_db)
-):
+async def clear_chat(user: Any = Depends(get_current_user_http)):
     try:
         await database.clear_thread(user.id)
     except Exception as e:

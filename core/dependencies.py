@@ -1,6 +1,4 @@
 from fastapi import WebSocket, HTTPException, Header, WebSocketException, status
-
-from core.db import db
 from core.supabase_client import get_supabase
 
 
@@ -26,7 +24,3 @@ async def get_current_user_http(authorization: str = Header(None)):
         return user_response.user
     except Exception:
         raise HTTPException(401, "Invalid Token")
-
-
-async def get_db():
-    return db

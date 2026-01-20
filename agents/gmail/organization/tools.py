@@ -1,13 +1,18 @@
+import logging
 from textwrap import dedent
 from typing import Annotated
 
-from core.auth import get_gmail_service
-from core.exceptions import ProviderNotConnectedError
+from google.auth.exceptions import RefreshError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from core.auth import get_gmail_service
+from core.exceptions import ProviderNotConnectedError
+
+logger = logging.getLogger(__name__)
 
 
 class ApplyLabelInput(BaseModel):
@@ -50,10 +55,11 @@ class ApplyLabelTool(BaseTool):
 
             return "Unable to apply label due to internal error"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in ApplyLabelTool: {e}", exc_info=True)
             return "Unable to apply label due to internal error"
 
 
@@ -96,10 +102,11 @@ class RemoveLabelTool(BaseTool):
 
             return "Unable to remove label due to internal error"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in RemoveLabelTool: {e}", exc_info=True)
             return "Unable to remove label due to internal error"
 
 
@@ -125,10 +132,11 @@ class CreateLabelTool(BaseTool):
             label = await gmail.create_label(name=name)
             return f"Created label {label.name} with label_id {label.id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in CreateLabelTool: {e}", exc_info=True)
             return "Unable to create label due to internal error"
 
 
@@ -156,10 +164,11 @@ class DeleteLabelTool(BaseTool):
 
             return "Unable to delete label due to internal error"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in DeleteLabelTool: {e}", exc_info=True)
             return "Unable to delete label due to internal error"
 
 
@@ -189,10 +198,11 @@ class RenameLabelTool(BaseTool):
             )
             return f"Label with label_id {label.id} renamed to {new_name}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in RenameLabelTool: {e}", exc_info=True)
             return "Unable to rename label due to internal error"
 
 
@@ -220,8 +230,9 @@ class DeleteEmailTool(BaseTool):
 
             return "Unable to delete email message due to internal error"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in DeleteEmailTool: {e}", exc_info=True)
             return "Unable to delete email due to internal error"

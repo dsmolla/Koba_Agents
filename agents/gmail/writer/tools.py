@@ -1,6 +1,8 @@
+import logging
 import shutil
 from typing import Optional, List, Annotated
 
+from google.auth.exceptions import RefreshError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
@@ -10,6 +12,8 @@ from pydantic import BaseModel, Field
 from agents.common.download_supabase_to_disk import download_to_disk
 from core.auth import get_gmail_service
 from core.exceptions import ProviderNotConnectedError
+
+logger = logging.getLogger(__name__)
 
 
 class WriteEmailInput(BaseModel):
@@ -71,11 +75,11 @@ class SendEmailTool(BaseTool):
 
             return f"Email sent successfully. message_id: {email.message_id}, thread_id: {email.thread_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
-            raise e
+            logger.error(f"Error in SendEmailTool: {e}", exc_info=True)
             return "Unable to send email due to internal error"
 
 
@@ -131,10 +135,11 @@ class DraftEmailTool(BaseTool):
 
             return f"Draft created successfully. message_id: {draft.message_id}, thread_id: {draft.thread_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in DraftEmailTool: {e}", exc_info=True)
             return "Unable to create draft due to internal error"
 
 
@@ -184,10 +189,11 @@ class ReplyEmailTool(BaseTool):
 
             return f"Reply sent successfully. message_id: {reply.message_id}, thread_id: {reply.thread_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in ReplyEmailTool: {e}", exc_info=True)
             return "Unable to send reply due to internal error"
 
 
@@ -231,8 +237,9 @@ class ForwardEmailTool(BaseTool):
             )
             return f"Email forwarded successfully. message_id: {forward.message_id}, thread_id: {forward.thread_id}"
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in ForwardEmailTool: {e}", exc_info=True)
             return "Unable to forward email due to internal error"

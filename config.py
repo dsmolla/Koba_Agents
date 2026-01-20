@@ -7,7 +7,8 @@ load_dotenv()
 
 class Config:
     GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY")
-    GOOGLE_OAUTH_CLIENT_TOKEN = os.getenv("GOOGLE_OAUTH_CLIENT_TOKEN")
+    GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+    GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 
     SECRET_KEY = os.getenv("SECRET_KEY")
     SECRET_KEY_SALT = os.getenv("SECRET_KEY_SALT")
@@ -24,6 +25,11 @@ class Config:
     SUPABASE_DB_URL = os.getenv("SUPABASE_DB_URL")
     SUPABASE_USER_FILE_BUCKET = os.getenv("SUPABASE_USER_FILE_BUCKET")
 
+    REDIS_HOST = os.getenv("REDIS_HOST")
+    REDIS_PORT = os.getenv("REDIS_PORT")
+    REDIS_USERNAME = os.getenv("REDIS_USERNAME")
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
     @classmethod
@@ -32,8 +38,10 @@ class Config:
 
         if not cls.GEMINI_API_KEY:
             errors.append('GOOGLE_API_KEY environment variable is not set')
-        if not cls.GOOGLE_OAUTH_CLIENT_TOKEN:
-            errors.append('GOOGLE_OAUTH_CLIENT_TOKEN environment variable is not set')
+        if not cls.GOOGLE_OAUTH_CLIENT_ID:
+            errors.append('GOOGLE_OAUTH_CLIENT_ID environment variable is not set')
+        if not cls.GOOGLE_OAUTH_CLIENT_SECRET:
+            errors.append('GOOGLE_OAUTH_CLIENT_SECRET environment variable is not set')
         if not cls.SECRET_KEY:
             errors.append('SECRET_KEY environment variable is not set')
         if not cls.SECRET_KEY_SALT:

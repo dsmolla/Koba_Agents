@@ -1,11 +1,9 @@
 import json
+import logging
 from textwrap import dedent
 from typing import Optional, Literal, Annotated
 
-from agents.common.llm_models import MODELS
-from core.auth import get_gmail_service
-from core.cache import get_email_cache
-from core.exceptions import ProviderNotConnectedError
+from google.auth.exceptions import RefreshError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
@@ -13,6 +11,13 @@ from langchain_core.tools import ArgsSchema, InjectedToolArg
 from langchain_core.tools import BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
+
+from agents.common.llm_models import MODELS
+from core.auth import get_gmail_service
+from core.cache import get_email_cache
+from core.exceptions import ProviderNotConnectedError
+
+logger = logging.getLogger(__name__)
 
 
 class SummarizeEmailsInput(BaseModel):
@@ -131,10 +136,11 @@ class SummarizeEmailsTool(BaseTool):
 
             return final_answer.content
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in SummarizeEmailsTool: {e}", exc_info=True)
             return "Unable to summarize emails due to internal error"
 
 
@@ -233,10 +239,11 @@ class ExtractFromEmailTool(BaseTool):
 
             return final_answer.content
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in ExtractFromEmailTool: {e}", exc_info=True)
             return "Unable to extract from emails due to internal error"
 
 
@@ -333,8 +340,9 @@ class ClassifyEmailTool(BaseTool):
 
             return final_answer.content
 
-        except ProviderNotConnectedError as e:
+        except (ProviderNotConnectedError, RefreshError) as e:
             raise e
 
         except Exception as e:
+            logger.error(f"Error in ClassifyEmailTool: {e}", exc_info=True)
             return "Unable to classify emails due to internal error"

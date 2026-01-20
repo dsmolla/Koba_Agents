@@ -2,11 +2,11 @@ from contextlib import asynccontextmanager
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg.rows import dict_row
-from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
 from config import Config
 from core.exceptions import ProviderNotConnectedError
+from core.token_encryption import token_encryptor
 
 
 class Database:
@@ -41,7 +41,7 @@ class Database:
         checkpointer = await self.get_checkpointer()
         await checkpointer.adelete_thread(thread_id)
 
-    async def get_provider_token(self, user_id, provider) -> dict:
+    async def get_provider_token(self, user_id: str, provider: str) -> dict:
         async with self._pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute("SELECT * FROM public.user_integrations WHERE user_id = %s AND provider = %s ",
@@ -50,9 +50,9 @@ class Database:
                 if not row:
                     raise ProviderNotConnectedError(provider)
 
-                return row['credentials']
+                return token_encryptor.decrypt(row['credentials'])
 
-    async def insert_provider_token(self, user_id, provider, token):
+    async def set_provider_token(self, user_id: str, provider: str, token: dict):
         query = """
             INSERT INTO public.user_integrations (user_id, provider, credentials, updated_at)
             VALUES (%s, %s, %s, NOW())
@@ -62,7 +62,8 @@ class Database:
         """
         async with self._pool.connection() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(query, (user_id, provider, Jsonb(token)))
+                encrypted_token = token_encryptor.encrypt(token)
+                await cur.execute(query, (user_id, provider, encrypted_token))
 
     @asynccontextmanager
     async def connection(self):
@@ -93,4 +94,4 @@ class Database:
                 await cur.execute(query, params)
 
 
-db = Database()
+database = Database()
