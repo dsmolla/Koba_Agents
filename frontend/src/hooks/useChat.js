@@ -1,0 +1,153 @@
+import {useState, useEffect, useRef, useCallback} from 'react';
+import {supabase} from "../lib/supabase.js";
+import {uploadFiles} from "../lib/fileService.js";
+
+export const useChat = () => {
+    const [messages, setMessages] = useState([]);
+    const [status, setStatus] = useState(null);
+    const [isConnected, setIsConnected] = useState(false);
+    const ws = useRef(null);
+    const [session, setSession] = useState(null);
+
+    const handleServerMessage = (data) => {
+        switch (data.type) {
+            case 'history':
+                console.log(data);
+                setMessages(data.messages);
+                setStatus(null);
+                break;
+
+            case 'message':
+                setMessages(messages => [...messages, {
+                    sender: data.sender,
+                    content: data.content,
+                    files: data.files,
+                    timestamp: data.timestamp
+                }]);
+                setStatus(null);
+                break;
+
+            case 'status':
+                setStatus({content: data.content, icon: data.icon});
+                break;
+
+            case 'error':
+                if (data.code === 'AUTH_REQUIRED') {
+                    console.error("Auth required:", data.content);
+                    alert(`Authentication Session Expired: ${data.content}`);
+                    setStatus(null);
+                } else {
+                    alert(`Error: ${data.content}`);
+                    setStatus(null);
+                }
+                break;
+
+            default:
+                console.warn("Unknown message type:", data.type);
+        }
+    };
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({data: {session}}) => {
+            setSession(session);
+        });
+
+        const {
+            data: {subscription},
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        if (!session?.access_token) return;
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+        const wsUrl = `http://localhost:8000/ws/chat?token=${session.access_token}&timezone=${timezone}`;
+
+        const socket = new WebSocket(wsUrl);
+        ws.current = socket;
+
+        socket.onopen = () => {
+            setIsConnected(true);
+        };
+
+        socket.onclose = () => {
+            setIsConnected(false);
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            handleServerMessage(data);
+        };
+
+        return () => socket.close();
+    }, [session]);
+
+    const sendMessage = useCallback(async (text, stagedFiles = [], referencedFiles = []) => {
+        if (ws.current?.readyState === WebSocket.OPEN) {
+            const timestamp = Date.now();
+
+            let uploadedFiles = [];
+            if (stagedFiles.length > 0) {
+                try {
+                    setStatus({content: "Uploading files...", icon: "📤"});
+                    uploadedFiles = await uploadFiles(session.user.id, stagedFiles)
+                } catch {
+                    alert("Failed to upload files. Please try again.");
+                    setStatus(null);
+                    return;
+                }
+            }
+
+            const allFiles = [...uploadedFiles, ...referencedFiles];
+
+            setMessages(prev => [...prev, {
+                type: 'message',
+                sender: 'user',
+                content: text,
+                files: allFiles,
+                timestamp: timestamp
+            }]);
+
+            ws.current.send(JSON.stringify({
+                type: 'message',
+                sender: 'user',
+                content: text,
+                files: allFiles,
+                timestamp: timestamp
+            }));
+
+            setStatus(null);
+        } else {
+            alert("Connection lost. Please wait...");
+        }
+    }, [session]);
+
+    const clearMessages = useCallback(async () => {
+        if (!session?.access_token) return;
+
+        try {
+            const response = await fetch('http://localhost:8000/chat/clear', {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to clear chat history');
+            }
+
+            setMessages([]);
+        } catch (error) {
+            console.error('Error clearing chat:', error);
+            alert('Failed to clear chat history');
+        }
+    }, [session]);
+
+    return {messages, sendMessage, clearMessages, status, isConnected};
+};
