@@ -4,19 +4,21 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from google.auth.exceptions import RefreshError
+from google_client.api_service import APIServiceLayer
+from google_client.auth import GoogleOAuthManager
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from agents.supervisor import SupervisorAgent
 from config import Config
+from core.db import database
 from core.dependencies import get_current_user_ws, get_current_user_http
 from core.exceptions import ProviderNotConnectedError
 from core.models import GoogleCredentials, UserMessage, BotMessage
-from core.db import database
 from core.redis_client import redis_client
 from logging_config import setup_logging
 
@@ -62,6 +64,38 @@ async def save_google_credentials(
         await redis_client.delete_provider_token(user.id, 'google')
     except Exception as e:
         logger.error(f"Failed to save credentials: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+@app.get("/integrations/{provider}")
+async def get_integration_status(
+        provider: str,
+        user: Any = Depends(get_current_user_http)
+):
+    try:
+        token = await database.get_provider_token(user.id, provider)
+        APIServiceLayer(token).refresh_token()
+        return {"connected": True}
+    except (ProviderNotConnectedError, RefreshError):
+        return {"connected": False}
+    except Exception as e:
+        logger.error(f"Failed to check integration status: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+@app.delete("/integrations/{provider}")
+async def delete_integration(
+        provider: str,
+        user: Any = Depends(get_current_user_http)
+):
+    try:
+        token = await database.get_provider_token(user.id, provider)
+        await database.delete_provider_token(user.id, provider)
+        await redis_client.delete_provider_token(user.id, provider)
+        if APIServiceLayer(token).revoke_token():
+            return {"message": "Integration removed"}
+    except Exception as e:
+        logger.error(f"Failed to remove integration: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 

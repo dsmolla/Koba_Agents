@@ -72,6 +72,12 @@ class Database:
                 encrypted_token = token_encryptor.encrypt(token)
                 await cur.execute(query, (user_id, provider, encrypted_token))
 
+    async def delete_provider_token(self, user_id: str, provider: str):
+        query = "DELETE FROM public.user_integrations WHERE user_id = %s AND provider = %s"
+        async with self._pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, (user_id, provider))
+
     @asynccontextmanager
     async def connection(self):
         async with self._pool.connection() as conn:
