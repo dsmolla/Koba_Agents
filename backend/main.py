@@ -3,6 +3,7 @@ import time
 from contextlib import asynccontextmanager
 from typing import Any
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,7 +61,20 @@ async def save_google_credentials(
         user: Any = Depends(get_current_user_http)
 ):
     try:
-        await database.set_provider_token(user.id, 'google', creds.model_dump())
+        # Fetch scopes from Google
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={creds.token}")
+            if resp.status_code == 200:
+                data = resp.json()
+                scopes = data.get("scope", "")
+            else:
+                logger.warning(f"Failed to fetch token info: {resp.text}")
+                scopes = ""
+
+        creds_dict = creds.model_dump()
+        creds_dict["scopes"] = scopes
+
+        await database.set_provider_token(user.id, 'google', creds_dict)
         await redis_client.delete_provider_token(user.id, 'google')
     except Exception as e:
         logger.error(f"Failed to save credentials: {e}")
@@ -73,11 +87,10 @@ async def get_integration_status(
         user: Any = Depends(get_current_user_http)
 ):
     try:
-        token = await database.get_provider_token(user.id, provider)
-        APIServiceLayer(token).refresh_token()
-        return {"connected": True}
-    except (ProviderNotConnectedError, RefreshError):
-        return {"connected": False}
+        creds = await database.get_provider_token(user.id, provider)
+        return {"connected": True, "scopes": creds.get("scopes", "")}
+    except ProviderNotConnectedError:
+        return {"connected": False, "scopes": ""}
     except Exception as e:
         logger.error(f"Failed to check integration status: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")

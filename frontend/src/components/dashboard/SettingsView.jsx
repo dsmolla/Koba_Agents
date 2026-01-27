@@ -9,6 +9,7 @@ export default function SettingsView({user}) {
     const navigate = useNavigate();
     const [isEditing, setIsEditing] = useState(false);
     const [googleConnected, setGoogleConnected] = useState(false);
+    const [googleScopes, setGoogleScopes] = useState("");
     const [formData, setFormData] = useState({
         email: user?.email || '',
         fullName: user?.user_metadata?.full_name || ''
@@ -28,6 +29,7 @@ export default function SettingsView({user}) {
                 if (response.ok) {
                     const data = await response.json();
                     setGoogleConnected(data.connected);
+                    setGoogleScopes(data.scopes || "");
                 }
             } catch (error) {
                 console.error("Error checking google connection:", error);
@@ -37,9 +39,19 @@ export default function SettingsView({user}) {
         checkGoogleConnection();
     }, []);
 
-    const handleConnectService = async (service, scope) => {
+    const hasScope = (scope) => {
+        return googleScopes.includes(scope);
+    };
+
+    const handleConnectService = async (service, newScope) => {
         try {
-            await signInWithGoogleProvider(scope);
+            const validScopes = googleScopes ? googleScopes.split(' ') : [];
+            const newScopesToAdd = newScope.split(' ');
+            
+            const allScopes = new Set([...validScopes, ...newScopesToAdd]);
+            const scopeString = Array.from(allScopes).join(' ');
+
+            await signInWithGoogleProvider(scopeString);
         } catch (error) {
             console.error(`Error connecting ${service}:`, error);
             toast.error(`Failed to connect ${service}`);
@@ -59,6 +71,7 @@ export default function SettingsView({user}) {
             });
             if (response.ok) {
                 setGoogleConnected(false);
+                setGoogleScopes("");
                 toast.success(`Disconnected ${service}`);
             } else {
                 toast.error("Failed to disconnect");
@@ -189,14 +202,14 @@ export default function SettingsView({user}) {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg mb-4">
                                 <div>
-                                    <p className="text-blue-100 font-medium">{googleConnected ? 'Disconnect All Services' : 'Connect All Services'}</p>
+                                    <p className="text-blue-100 font-medium">{googleConnected ? 'Google Account Connected' : 'Connect All Services'}</p>
                                     <p className="text-sm text-blue-300">{googleConnected ? 'Revoke access to all Google services' : 'Grant access to all Google services at once'}</p>
                                 </div>
                                 <button
-                                    onClick={() => googleConnected ? handleDisconnectService('All Services') : handleConnectService('All Services', 'https://mail.google.com/ https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/tasks')}
+                                    onClick={() => googleConnected ? handleDisconnectService('Google Account') : handleConnectService('All Services', 'https://mail.google.com/ https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/tasks')}
                                     className={`px-4 py-2 ${googleConnected ? 'bg-red-400 hover:bg-red-300 shadow-red-900/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'} text-white rounded hover:cursor-pointer text-sm font-medium transition-colors shadow-lg`}
                                 >
-                                    {googleConnected ? 'Disconnect All' : 'Connect All'}
+                                    {googleConnected ? 'Disconnect Account' : 'Connect All'}
                                 </button>
                             </div>
 
@@ -205,15 +218,21 @@ export default function SettingsView({user}) {
                                     <GmailIcon size={40} className='mr-2'/>
                                     <div>
                                         <p className="text-gray-200 font-medium">Gmail</p>
-                                        <p className="text-sm text-gray-400">{googleConnected ? 'Connected' : 'Connect to access your emails'}</p>
+                                        <p className="text-sm text-gray-400">{hasScope('https://mail.google.com/') ? 'Connected' : 'Connect to access your emails'}</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => googleConnected ? handleDisconnectService('Gmail') : handleConnectService('Gmail', 'https://mail.google.com/')}
-                                    className={`flex items-center gap-2 px-4 py-1.5 ${googleConnected ? 'bg-red-400 hover:bg-red-300' : 'bg-google-dark hover:bg-google-hover'} text-white rounded hover:cursor-pointer text-sm font-medium transition-colors`}
-                                >
-                                    {googleConnected ? 'Disconnect' : 'Connect'}
-                                </button>
+                                {hasScope('https://mail.google.com/') ? (
+                                    <span className="text-green-400 text-sm font-medium flex items-center gap-2 px-4 py-1.5">
+                                        <Check size={16}/> Connected
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={() => handleConnectService('Gmail', 'https://mail.google.com/')}
+                                        className="flex items-center gap-2 px-4 py-1.5 bg-google-dark text-white rounded hover:bg-google-hover hover:cursor-pointer text-sm font-medium transition-colors"
+                                    >
+                                        Connect
+                                    </button>
+                                )}
                             </div>
 
                             <div className="flex items-center justify-between p-3 bg-dark-input-bg/30 rounded-lg">
@@ -221,15 +240,21 @@ export default function SettingsView({user}) {
                                     <GoogleCalendarIcon size={40} className="mr-2"/>
                                     <div>
                                         <p className="text-gray-200 font-medium">Google Calendar</p>
-                                        <p className="text-sm text-gray-400">{googleConnected ? 'Connected' : 'Connect to manage events'}</p>
+                                        <p className="text-sm text-gray-400">{hasScope('https://www.googleapis.com/auth/calendar') ? 'Connected' : 'Connect to manage events'}</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => googleConnected ? handleDisconnectService('Calendar') : handleConnectService('Calendar', 'https://www.googleapis.com/auth/calendar')}
-                                    className={`flex items-center gap-2 px-4 py-1.5 ${googleConnected ? 'bg-red-400 hover:bg-red-300' : 'bg-google-dark hover:bg-google-hover'} text-white rounded hover:cursor-pointer text-sm font-medium transition-colors`}
-                                >
-                                    {googleConnected ? 'Disconnect' : 'Connect'}
-                                </button>
+                                {hasScope('https://www.googleapis.com/auth/calendar') ? (
+                                    <span className="text-green-400 text-sm font-medium flex items-center gap-2 px-4 py-1.5">
+                                        <Check size={16}/> Connected
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={() => handleConnectService('Calendar', 'https://www.googleapis.com/auth/calendar')}
+                                        className="flex items-center gap-2 px-4 py-1.5 bg-google-dark text-white rounded hover:bg-google-hover hover:cursor-pointer text-sm font-medium transition-colors"
+                                    >
+                                        Connect
+                                    </button>
+                                )}
                             </div>
 
                             <div className="flex items-center justify-between p-3 bg-dark-input-bg/30 rounded-lg">
@@ -237,15 +262,21 @@ export default function SettingsView({user}) {
                                     <GoogleDriveIcon size={40} className="mr-2"/>
                                     <div>
                                         <p className="text-gray-200 font-medium">Google Drive</p>
-                                        <p className="text-sm text-gray-400">{googleConnected ? 'Connected' : 'Connect to access files'}</p>
+                                        <p className="text-sm text-gray-400">{hasScope('https://www.googleapis.com/auth/drive') ? 'Connected' : 'Connect to access files'}</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => googleConnected ? handleDisconnectService('Drive') : handleConnectService('Drive', 'https://www.googleapis.com/auth/drive')}
-                                    className={`flex items-center gap-2 px-4 py-1.5 ${googleConnected ? 'bg-red-400 hover:bg-red-300' : 'bg-google-dark hover:bg-google-hover'} text-white rounded hover:cursor-pointer text-sm font-medium transition-colors`}
-                                >
-                                    {googleConnected ? 'Disconnect' : 'Connect'}
-                                </button>
+                                {hasScope('https://www.googleapis.com/auth/drive') ? (
+                                    <span className="text-green-400 text-sm font-medium flex items-center gap-2 px-4 py-1.5">
+                                        <Check size={16}/> Connected
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={() => handleConnectService('Drive', 'https://www.googleapis.com/auth/drive')}
+                                        className="flex items-center gap-2 px-4 py-1.5 bg-google-dark text-white rounded hover:bg-google-hover hover:cursor-pointer text-sm font-medium transition-colors"
+                                    >
+                                        Connect
+                                    </button>
+                                )}
                             </div>
 
                             <div className="flex items-center justify-between p-3 bg-dark-input-bg/30 rounded-lg">
@@ -253,15 +284,21 @@ export default function SettingsView({user}) {
                                     <GoogleTasksIcon size={40} className="mr-2"/>
                                     <div>
                                         <p className="text-gray-200 font-medium">Google Tasks</p>
-                                        <p className="text-sm text-gray-400">{googleConnected ? 'Connected' : 'Connect to manage tasks'}</p>
+                                        <p className="text-sm text-gray-400">{hasScope('https://www.googleapis.com/auth/tasks') ? 'Connected' : 'Connect to manage tasks'}</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => googleConnected ? handleDisconnectService('Tasks') : handleConnectService('Tasks', 'https://www.googleapis.com/auth/tasks')}
-                                    className={`flex items-center gap-2 px-4 py-1.5 ${googleConnected ? 'bg-red-400 hover:bg-red-300' : 'bg-google-dark hover:bg-google-hover'} text-white rounded hover:cursor-pointer text-sm font-medium transition-colors`}
-                                >
-                                    {googleConnected ? 'Disconnect' : 'Connect'}
-                                </button>
+                                {hasScope('https://www.googleapis.com/auth/tasks') ? (
+                                    <span className="text-green-400 text-sm font-medium flex items-center gap-2 px-4 py-1.5">
+                                        <Check size={16}/> Connected
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={() => handleConnectService('Tasks', 'https://www.googleapis.com/auth/tasks')}
+                                        className="flex items-center gap-2 px-4 py-1.5 bg-google-dark text-white rounded hover:bg-google-hover hover:cursor-pointer text-sm font-medium transition-colors"
+                                    >
+                                        Connect
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
