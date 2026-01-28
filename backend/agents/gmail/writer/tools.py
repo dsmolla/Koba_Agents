@@ -3,6 +3,7 @@ import shutil
 from typing import Optional, List, Annotated
 
 from google.auth.exceptions import RefreshError
+from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
@@ -75,7 +76,12 @@ class SendEmailTool(BaseTool):
 
             return f"Email sent successfully. message_id: {email.message_id}, thread_id: {email.thread_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -135,7 +141,12 @@ class DraftEmailTool(BaseTool):
 
             return f"Draft created successfully. message_id: {draft.message_id}, thread_id: {draft.thread_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -189,7 +200,12 @@ class ReplyEmailTool(BaseTool):
 
             return f"Reply sent successfully. message_id: {reply.message_id}, thread_id: {reply.thread_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -237,7 +253,12 @@ class ForwardEmailTool(BaseTool):
             )
             return f"Email forwarded successfully. message_id: {forward.message_id}, thread_id: {forward.thread_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:

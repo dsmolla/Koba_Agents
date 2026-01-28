@@ -4,6 +4,7 @@ from textwrap import dedent
 from typing import Optional, Literal, Annotated
 
 from google.auth.exceptions import RefreshError
+from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
@@ -135,7 +136,12 @@ class SummarizeEmailsTool(BaseTool):
 
             return final_answer.content
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -238,7 +244,12 @@ class ExtractFromEmailTool(BaseTool):
 
             return final_answer.content
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -339,7 +350,12 @@ class ClassifyEmailTool(BaseTool):
 
             return final_answer.content
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:

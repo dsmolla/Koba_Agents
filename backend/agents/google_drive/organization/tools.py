@@ -3,6 +3,7 @@ from typing import Annotated
 
 from google.auth.exceptions import RefreshError
 from google_client.services.drive.types import DriveFolder
+from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
@@ -50,7 +51,12 @@ class MoveFileTool(BaseTool):
 
             return f"{updated_item.name} moved successfully to folder {target_folder.name}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:
@@ -83,7 +89,12 @@ class RenameFileTool(BaseTool):
 
             return f"Item renamed successfully to '{updated_item.name}'"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:
@@ -115,7 +126,12 @@ class DeleteFileTool(BaseTool):
 
             return f"Item deleted successfully. file_id: {file_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:

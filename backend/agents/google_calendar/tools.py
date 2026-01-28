@@ -6,6 +6,7 @@ from typing import Optional, List, Literal, Union, Annotated
 from google.auth.exceptions import RefreshError
 from google_client.services.calendar import EventQueryBuilder, Attendee
 from google_client.services.calendar.async_query_builder import AsyncEventQueryBuilder
+from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
@@ -37,7 +38,12 @@ class ListCalendarsTool(BaseTool):
             calendars = [{'name': calendar.summary, 'id': calendar.id} for calendar in calendars]
             return json.dumps(calendars)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
             raise e
 
         except Exception as e:
@@ -68,7 +74,12 @@ class CreateCalendarTool(BaseTool):
             calendar_data = [{'name': calendar.summary, 'id': calendar.id}]
             return json.dumps(calendar_data)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
             raise e
 
         except Exception as e:
@@ -98,7 +109,12 @@ class DeleteCalendarTool(BaseTool):
             await calendar_service.delete_calendar(calendar_id)
             return "Calendar deleted"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
             raise e
 
         except Exception as e:
@@ -133,7 +149,12 @@ class GetEventsTool(BaseTool):
             event_dict = event.to_dict()
             return json.dumps(event_dict)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
             raise e
 
         except Exception as e:
@@ -207,7 +228,12 @@ class ListEventsTool(BaseTool):
             events_data = [event.to_dict() for event in events]
             return json.dumps(events_data)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
             raise e
 
         except Exception as e:
@@ -305,7 +331,12 @@ class CreateEventTool(BaseTool):
             )
             return f"Event created successfully. event_id: {event.event_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
             raise e
 
         except Exception as e:
@@ -339,7 +370,12 @@ class DeleteEventTool(BaseTool):
             await calendar_service.delete_event(event=event_id, calendar_id=calendar_id)
             return f"Event deleted successfully. event_id: {event_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
             raise e
 
         except Exception as e:
@@ -435,7 +471,12 @@ class UpdateEventTool(BaseTool):
             updated_event = await calendar_service.update_event(event=event)
             return f"Event updated successfully. event_id: {updated_event.event_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
             raise e
 
         except Exception as e:
@@ -492,7 +533,12 @@ class FindFreeSlotsTool(BaseTool):
 
             return json.dumps(free_slots)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your calendar. Connect Google Calendar from the settings page."
             raise e
 
         except Exception as e:

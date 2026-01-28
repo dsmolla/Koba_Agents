@@ -9,6 +9,7 @@ import filetype
 from google.auth.exceptions import RefreshError
 from google_client.services.gmail import EmailQueryBuilder
 from google_client.services.gmail.async_query_builder import AsyncEmailQueryBuilder
+from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
@@ -50,7 +51,12 @@ class GetEmailTool(BaseTool):
 
             return json.dumps(email)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -107,7 +113,12 @@ class GetThreadDetailsTool(BaseTool):
             }
             return json.dumps(result)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -296,9 +307,14 @@ class SearchEmailsTool(BaseTool):
 
             return json.dumps(result)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
-
+        
         except Exception as e:
             logger.error(f"Error in SearchEmailsTool: {e}", exc_info=True)
             return "Unable to search emails due to internal error"
@@ -398,7 +414,12 @@ class DownloadAttachmentTool(BaseTool):
 
             return json.dumps(attachments_downloaded)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -428,7 +449,12 @@ class ListUserLabelsTool(BaseTool):
             } for label in user_labels
             ]
             return json.dumps(user_labels)
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:

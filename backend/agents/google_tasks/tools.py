@@ -6,6 +6,7 @@ from typing import Optional, Literal, Union, Annotated
 from google.auth.exceptions import RefreshError
 from google_client.services.tasks import TaskQueryBuilder
 from google_client.services.tasks.async_query_builder import AsyncTaskQueryBuilder
+from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
@@ -64,7 +65,12 @@ class CreateTaskTool(BaseTool):
             )
             return f"Task '{task.title}' created successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
+
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
             raise e
 
         except Exception as e:
@@ -147,7 +153,12 @@ class ListTasksTool(BaseTool):
                 )
 
             return json.dumps(tasks_data)
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
+
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
             raise e
 
         except Exception as e:
@@ -207,7 +218,12 @@ class DeleteTaskTool(BaseTool):
             await tasks_service.delete_task(task=task_id, task_list_id=task_list_id)
             return f"Task deleted successfully. task_id: {task_id}, task_list_id: {task_list_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
+
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
             raise e
 
         except Exception as e:
@@ -241,7 +257,12 @@ class CompleteTaskTool(BaseTool):
             task = await tasks_service.mark_completed(task=task_id, task_list_id=task_list_id)
             return f"Task marked as completed. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
+
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
             raise e
 
         except Exception as e:
@@ -275,7 +296,12 @@ class ReopenTaskTool(BaseTool):
             task = await tasks_service.mark_incomplete(task=task_id, task_list_id=task_list_id)
             return f"Task reopened successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
+
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
             raise e
 
         except Exception as e:
@@ -334,7 +360,12 @@ class UpdateTaskTool(BaseTool):
             updated_task = await tasks_service.update_task(task=task, task_list_id=task_list_id)
             return f"Task updated successfully. task_id: {updated_task.task_id}, task_list_id: {updated_task.task_list_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
+
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
             raise e
 
         except Exception as e:
@@ -364,7 +395,12 @@ class CreateTaskListTool(BaseTool):
             task_list = await tasks_service.create_task_list(title=title)
             return f"Task List created successfully. task_list_id: {task_list.task_list_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
+
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
             raise e
 
         except Exception as e:
@@ -388,7 +424,12 @@ class ListTaskListsTool(BaseTool):
             tasks_service = await get_tasks_service(config)
             task_lists = await tasks_service.list_task_lists()
             return json.dumps(task_lists)
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
+
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
             raise e
 
         except Exception as e:

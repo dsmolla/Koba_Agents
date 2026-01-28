@@ -4,6 +4,7 @@ from typing import Optional, Literal, Annotated
 
 from google.auth.exceptions import RefreshError
 from google_client.services.drive.types import DriveFolder
+from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
@@ -64,7 +65,12 @@ class UploadFileTool(BaseTool):
 
             return f"File uploaded successfully. file_id: {file.file_id}, name: {file.name}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:
@@ -119,7 +125,12 @@ class CreateFolderTool(BaseTool):
 
             return f"Folder created successfully. folder_id: {folder.folder_id}, name: {folder.name}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:
@@ -180,7 +191,12 @@ class ShareFileTool(BaseTool):
 
             return f"File shared successfully with {email} as {role}. permission_id: {permission.permission_id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:

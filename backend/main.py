@@ -9,7 +9,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPExcept
 from fastapi.middleware.cors import CORSMiddleware
 from google.auth.exceptions import RefreshError
 from google_client.api_service import APIServiceLayer
-from google_client.auth import GoogleOAuthManager
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -61,7 +60,6 @@ async def save_google_credentials(
         user: Any = Depends(get_current_user_http)
 ):
     try:
-        # Fetch scopes from Google
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={creds.token}")
             if resp.status_code == 200:

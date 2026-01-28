@@ -3,6 +3,7 @@ from textwrap import dedent
 from typing import Annotated
 
 from google.auth.exceptions import RefreshError
+from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
@@ -55,7 +56,9 @@ class ApplyLabelTool(BaseTool):
 
             return "Unable to apply label due to internal error"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -102,7 +105,9 @@ class RemoveLabelTool(BaseTool):
 
             return "Unable to remove label due to internal error"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -132,7 +137,9 @@ class CreateLabelTool(BaseTool):
             label = await gmail.create_label(name=name)
             return f"Created label {label.name} with label_id {label.id}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -164,7 +171,9 @@ class DeleteLabelTool(BaseTool):
 
             return "Unable to delete label due to internal error"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -198,7 +207,9 @@ class RenameLabelTool(BaseTool):
             )
             return f"Label with label_id {label.id} renamed to {new_name}"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:
@@ -230,7 +241,9 @@ class DeleteEmailTool(BaseTool):
 
             return "Unable to delete email message due to internal error"
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
             raise e
 
         except Exception as e:

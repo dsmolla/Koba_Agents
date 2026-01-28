@@ -8,6 +8,7 @@ from typing import Optional, Annotated
 import filetype
 from google.auth.exceptions import RefreshError
 from google_client.services.drive.types import DriveFile, DriveFolder, DriveItem
+from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
@@ -139,7 +140,12 @@ class SearchFilesTool(BaseTool):
 
             return json.dumps(items_data)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:
@@ -218,7 +224,12 @@ class GetFileTool(BaseTool):
 
             return json.dumps(item_dict)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:
@@ -271,7 +282,12 @@ class DownloadFileTool(BaseTool):
 
             return json.dumps(file_dict)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:
@@ -330,7 +346,12 @@ class ListFolderContentsTool(BaseTool):
 
             return json.dumps(items_data)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:
@@ -390,7 +411,12 @@ class GetPermissionsTool(BaseTool):
 
             return json.dumps(permissions_data)
 
-        except (ProviderNotConnectedError, RefreshError) as e:
+        except (ProviderNotConnectedError, RefreshError):
+            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
+        
+        except HttpError as e:
+            if e.status_code == 403:
+                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
             raise e
 
         except Exception as e:
