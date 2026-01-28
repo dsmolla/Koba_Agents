@@ -61,7 +61,6 @@ class SendEmailTool(BaseTool):
             gmail = await get_gmail_service(config)
             folder, downloaded_files = None, None
             if attachment_paths:
-                print(f"Attachment paths: {attachment_paths}")
                 folder, downloaded_files = await download_to_disk(attachment_paths)
 
             email = await gmail.send_email(
