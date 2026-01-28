@@ -64,27 +64,67 @@ export const useChat = () => {
     useEffect(() => {
         if (!session?.access_token) return;
 
-        const apiUrl = import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000';
-        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-        const wsUrl = `${apiUrl}/ws/chat?token=${session.access_token}&timezone=${timezone}`;
+        let socket = null;
+        let reconnectTimeout = null;
 
-        const socket = new WebSocket(wsUrl);
-        ws.current = socket;
+        const connectWebSocket = async () => {
+            try {
+                const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+                
+                // 1. Get a one-time ticket
+                const ticketResponse = await fetch(`${backendUrl}/auth/ticket`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                });
 
-        socket.onopen = () => {
-            setIsConnected(true);
+                if (!ticketResponse.ok) {
+                    console.error("Failed to get WebSocket ticket");
+                    reconnectTimeout = setTimeout(connectWebSocket, 5000); // Retry after 5s if auth fails
+                    return;
+                }
+
+                const { ticket } = await ticketResponse.json();
+
+                const apiUrl = import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000';
+                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+                const wsUrl = `${apiUrl}/ws/chat?ticket=${ticket}&timezone=${timezone}`;
+
+                socket = new WebSocket(wsUrl);
+                ws.current = socket;
+
+                socket.onopen = () => {
+                    setIsConnected(true);
+                    console.log("WebSocket connected");
+                };
+
+                socket.onclose = () => {
+                    setIsConnected(false);
+                    console.log("WebSocket disconnected. Reconnecting in 3s...");
+                    reconnectTimeout = setTimeout(connectWebSocket, 3000);
+                };
+
+                socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                };
+            } catch (error) {
+                console.error("WebSocket connection error:", error);
+                reconnectTimeout = setTimeout(connectWebSocket, 5000);
+            }
         };
 
-        socket.onclose = () => {
-            setIsConnected(false);
-        };
+        connectWebSocket();
 
-        socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            handleServerMessage(data);
+        return () => {
+            if (socket) {
+                socket.close();
+            }
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
         };
-
-        return () => socket.close();
     }, [session]);
 
     const sendMessage = useCallback(async (text, stagedFiles = [], referencedFiles = []) => {

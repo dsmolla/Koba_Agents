@@ -1,5 +1,6 @@
 import logging
 import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -52,6 +53,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.post("/auth/ticket")
+async def generate_ws_ticket(user: Any = Depends(get_current_user_http)):
+    ticket = str(uuid.uuid4())
+    await redis_client.set_ws_ticket(ticket, user.id)
+    return {"ticket": ticket}
 
 
 @app.post("/integrations/google")

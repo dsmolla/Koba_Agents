@@ -31,4 +31,13 @@ class RedisClient:
     async def delete_provider_token(self, user_id: str, provider: str) -> None:
         await self.redis.delete(f"{user_id}:{provider}")
 
+    async def set_ws_ticket(self, ticket: str, user_id: str) -> None:
+        await self.redis.set(f"ws_ticket:{ticket}", user_id, ex=30)
+
+    async def get_ws_ticket(self, ticket: str) -> str | None:
+        user_id = await self.redis.get(f"ws_ticket:{ticket}")
+        if user_id:
+            await self.redis.delete(f"ws_ticket:{ticket}")
+        return user_id
+
 redis_client = RedisClient()
