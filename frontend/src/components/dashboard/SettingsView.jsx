@@ -44,6 +44,15 @@ export default function SettingsView({user}) {
         return googleScopes.includes(scope);
     };
 
+    const allRequiredScopes = [
+        'https://mail.google.com/',
+        'https://www.googleapis.com/auth/calendar',
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/tasks'
+    ];
+
+    const allServicesConnected = allRequiredScopes.every(scope => googleScopes.includes(scope));
+
     const handleConnectService = async (service, newScope) => {
         try {
             const validScopes = googleScopes ? googleScopes.split(' ') : [];
@@ -64,7 +73,7 @@ export default function SettingsView({user}) {
         if (!session) return;
 
         try {
-            const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
             const response = await fetch(`${apiUrl}/integrations/google`, {
                 method: 'DELETE',
                 headers: {
@@ -204,15 +213,31 @@ export default function SettingsView({user}) {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg mb-4">
                                 <div>
-                                    <p className="text-blue-100 font-medium">{googleConnected ? 'Google Account Connected' : 'Connect All Services'}</p>
-                                    <p className="text-sm text-blue-300">{googleConnected ? 'Revoke access to all Google services' : 'Grant access to all Google services at once'}</p>
+                                    <p className="text-blue-100 font-medium">
+                                        {!googleConnected ? 'Connect Google Services' : allServicesConnected ? 'Google Account Fully Connected' : 'Google Connection Incomplete'}
+                                    </p>
+                                    <p className="text-sm text-blue-300">
+                                        {allServicesConnected ? 'All services are authorized' : 'Grant access to all Google services at once'}
+                                    </p>
                                 </div>
-                                <button
-                                    onClick={() => googleConnected ? handleDisconnectService('Google Account') : handleConnectService('All Services', 'https://mail.google.com/ https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/tasks')}
-                                    className={`px-4 py-2 ${googleConnected ? 'bg-red-400 hover:bg-red-300 shadow-red-900/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'} text-white rounded hover:cursor-pointer text-sm font-medium transition-colors shadow-lg`}
-                                >
-                                    {googleConnected ? 'Disconnect Account' : 'Connect All'}
-                                </button>
+                                <div className="flex gap-2">
+                                    {!allServicesConnected && (
+                                        <button
+                                            onClick={() => handleConnectService('All Services', allRequiredScopes.join(' '))}
+                                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 hover:cursor-pointer text-sm font-medium transition-colors shadow-lg shadow-blue-900/20"
+                                        >
+                                            Connect All
+                                        </button>
+                                    )}
+                                    {googleConnected && (
+                                        <button
+                                            onClick={() => handleDisconnectService('Google Account')}
+                                            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500 hover:cursor-pointer text-sm font-medium transition-colors shadow-lg shadow-red-900/20"
+                                        >
+                                            Disconnect
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="flex items-center justify-between p-3 bg-dark-input-bg/30 rounded-lg">
