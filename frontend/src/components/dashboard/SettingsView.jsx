@@ -21,7 +21,8 @@ export default function SettingsView({user}) {
             if (!session) return;
 
             try {
-                const response = await fetch('http://localhost:8000/integrations/google', {
+                const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+                const response = await fetch(`${apiUrl}/integrations/google`, {
                     headers: {
                         'Authorization': `Bearer ${session.access_token}`
                     }
@@ -63,7 +64,8 @@ export default function SettingsView({user}) {
         if (!session) return;
 
         try {
-            const response = await fetch('http://localhost:8000/integrations/google', {
+            const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+            const response = await fetch(`${apiUrl}/integrations/google`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`

@@ -64,9 +64,9 @@ export const useChat = () => {
     useEffect(() => {
         if (!session?.access_token) return;
 
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const apiUrl = import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000';
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-        const wsUrl = `http://localhost:8000/ws/chat?token=${session.access_token}&timezone=${timezone}`;
+        const wsUrl = `${apiUrl}/ws/chat?token=${session.access_token}&timezone=${timezone}`;
 
         const socket = new WebSocket(wsUrl);
         ws.current = socket;
@@ -131,7 +131,8 @@ export const useChat = () => {
         if (!session?.access_token) return;
 
         try {
-            const response = await fetch('http://localhost:8000/chat/clear', {
+            const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+            const response = await fetch(`${apiUrl}/chat/clear`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`

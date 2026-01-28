@@ -17,7 +17,8 @@ export function useAuth() {
             if (session?.provider_token && session?.access_token) {
                 try {
                     console.log("Sending Google tokens to backend...");
-                    const response = await fetch('http://localhost:8000/integrations/google', {
+                    const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+                    const response = await fetch(`${apiUrl}/integrations/google`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
