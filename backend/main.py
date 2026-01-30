@@ -33,6 +33,33 @@ LLM = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 supervisor_agent: SupervisorAgent | None = None
 
 
+def log_event(event, user_id):
+    kind = event["event"]
+    name = event.get("name", "Unknown")
+    data = event.get("data", {})
+
+    if kind == "on_chain_start" and "input" in data:
+        input_data = data["input"]
+        if isinstance(input_data, dict) and "messages" in input_data:
+            messages = input_data["messages"]
+            if messages and isinstance(messages[-1], HumanMessage) and messages[-1].name:
+                logger.debug(f"{messages[-1].name}: {messages[-1].content}", extra={"user_id": user_id})
+
+    elif kind == "on_tool_start":
+        tool_name = name
+        tool_args = data.get("input")
+        logger.debug(f"tool_call [{tool_name}]: {tool_args}", extra={"user_id": user_id})
+
+    elif kind == "on_tool_end":
+        tool_output = data.get("output")
+        logger.debug(f"tool_response [{tool_output.name}]: {tool_output.content}", extra={"user_id": user_id})
+
+    elif kind == "on_chat_model_end":
+        output = data.get("output")
+        if isinstance(output, AIMessage) and output.content:
+            if not output.tool_calls:
+                logger.debug(f"agent_response [{output.name}]: {output.content}", extra={"user_id": user_id})
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await database.connect()
@@ -164,9 +191,13 @@ async def websocket_endpoint(
     while True:
         try:
             data = await websocket.receive_json()
-            logger.info(f"Received message", extra={"user_id": user_id, "content_length": len(str(data))})
-            user_message = UserMessage(**data)
 
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"Received message content: {data}", extra={"user_id": user_id})
+            else:
+                logger.info(f"Received message", extra={"user_id": user_id, "content_length": len(str(data))})
+
+            user_message = UserMessage(**data)
             message_received_at = time.time()
 
             full_message = user_message.content
@@ -180,7 +211,9 @@ async def websocket_endpoint(
             input_message = HumanMessage(content=full_message, name='RealUser', additional_kwargs={'message': data})
             async for event in supervisor_agent.agent.astream_events({"messages": [input_message]}, config=config):
                 kind = event["event"]
-                # logger.info(f"Received event: {event}\n\n") # Commented out noisy log
+                if logger.isEnabledFor(logging.DEBUG):
+                    log_event(event, user_id)
+
                 if kind == "on_custom_event" and event["name"] == "tool_status":
                     data = event["data"]
                     logger.info(f"Tool Status: {data['text']}", extra={"user_id": user_id})
@@ -195,7 +228,12 @@ async def websocket_endpoint(
                     bot_message: BotMessage = event['data']['output']['structured_response']
                     bot_message_dump = bot_message.model_dump()
                     response_time = time.time() - message_received_at
-                    logger.info(f"Agent Response Sent", extra={"user_id": user_id, "response_time": response_time})
+                    
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(f"Agent Response content: {bot_message_dump}", extra={"user_id": user_id, "response_time": response_time})
+                    else:
+                        logger.info(f"Agent Response Sent", extra={"user_id": user_id, "response_time": response_time})
+                        
                     await websocket.send_json(
                         bot_message_dump
                     )
