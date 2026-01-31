@@ -2,16 +2,13 @@ import logging
 from textwrap import dedent
 from typing import Annotated
 
-from google.auth.exceptions import RefreshError
-from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from agents.common.tools import BaseGoogleTool
 from core.auth import get_gmail_service
-from core.exceptions import ProviderNotConnectedError
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +32,7 @@ class ApplyLabelInput(BaseModel):
     ))
 
 
-class ApplyLabelTool(BaseTool):
+class ApplyLabelTool(BaseGoogleTool):
     name: str = "apply_label"
     description: str = "Mark an email with a specific label in Gmail."
     args_schema: ArgsSchema = ApplyLabelInput
@@ -43,27 +40,17 @@ class ApplyLabelTool(BaseTool):
     def _run(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Applying Labels...", "icon": "📩"}
-            )
-            gmail = await get_gmail_service(config)
-            status = await gmail.add_label(email=message_id, labels=[label_id])
-            if status:
-                return f"Label {label_id} applied to email (message_id={message_id})"
+    async def _run_google_task(self, config: RunnableConfig, message_id: str, label_id: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Applying Labels...", "icon": "📩"}
+        )
+        gmail = await get_gmail_service(config)
+        status = await gmail.add_label(email=message_id, labels=[label_id])
+        if status:
+            return f"Label {label_id} applied to email (message_id={message_id})"
 
-            return "Unable to apply label due to internal error"
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in ApplyLabelTool: {e}", exc_info=True)
-            return "Unable to apply label due to internal error"
+        return "Unable to apply label due to internal error"
 
 
 class RemoveLabelInput(BaseModel):
@@ -85,7 +72,7 @@ class RemoveLabelInput(BaseModel):
     ))
 
 
-class RemoveLabelTool(BaseTool):
+class RemoveLabelTool(BaseGoogleTool):
     name: str = "remove_label"
     description: str = "Remove a label from an email."
     args_schema: ArgsSchema = RemoveLabelInput
@@ -93,33 +80,23 @@ class RemoveLabelTool(BaseTool):
     def _run(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Removing Label...", "icon": "🏷️"}
-            )
-            gmail = await get_gmail_service(config)
-            if await gmail.remove_label(email=message_id, labels=[label_id]):
-                return f"Label {label_id} removed from email with message_id: {message_id}"
+    async def _run_google_task(self, config: RunnableConfig, message_id: str, label_id: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Removing Label...", "icon": "🏷️"}
+        )
+        gmail = await get_gmail_service(config)
+        if await gmail.remove_label(email=message_id, labels=[label_id]):
+            return f"Label {label_id} removed from email with message_id: {message_id}"
 
-            return "Unable to remove label due to internal error"
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in RemoveLabelTool: {e}", exc_info=True)
-            return "Unable to remove label due to internal error"
+        return "Unable to remove label due to internal error"
 
 
 class CreateLabelInput(BaseModel):
     name: str = Field(description="The name of the new label to create")
 
 
-class CreateLabelTool(BaseTool):
+class CreateLabelTool(BaseGoogleTool):
     name: str = "create_label"
     description: str = "Create a new user label in Gmail"
     args_schema: ArgsSchema = CreateLabelInput
@@ -127,31 +104,21 @@ class CreateLabelTool(BaseTool):
     def _run(self, name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Creating Label...", "icon": "🏷️"}
-            )
-            gmail = await get_gmail_service(config)
-            label = await gmail.create_label(name=name)
-            return f"Created label {label.name} with label_id {label.id}"
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in CreateLabelTool: {e}", exc_info=True)
-            return "Unable to create label due to internal error"
+    async def _run_google_task(self, config: RunnableConfig, name: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Creating Label...", "icon": "🏷️"}
+        )
+        gmail = await get_gmail_service(config)
+        label = await gmail.create_label(name=name)
+        return f"Created label {label.name} with label_id {label.id}"
 
 
 class DeleteLabelInput(BaseModel):
     label_id: str = Field(description="The ID of the label to delete")
 
 
-class DeleteLabelTool(BaseTool):
+class DeleteLabelTool(BaseGoogleTool):
     name: str = "delete_label"
     description: str = "Delete a user-created label in Gmail"
     args_schema: ArgsSchema = DeleteLabelInput
@@ -159,26 +126,16 @@ class DeleteLabelTool(BaseTool):
     def _run(self, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Deleting Label...", "icon": "🗑️"}
-            )
-            gmail = await get_gmail_service(config)
-            if await gmail.delete_label(label=label_id):
-                return f"Label with label_id {label_id} deleted"
+    async def _run_google_task(self, config: RunnableConfig, label_id: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Deleting Label...", "icon": "🗑️"}
+        )
+        gmail = await get_gmail_service(config)
+        if await gmail.delete_label(label=label_id):
+            return f"Label with label_id {label_id} deleted"
 
-            return "Unable to delete label due to internal error"
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in DeleteLabelTool: {e}", exc_info=True)
-            return "Unable to delete label due to internal error"
+        return "Unable to delete label due to internal error"
 
 
 class RenameLabelInput(BaseModel):
@@ -186,7 +143,7 @@ class RenameLabelInput(BaseModel):
     new_name: str = Field(description="The new name for the label")
 
 
-class RenameLabelTool(BaseTool):
+class RenameLabelTool(BaseGoogleTool):
     name: str = "rename_label"
     description: str = "Rename a user-created label in Gmail"
     args_schema: ArgsSchema = RenameLabelInput
@@ -194,34 +151,24 @@ class RenameLabelTool(BaseTool):
     def _run(self, label_id: str, new_name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, label_id: str, new_name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Renaming Label...", "icon": "🏷️"}
-            )
-            gmail = await get_gmail_service(config)
-            label = await gmail.update_label(
-                label=label_id,
-                new_name=new_name,
-            )
-            return f"Label with label_id {label.id} renamed to {new_name}"
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in RenameLabelTool: {e}", exc_info=True)
-            return "Unable to rename label due to internal error"
+    async def _run_google_task(self, config: RunnableConfig, label_id: str, new_name: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Renaming Label...", "icon": "🏷️"}
+        )
+        gmail = await get_gmail_service(config)
+        label = await gmail.update_label(
+            label=label_id,
+            new_name=new_name,
+        )
+        return f"Label with label_id {label.id} renamed to {new_name}"
 
 
 class DeleteEmailInput(BaseModel):
     message_id: str = Field(description="Message ID of the writer to delete")
 
 
-class DeleteEmailTool(BaseTool):
+class DeleteEmailTool(BaseGoogleTool):
     name: str = "delete_email"
     description: str = "Delete an email message from Gmail. Email is moved to Trash by default"
     args_schema: ArgsSchema = DeleteEmailInput
@@ -229,23 +176,13 @@ class DeleteEmailTool(BaseTool):
     def _run(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Deleting Email...", "icon": "🗑️"}
-            )
-            gmail = await get_gmail_service(config)
-            if await gmail.delete_email(email=message_id, permanent=False):
-                return f"Email with message_id {message_id} deleted"
+    async def _run_google_task(self, config: RunnableConfig, message_id: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Deleting Email...", "icon": "🗑️"}
+        )
+        gmail = await get_gmail_service(config)
+        if await gmail.delete_email(email=message_id, permanent=False):
+            return f"Email with message_id {message_id} deleted"
 
-            return "Unable to delete email message due to internal error"
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in DeleteEmailTool: {e}", exc_info=True)
-            return "Unable to delete email due to internal error"
+        return "Unable to delete email message due to internal error"

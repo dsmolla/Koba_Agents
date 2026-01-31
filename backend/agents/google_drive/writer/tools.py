@@ -2,18 +2,15 @@ import logging
 import shutil
 from typing import Optional, Literal, Annotated
 
-from google.auth.exceptions import RefreshError
-from google_client.services.drive.types import DriveFolder
-from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from agents.common.download_supabase_to_disk import download_to_disk
+from agents.common.tools import BaseGoogleTool
 from core.auth import get_drive_service
-from core.exceptions import ProviderNotConnectedError
+from google_client.services.drive.types import DriveFolder
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +22,7 @@ class UploadFileInput(BaseModel):
     description: Optional[str] = Field(default=None, description="File description")
 
 
-class UploadFileTool(BaseTool):
+class UploadFileTool(BaseGoogleTool):
     name: str = "upload_file"
     description: str = "Upload a file to Google Drive"
     args_schema: ArgsSchema = UploadFileInput
@@ -40,10 +37,10 @@ class UploadFileTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
+            config: RunnableConfig,
             file_path: str,
-            config: Annotated[RunnableConfig, InjectedToolArg],
             name: Optional[str] = None,
             parent_folder_id: Optional[str] = None,
             description: Optional[str] = None
@@ -68,17 +65,6 @@ class UploadFileTool(BaseTool):
 
             return f"File uploaded successfully. file_id: {file.file_id}, name: {file.name}"
 
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in UploadFileTool: {e}", exc_info=True)
-            return "Unable to upload file due to internal error"
         finally:
             if folder and folder.exists():
                 shutil.rmtree(folder)
@@ -90,7 +76,7 @@ class CreateFolderInput(BaseModel):
     description: Optional[str] = Field(default=None, description="Folder description")
 
 
-class CreateFolderTool(BaseTool):
+class CreateFolderTool(BaseGoogleTool):
     name: str = "create_folder"
     description: str = "Create a new folder in Google Drive"
     args_schema: ArgsSchema = CreateFolderInput
@@ -104,44 +90,31 @@ class CreateFolderTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
+            config: RunnableConfig,
             name: str,
-            config: Annotated[RunnableConfig, InjectedToolArg],
             parent_folder_id: Optional[str] = None,
             description: Optional[str] = None
     ) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Creating Folder...", "icon": "📁"}
-            )
-            drive = await get_drive_service(config)
-            parent_folder = None
-            if parent_folder_id:
-                parent_folder = await drive.get(parent_folder_id)
-                if not isinstance(parent_folder, DriveFolder):
-                    return f"Parent ID {parent_folder_id} is not a folder"
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Creating Folder...", "icon": "📁"}
+        )
+        drive = await get_drive_service(config)
+        parent_folder = None
+        if parent_folder_id:
+            parent_folder = await drive.get(parent_folder_id)
+            if not isinstance(parent_folder, DriveFolder):
+                return f"Parent ID {parent_folder_id} is not a folder"
 
-            folder = await drive.create_folder(
-                name=name,
-                parent_folder=parent_folder,
-                description=description
-            )
+        folder = await drive.create_folder(
+            name=name,
+            parent_folder=parent_folder,
+            description=description
+        )
 
-            return f"Folder created successfully. folder_id: {folder.folder_id}, name: {folder.name}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in CreateFolderTool: {e}", exc_info=True)
-            return "Unable to create folder due to internal error"
+        return f"Folder created successfully. folder_id: {folder.folder_id}, name: {folder.name}"
 
 
 class ShareFileInput(BaseModel):
@@ -155,7 +128,7 @@ class ShareFileInput(BaseModel):
     message: Optional[str] = Field(default=None, description="Custom message in notification email")
 
 
-class ShareFileTool(BaseTool):
+class ShareFileTool(BaseGoogleTool):
     name: str = "share_file"
     description: str = "Share a file or folder with a user by email"
     args_schema: ArgsSchema = ShareFileInput
@@ -171,40 +144,27 @@ class ShareFileTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
+            config: RunnableConfig,
             file_id: str,
             email: str,
-            config: Annotated[RunnableConfig, InjectedToolArg],
             role: str = "reader",
             notify: bool = True,
             message: Optional[str] = None
     ) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Sharing File...", "icon": "🤝"}
-            )
-            drive = await get_drive_service(config)
-            item = await drive.get(file_id)
-            permission = await drive.share(
-                item=item,
-                email=email,
-                role=role,
-                notify=notify,
-                message=message
-            )
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Sharing File...", "icon": "🤝"}
+        )
+        drive = await get_drive_service(config)
+        item = await drive.get(file_id)
+        permission = await drive.share(
+            item=item,
+            email=email,
+            role=role,
+            notify=notify,
+            message=message
+        )
 
-            return f"File shared successfully with {email} as {role}. permission_id: {permission.permission_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in ShareFileTool: {e}", exc_info=True)
-            return "Unable to share file due to internal error"
+        return f"File shared successfully with {email} as {role}. permission_id: {permission.permission_id}"

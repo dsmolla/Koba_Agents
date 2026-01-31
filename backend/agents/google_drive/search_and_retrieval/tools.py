@@ -1,23 +1,20 @@
 import json
 import logging
-import secrets
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Annotated
 
 import filetype
-from google.auth.exceptions import RefreshError
-from google_client.services.drive.types import DriveFile, DriveFolder, DriveItem
-from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from agents.common.tools import BaseGoogleTool
 from core.auth import get_drive_service
-from core.exceptions import ProviderNotConnectedError
 from core.supabase_client import upload_to_supabase
+from google_client.services.drive.types import DriveFile, DriveFolder, DriveItem
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +43,7 @@ class SearchFilesInput(BaseModel):
                                     description="Order results by field (e.g., 'modifiedTime desc', 'name', 'createdTime')")
 
 
-class SearchFilesTool(BaseTool):
+class SearchFilesTool(BaseGoogleTool):
     name: str = "search_files"
     description: str = (
         "Search for files and folders in Google Drive with extensive filtering options. "
@@ -77,9 +74,9 @@ class SearchFilesTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
-            config: Annotated[RunnableConfig, InjectedToolArg],
+            config: RunnableConfig,
             query: Optional[str] = None,
             max_results: Optional[int] = 10,
             extension: Optional[str] = None,
@@ -97,60 +94,47 @@ class SearchFilesTool(BaseTool):
             include_files: Optional[bool] = True,
             order_by: Optional[str] = None
     ) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Searching Files...", "icon": "🔍"}
-            )
-            drive = await get_drive_service(config)
-            builder = drive.query()
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Searching Files...", "icon": "🔍"}
+        )
+        drive = await get_drive_service(config)
+        builder = drive.query()
 
-            if max_results:
-                builder = builder.limit(max_results)
-            if query:
-                builder = builder.search(query)
-            if extension:
-                builder = builder.with_extension(extension)
-            if folder_id:
-                builder = builder.in_folder(folder_id)
-            builder = builder.trashed(include_trashed)
-            if owned_by_me:
-                builder = builder.owned_by_me()
-            if shared_with_me:
-                builder = builder.shared_with_me()
-            if modified_after:
-                builder = builder.modified_after(datetime.fromisoformat(modified_after))
-            if modified_before:
-                builder = builder.modified_before(datetime.fromisoformat(modified_before))
-            if created_after:
-                builder = builder.created_after(datetime.fromisoformat(created_after))
-            if created_before:
-                builder = builder.created_before(datetime.fromisoformat(created_before))
-            if starred:
-                builder = builder.starred()
-            if not include_folders and include_files:
-                builder = builder.files_only()
-            elif include_folders and not include_files:
-                builder = builder.folders_only()
-            elif not include_folders and not include_files:
-                return "Cannot exclude both files and folders"
+        if max_results:
+            builder = builder.limit(max_results)
+        if query:
+            builder = builder.search(query)
+        if extension:
+            builder = builder.with_extension(extension)
+        if folder_id:
+            builder = builder.in_folder(folder_id)
+        builder = builder.trashed(include_trashed)
+        if owned_by_me:
+            builder = builder.owned_by_me()
+        if shared_with_me:
+            builder = builder.shared_with_me()
+        if modified_after:
+            builder = builder.modified_after(datetime.fromisoformat(modified_after))
+        if modified_before:
+            builder = builder.modified_before(datetime.fromisoformat(modified_before))
+        if created_after:
+            builder = builder.created_after(datetime.fromisoformat(created_after))
+        if created_before:
+            builder = builder.created_before(datetime.fromisoformat(created_before))
+        if starred:
+            builder = builder.starred()
+        if not include_folders and include_files:
+            builder = builder.files_only()
+        elif include_folders and not include_files:
+            builder = builder.folders_only()
+        elif not include_folders and not include_files:
+            return "Cannot exclude both files and folders"
 
-            items = await builder.execute()
-            items_data = [self._item_to_dict(item) for item in items]
+        items = await builder.execute()
+        items_data = [self._item_to_dict(item) for item in items]
 
-            return json.dumps(items_data)
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in SearchFilesTool: {e}", exc_info=True)
-            return "Unable to search files due to internal error"
+        return json.dumps(items_data)
 
     def _item_to_dict(self, item: DriveItem) -> dict:
         """Convert DriveItem to dict representation"""
@@ -182,7 +166,7 @@ class GetFileInput(BaseModel):
     file_id: str = Field(description="The file_id or folder_id of the item to retrieve")
 
 
-class GetFileTool(BaseTool):
+class GetFileTool(BaseGoogleTool):
     name: str = "get_file"
     description: str = "Get detailed information about a specific file or folder by its ID"
     args_schema: ArgsSchema = GetFileInput
@@ -190,58 +174,45 @@ class GetFileTool(BaseTool):
     def _run(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Retrieving File Metadata...", "icon": "📄"}
-            )
-            drive = await get_drive_service(config)
-            item = await drive.get(file_id)
+    async def _run_google_task(self, config: RunnableConfig, file_id: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Retrieving File Metadata...", "icon": "📄"}
+        )
+        drive = await get_drive_service(config)
+        item = await drive.get(file_id)
 
-            item_dict = {
-                "id": item.item_id,
-                "name": item.name,
-                "type": "folder" if isinstance(item, DriveFolder) else "file",
-                "created_time": item.created_time.isoformat() if item.created_time else None,
-                "modified_time": item.modified_time.isoformat() if item.modified_time else None,
-                "web_view_link": item.web_view_link,
-                "parent_ids": item.parent_ids,
-                "owners": item.owners,
-                "starred": item.starred,
-                "trashed": item.trashed,
-                "shared": item.shared,
-                "description": item.description,
-            }
+        item_dict = {
+            "id": item.item_id,
+            "name": item.name,
+            "type": "folder" if isinstance(item, DriveFolder) else "file",
+            "created_time": item.created_time.isoformat() if item.created_time else None,
+            "modified_time": item.modified_time.isoformat() if item.modified_time else None,
+            "web_view_link": item.web_view_link,
+            "parent_ids": item.parent_ids,
+            "owners": item.owners,
+            "starred": item.starred,
+            "trashed": item.trashed,
+            "shared": item.shared,
+            "description": item.description,
+        }
 
-            if isinstance(item, DriveFile):
-                item_dict.update({
-                    "mime_type": item.mime_type,
-                    "size": item.size,
-                    "size_readable": item.human_readable_size() if item.size else None,
-                    "file_extension": item.file_extension,
-                })
+        if isinstance(item, DriveFile):
+            item_dict.update({
+                "mime_type": item.mime_type,
+                "size": item.size,
+                "size_readable": item.human_readable_size() if item.size else None,
+                "file_extension": item.file_extension,
+            })
 
-            return json.dumps(item_dict)
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in GetFileTool: {e}", exc_info=True)
-            return "Unable to get file due to internal error"
+        return json.dumps(item_dict)
 
 
 class DownloadFileInput(BaseModel):
     file_id: str = Field(description="The file_id of the file to download")
 
 
-class DownloadFileTool(BaseTool):
+class DownloadFileTool(BaseGoogleTool):
     name: str = "download_file"
     description: str = "Download file content from Google Drive as bytes"
     args_schema: ArgsSchema = DownloadFileInput
@@ -249,50 +220,37 @@ class DownloadFileTool(BaseTool):
     def _run(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Downloading File...", "icon": "⬇️"}
-            )
-            drive = await get_drive_service(config)
-            user_id = config['configurable'].get('thread_id')
-            file = await drive.get(file_id)
-            if not isinstance(file, DriveFile):
-                return f"Item {file_id} is a folder, not a file"
+    async def _run_google_task(self, config: RunnableConfig, file_id: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Downloading File...", "icon": "⬇️"}
+        )
+        drive = await get_drive_service(config)
+        user_id = config['configurable'].get('thread_id')
+        file = await drive.get(file_id)
+        if not isinstance(file, DriveFile):
+            return f"Item {file_id} is a folder, not a file"
 
-            short_id = secrets.token_hex(2)
-            file = Path(file.name)
-            filename = f"{file.stem}_{short_id}{file.suffix}"
-            upload_path = f"{user_id}/{filename}"
-            file_bytes = await drive.get_file_payload(file)
-            mime_type = filetype.guess_mime(file_bytes)
-            size = len(file_bytes)
+        file_uuid = uuid.uuid4().hex[:8]
+        file_path = Path(file.name)
+        filename = f"{file_path.stem}_{file_uuid}{file_path.suffix}"
+        upload_path = f"{user_id}/{filename}"
+        file_bytes = await drive.get_file_payload(file)
+        mime_type = filetype.guess_mime(file_bytes)
+        size = len(file_bytes)
 
-            storage_path = await upload_to_supabase(
-                path=upload_path,
-                file_bytes=file_bytes,
-            )
-            file_dict = {
-                "filename": filename,
-                "path": storage_path,
-                "mime_type": mime_type,
-                "size": size,
-            }
+        storage_path = await upload_to_supabase(
+            path=upload_path,
+            file_bytes=file_bytes,
+        )
+        file_dict = {
+            "filename": filename,
+            "path": storage_path,
+            "mime_type": mime_type,
+            "size": size,
+        }
 
-            return json.dumps(file_dict)
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in DownloadFileTool: {e}", exc_info=True)
-            return "Unable to download file due to internal error"
+        return json.dumps(file_dict)
 
 
 class ListFolderContentsInput(BaseModel):
@@ -302,7 +260,7 @@ class ListFolderContentsInput(BaseModel):
     include_folders: bool = Field(default=True, description="Whether to include subfolders")
 
 
-class ListFolderContentsTool(BaseTool):
+class ListFolderContentsTool(BaseGoogleTool):
     name: str = "list_folder_contents"
     description: str = "List all files and folders within a specific folder"
     args_schema: ArgsSchema = ListFolderContentsInput
@@ -317,46 +275,33 @@ class ListFolderContentsTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
+            config: RunnableConfig,
             folder_id: str,
-            config: Annotated[RunnableConfig, InjectedToolArg],
             max_results: Optional[int] = 100,
             include_files: bool = True,
             include_folders: bool = True
     ) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Listing Folder Contents...", "icon": "📂"}
-            )
-            drive = await get_drive_service(config)
-            folder = await drive.get(folder_id)
-            if not isinstance(folder, DriveFolder):
-                return f"Item {folder_id} is not a folder"
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Listing Folder Contents...", "icon": "📂"}
+        )
+        drive = await get_drive_service(config)
+        folder = await drive.get(folder_id)
+        if not isinstance(folder, DriveFolder):
+            return f"Item {folder_id} is not a folder"
 
-            contents = await drive.list_folder_contents(
-                folder=folder,
-                include_files=include_files,
-                include_folders=include_folders,
-                max_results=max_results
-            )
+        contents = await drive.list_folder_contents(
+            folder=folder,
+            include_files=include_files,
+            include_folders=include_folders,
+            max_results=max_results
+        )
 
-            items_data = [self._item_to_dict(item) for item in contents]
+        items_data = [self._item_to_dict(item) for item in contents]
 
-            return json.dumps(items_data)
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in ListFolderContentsTool: {e}", exc_info=True)
-            return "Unable to list folder contents due to internal error"
+        return json.dumps(items_data)
 
     def _item_to_dict(self, item: DriveItem) -> dict:
         base_dict = {
@@ -379,7 +324,7 @@ class GetPermissionsInput(BaseModel):
     file_id: str = Field(description="The file_id or folder_id to get permissions for")
 
 
-class GetPermissionsTool(BaseTool):
+class GetPermissionsTool(BaseGoogleTool):
     name: str = "get_permissions"
     description: str = "Get all sharing permissions for a file or folder"
     args_schema: ArgsSchema = GetPermissionsInput
@@ -387,38 +332,25 @@ class GetPermissionsTool(BaseTool):
     def _run(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Retrieving Permissions...", "icon": "🔒"}
-            )
-            drive = await get_drive_service(config)
-            item = await drive.get(file_id)
-            permissions = await drive.get_permissions(item)
+    async def _run_google_task(self, config: RunnableConfig, file_id: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Retrieving Permissions...", "icon": "🔒"}
+        )
+        drive = await get_drive_service(config)
+        item = await drive.get(file_id)
+        permissions = await drive.get_permissions(item)
 
-            permissions_data = [
-                {
-                    "id": perm.permission_id,
-                    "type": perm.type,
-                    "role": perm.role,
-                    "email": perm.email_address,
-                    "display_name": perm.display_name,
-                    "domain": perm.domain,
-                }
-                for perm in permissions
-            ]
+        permissions_data = [
+            {
+                "id": perm.permission_id,
+                "type": perm.type,
+                "role": perm.role,
+                "email": perm.email_address,
+                "display_name": perm.display_name,
+                "domain": perm.domain,
+            }
+            for perm in permissions
+        ]
 
-            return json.dumps(permissions_data)
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your drive. Connect Google Drive from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in GetPermissionsTool: {e}", exc_info=True)
-            return "Unable to get permissions due to internal error"
+        return json.dumps(permissions_data)

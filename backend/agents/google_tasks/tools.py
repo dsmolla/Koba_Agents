@@ -3,18 +3,15 @@ import logging
 from datetime import datetime
 from typing import Optional, Literal, Union, Annotated
 
-from google.auth.exceptions import RefreshError
-from google_client.services.tasks import TaskQueryBuilder
-from google_client.services.tasks.async_query_builder import AsyncTaskQueryBuilder
-from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from agents.common.tools import BaseGoogleTool
 from core.auth import get_tasks_service
-from core.exceptions import ProviderNotConnectedError
+from google_client.services.tasks import TaskQueryBuilder
+from google_client.services.tasks.async_query_builder import AsyncTaskQueryBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +24,7 @@ class CreateTaskInput(BaseModel):
                                         description="The task_list_id to add the task to, defaults to '@default'")
 
 
-class CreateTaskTool(BaseTool):
+class CreateTaskTool(BaseGoogleTool):
     name: str = "create_task"
     description: str = "Create a new task"
     args_schema: ArgsSchema = CreateTaskInput
@@ -42,40 +39,27 @@ class CreateTaskTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
+            config: RunnableConfig,
             title: str,
-            config: Annotated[RunnableConfig, InjectedToolArg],
             notes: Optional[str] = None,
             due: Optional[str] = None,
             task_list_id: str = "@default",
     ) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Creating Task...", "icon": "✅"}
-            )
-            tasks_service = await get_tasks_service(config)
-            due = datetime.strptime(due, "%Y-%m-%d") if due else None
-            task = await tasks_service.create_task(
-                title=title,
-                notes=notes,
-                due=due,
-                task_list_id=task_list_id
-            )
-            return f"Task '{task.title}' created successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in CreateTaskTool: {e}", exc_info=True)
-            return "Unable to create task due to internal error"
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Creating Task...", "icon": "✅"}
+        )
+        tasks_service = await get_tasks_service(config)
+        due = datetime.strptime(due, "%Y-%m-%d") if due else None
+        task = await tasks_service.create_task(
+            title=title,
+            notes=notes,
+            due=due,
+            task_list_id=task_list_id
+        )
+        return f"Task '{task.title}' created successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
 
 class ListTasksInput(BaseModel):
@@ -95,7 +79,7 @@ class ListTasksInput(BaseModel):
     )
 
 
-class ListTasksTool(BaseTool):
+class ListTasksTool(BaseGoogleTool):
     name: str = "list_tasks"
     description: str = "List tasks"
     args_schema: ArgsSchema = ListTasksInput
@@ -112,9 +96,9 @@ class ListTasksTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
-            config: Annotated[RunnableConfig, InjectedToolArg],
+            config: RunnableConfig,
             task_list_id: str = "@default",
             max_results: int = 20,
             show_completed: bool = False,
@@ -122,48 +106,36 @@ class ListTasksTool(BaseTool):
             due_after: Optional[str] = None,
             date_filter: Optional[Literal["TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK"]] = None,
     ) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Listing Tasks...", "icon": "📋"}
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Listing Tasks...", "icon": "📋"}
+        )
+        tasks_service = await get_tasks_service(config)
+        params = {
+            "task_list_id": task_list_id,
+            "max_results": max_results,
+            "show_completed": show_completed,
+            "due_before": due_before,
+            "due_after": due_after,
+            "date_filter": date_filter,
+        }
+        builder = self.query_builder(tasks_service, params)
+        tasks = await builder.execute()
+
+        tasks_data = []
+        for task in tasks:
+            tasks_data.append(
+                {
+                    "task_id": task.task_id,
+                    "task_list_id": task.task_list_id,
+                    "title": task.title,
+                    "notes": task.notes,
+                    "due": task.due.strftime("%a, %B %d, %Y") if task.due else None,
+                    "status": task.status,
+                }
             )
-            tasks_service = await get_tasks_service(config)
-            params = {
-                "task_list_id": task_list_id,
-                "max_results": max_results,
-                "show_completed": show_completed,
-                "due_before": due_before,
-                "due_after": due_after,
-                "date_filter": date_filter,
-            }
-            builder = self.query_builder(tasks_service, params)
-            tasks = await builder.execute()
 
-            tasks_data = []
-            for task in tasks:
-                tasks_data.append(
-                    {
-                        "task_id": task.task_id,
-                        "task_list_id": task.task_list_id,
-                        "title": task.title,
-                        "notes": task.notes,
-                        "due": task.due.strftime("%a, %B %d, %Y") if task.due else None,
-                        "status": task.status,
-                    }
-                )
-
-            return json.dumps(tasks_data)
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in ListTasksTool: {e}", exc_info=True)
-            return "Unable to list tasks due to internal error"
+        return json.dumps(tasks_data)
 
     def query_builder(self, service, params: dict) -> Union[TaskQueryBuilder, AsyncTaskQueryBuilder]:
         builder = service.query()
@@ -198,7 +170,7 @@ class DeleteTaskInput(BaseModel):
                                         description="The task_list_id the task belongs to, defaults to '@default'")
 
 
-class DeleteTaskTool(BaseTool):
+class DeleteTaskTool(BaseGoogleTool):
     name: str = "delete_task"
     description: str = "Delete a task"
     args_schema: ArgsSchema = DeleteTaskInput
@@ -207,28 +179,15 @@ class DeleteTaskTool(BaseTool):
              task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+    async def _run_google_task(self, config: RunnableConfig, task_id: str,
                     task_list_id: str = "@default") -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Deleting Task...", "icon": "🗑️"}
-            )
-            tasks_service = await get_tasks_service(config)
-            await tasks_service.delete_task(task=task_id, task_list_id=task_list_id)
-            return f"Task deleted successfully. task_id: {task_id}, task_list_id: {task_list_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in DeleteTaskTool: {e}", exc_info=True)
-            return "Unable to delete task due to internal error"
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Deleting Task...", "icon": "🗑️"}
+        )
+        tasks_service = await get_tasks_service(config)
+        await tasks_service.delete_task(task=task_id, task_list_id=task_list_id)
+        return f"Task deleted successfully. task_id: {task_id}, task_list_id: {task_list_id}"
 
 
 class CompleteTaskInput(BaseModel):
@@ -237,7 +196,7 @@ class CompleteTaskInput(BaseModel):
                                         description="The task list ID the task belongs to, defaults to '@default'")
 
 
-class CompleteTaskTool(BaseTool):
+class CompleteTaskTool(BaseGoogleTool):
     name: str = "complete_task"
     description: str = "Mark a task as completed"
     args_schema: ArgsSchema = CompleteTaskInput
@@ -246,28 +205,15 @@ class CompleteTaskTool(BaseTool):
              task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+    async def _run_google_task(self, config: RunnableConfig, task_id: str,
                     task_list_id: str = "@default") -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Completing Task...", "icon": "✅"}
-            )
-            tasks_service = await get_tasks_service(config)
-            task = await tasks_service.mark_completed(task=task_id, task_list_id=task_list_id)
-            return f"Task marked as completed. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in CompleteTaskTool: {e}", exc_info=True)
-            return "Unable to complete task due to internal error"
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Completing Task...", "icon": "✅"}
+        )
+        tasks_service = await get_tasks_service(config)
+        task = await tasks_service.mark_completed(task=task_id, task_list_id=task_list_id)
+        return f"Task marked as completed. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
 
 class ReopenTaskInput(BaseModel):
@@ -276,7 +222,7 @@ class ReopenTaskInput(BaseModel):
                                         description="The task list ID the task belongs to, defaults to '@default'")
 
 
-class ReopenTaskTool(BaseTool):
+class ReopenTaskTool(BaseGoogleTool):
     name: str = "reopen_task"
     description: str = "Reopen a completed task"
     args_schema: ArgsSchema = ReopenTaskInput
@@ -285,28 +231,15 @@ class ReopenTaskTool(BaseTool):
              task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+    async def _run_google_task(self, config: RunnableConfig, task_id: str,
                     task_list_id: str = "@default") -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Reopening Task...", "icon": "🔄"}
-            )
-            tasks_service = await get_tasks_service(config)
-            task = await tasks_service.mark_incomplete(task=task_id, task_list_id=task_list_id)
-            return f"Task reopened successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in ReopenTaskTool: {e}", exc_info=True)
-            return "Unable to reopen task due to internal error"
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Reopening Task...", "icon": "🔄"}
+        )
+        tasks_service = await get_tasks_service(config)
+        task = await tasks_service.mark_incomplete(task=task_id, task_list_id=task_list_id)
+        return f"Task reopened successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
 
 
 class UpdateTaskInput(BaseModel):
@@ -318,7 +251,7 @@ class UpdateTaskInput(BaseModel):
                                         description="The task list ID the task belongs to, defaults to '@default'")
 
 
-class UpdateTaskTool(BaseTool):
+class UpdateTaskTool(BaseGoogleTool):
     name: str = "update_task"
     description: str = "Update a task"
     args_schema: ArgsSchema = UpdateTaskInput
@@ -334,50 +267,37 @@ class UpdateTaskTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
+            config: RunnableConfig,
             task_id: str,
-            config: Annotated[RunnableConfig, InjectedToolArg],
             title: Optional[str] = None,
             notes: Optional[str] = None,
             due: Optional[str] = None,
             task_list_id: str = "@default",
     ) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Updating Task...", "icon": "✏️"}
-            )
-            tasks_service = await get_tasks_service(config)
-            task = await tasks_service.get_task(task_id=task_id, task_list_id=task_list_id)
-            if title is not None:
-                task.title = title
-            if notes is not None:
-                task.notes = notes
-            if due is not None:
-                task.due = datetime.strptime(due, "%Y-%m-%d").date()
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Updating Task...", "icon": "✏️"}
+        )
+        tasks_service = await get_tasks_service(config)
+        task = await tasks_service.get_task(task_id=task_id, task_list_id=task_list_id)
+        if title is not None:
+            task.title = title
+        if notes is not None:
+            task.notes = notes
+        if due is not None:
+            task.due = datetime.strptime(due, "%Y-%m-%d").date()
 
-            updated_task = await tasks_service.update_task(task=task, task_list_id=task_list_id)
-            return f"Task updated successfully. task_id: {updated_task.task_id}, task_list_id: {updated_task.task_list_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in UpdateTaskTool: {e}", exc_info=True)
-            return "Unable to update task due to internal error"
+        updated_task = await tasks_service.update_task(task=task, task_list_id=task_list_id)
+        return f"Task updated successfully. task_id: {updated_task.task_id}, task_list_id: {updated_task.task_list_id}"
 
 
 class CreateTaskListInput(BaseModel):
     title: str = Field(description="The title of the task list to create")
 
 
-class CreateTaskListTool(BaseTool):
+class CreateTaskListTool(BaseGoogleTool):
     name: str = "create_task_list"
     description: str = "Create a new task list"
     args_schema: ArgsSchema = CreateTaskListInput
@@ -385,53 +305,28 @@ class CreateTaskListTool(BaseTool):
     def _run(self, title: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, title: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Creating Task List...", "icon": "📝"}
-            )
-            tasks_service = await get_tasks_service(config)
-            task_list = await tasks_service.create_task_list(title=title)
-            return f"Task List created successfully. task_list_id: {task_list.task_list_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in CreateTaskListTool: {e}", exc_info=True)
-            return "Unable to create task list due to internal error"
+    async def _run_google_task(self, config: RunnableConfig, title: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Creating Task List...", "icon": "📝"}
+        )
+        tasks_service = await get_tasks_service(config)
+        task_list = await tasks_service.create_task_list(title=title)
+        return f"Task List created successfully. task_list_id: {task_list.task_list_id}"
 
 
-class ListTaskListsTool(BaseTool):
+class ListTaskListsTool(BaseGoogleTool):
     name: str = "list_task_lists"
     description: str = "List task lists"
 
     def _run(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Listing Task Lists...", "icon": "📋"}
-            )
-            tasks_service = await get_tasks_service(config)
-            task_lists = await tasks_service.list_task_lists()
-            return json.dumps(task_lists)
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your tasks. Connect Google Tasks from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in ListTaskListsTool: {e}", exc_info=True)
-            return "Unable to list task lists due to internal error"
+    async def _run_google_task(self, config: RunnableConfig) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Listing Task Lists...", "icon": "📋"}
+        )
+        tasks_service = await get_tasks_service(config)
+        task_lists = await tasks_service.list_task_lists()
+        return json.dumps(task_lists)

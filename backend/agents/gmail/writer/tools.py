@@ -2,17 +2,14 @@ import logging
 import shutil
 from typing import Optional, List, Annotated
 
-from google.auth.exceptions import RefreshError
-from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from agents.common.download_supabase_to_disk import download_to_disk
+from agents.common.tools import BaseGoogleTool
 from core.auth import get_gmail_service
-from core.exceptions import ProviderNotConnectedError
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +23,7 @@ class WriteEmailInput(BaseModel):
     attachment_paths: Optional[List[str]] = Field(default=None, description="List of file paths to attach")
 
 
-class SendEmailTool(BaseTool):
+class SendEmailTool(BaseGoogleTool):
     name: str = "send_email"
     description: str = "Send an email through Gmail to one or more recipients"
     args_schema: ArgsSchema = WriteEmailInput
@@ -43,23 +40,24 @@ class SendEmailTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
+            config: RunnableConfig,
             to: List[str],
-            config: Annotated[RunnableConfig, InjectedToolArg],
             subject: Optional[str] = None,
             body_text: Optional[str] = None,
             cc: Optional[List[str]] = None,
             bcc: Optional[List[str]] = None,
             attachment_paths: Optional[List[str]] = None
     ) -> str:
+        folder = None
         try:
             await adispatch_custom_event(
                 "tool_status",
                 {"text": "Sending Email...", "icon": "📤"}
             )
             gmail = await get_gmail_service(config)
-            folder, downloaded_files = None, None
+            downloaded_files = None
             if attachment_paths:
                 folder, downloaded_files = await download_to_disk(attachment_paths)
 
@@ -71,24 +69,14 @@ class SendEmailTool(BaseTool):
                 bcc=bcc,
                 attachment_paths=downloaded_files,
             )
-            if folder: shutil.rmtree(folder)  # clean up
 
             return f"Email sent successfully. message_id: {email.message_id}, thread_id: {email.thread_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in SendEmailTool: {e}", exc_info=True)
-            return "Unable to send email due to internal error"
+        finally:
+            if folder and folder.exists():
+                shutil.rmtree(folder)
 
 
-class DraftEmailTool(BaseTool):
+class DraftEmailTool(BaseGoogleTool):
     name: str = "draft_email"
     description: str = "Create an email draft in Gmail"
     args_schema: ArgsSchema = WriteEmailInput
@@ -106,10 +94,10 @@ class DraftEmailTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
+            config: RunnableConfig,
             to: List[str],
-            config: Annotated[RunnableConfig, InjectedToolArg],
             subject: Optional[str] = None,
             body_text: Optional[str] = None,
             body_html: Optional[str] = None,
@@ -117,13 +105,14 @@ class DraftEmailTool(BaseTool):
             bcc: Optional[List[str]] = None,
             attachment_paths: Optional[List[str]] = None
     ) -> str:
+        folder = None
         try:
             await adispatch_custom_event(
                 "tool_status",
                 {"text": "Creating Draft...", "icon": "📝"}
             )
             gmail = await get_gmail_service(config)
-            folder, downloaded_files = None, None
+            downloaded_files = None
             if attachment_paths:
                 folder, downloaded_files = await download_to_disk(attachment_paths)
 
@@ -136,21 +125,11 @@ class DraftEmailTool(BaseTool):
                 bcc=bcc,
                 attachment_paths=downloaded_files,
             )
-            if folder: shutil.rmtree(folder)
 
             return f"Draft created successfully. message_id: {draft.message_id}, thread_id: {draft.thread_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in DraftEmailTool: {e}", exc_info=True)
-            return "Unable to create draft due to internal error"
+        finally:
+            if folder and folder.exists():
+                shutil.rmtree(folder)
 
 
 class ReplyEmailInput(BaseModel):
@@ -159,7 +138,7 @@ class ReplyEmailInput(BaseModel):
     attachment_paths: Optional[List[str]] = Field(default=None, description="List of file paths to attach")
 
 
-class ReplyEmailTool(BaseTool):
+class ReplyEmailTool(BaseGoogleTool):
     name: str = "reply_email"
     description: str = "Reply to an existing writer message"
     args_schema: ArgsSchema = ReplyEmailInput
@@ -173,20 +152,21 @@ class ReplyEmailTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
+            config: RunnableConfig,
             message_id: str,
-            config: Annotated[RunnableConfig, InjectedToolArg],
             body_text: Optional[str] = None,
             attachment_paths: Optional[List[str]] = None
     ) -> str:
+        folder = None
         try:
             await adispatch_custom_event(
                 "tool_status",
                 {"text": "Sending Reply...", "icon": "↩️"}
             )
             gmail = await get_gmail_service(config)
-            folder, downloaded_files = None, None
+            downloaded_files = None
             if attachment_paths:
                 folder, downloaded_files = await download_to_disk(attachment_paths)
 
@@ -195,21 +175,11 @@ class ReplyEmailTool(BaseTool):
                 body_text=body_text,
                 attachment_paths=downloaded_files,
             )
-            if folder: shutil.rmtree(folder)
 
             return f"Reply sent successfully. message_id: {reply.message_id}, thread_id: {reply.thread_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in ReplyEmailTool: {e}", exc_info=True)
-            return "Unable to send reply due to internal error"
+        finally:
+            if folder and folder.exists():
+                shutil.rmtree(folder)
 
 
 class ForwardEmailInput(BaseModel):
@@ -218,7 +188,7 @@ class ForwardEmailInput(BaseModel):
     include_attachments: Optional[bool] = Field(default=True, description="Whether to include original attachments")
 
 
-class ForwardEmailTool(BaseTool):
+class ForwardEmailTool(BaseGoogleTool):
     name: str = "forward_email"
     description: str = "Forward an existing email message to one or more recipients"
     args_schema: ArgsSchema = ForwardEmailInput
@@ -232,34 +202,21 @@ class ForwardEmailTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
+            config: RunnableConfig,
             message_id: str,
             to: List[str],
-            config: Annotated[RunnableConfig, InjectedToolArg],
             include_attachments: Optional[bool] = True
     ) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Forwarding Email...", "icon": "⏩"}
-            )
-            gmail = await get_gmail_service(config)
-            forward = await gmail.forward(
-                original_email=message_id,
-                to=to,
-                include_attachments=include_attachments
-            )
-            return f"Email forwarded successfully. message_id: {forward.message_id}, thread_id: {forward.thread_id}"
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in ForwardEmailTool: {e}", exc_info=True)
-            return "Unable to forward email due to internal error"
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Forwarding Email...", "icon": "⏩"}
+        )
+        gmail = await get_gmail_service(config)
+        forward = await gmail.forward(
+            original_email=message_id,
+            to=to,
+            include_attachments=include_attachments
+        )
+        return f"Email forwarded successfully. message_id: {forward.message_id}, thread_id: {forward.thread_id}"

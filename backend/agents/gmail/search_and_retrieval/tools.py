@@ -7,20 +7,17 @@ from pathlib import Path
 from typing import Optional, Union, Annotated
 
 import filetype
-from google.auth.exceptions import RefreshError
-from google_client.services.gmail import EmailQueryBuilder
-from google_client.services.gmail.async_query_builder import AsyncEmailQueryBuilder
-from googleapiclient.errors import HttpError
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from agents.common.tools import BaseGoogleTool
 from core.auth import get_gmail_service
 from core.cache import get_email_cache
-from core.exceptions import ProviderNotConnectedError
 from core.supabase_client import upload_to_supabase
+from google_client.services.gmail import EmailQueryBuilder
+from google_client.services.gmail.async_query_builder import AsyncEmailQueryBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +26,7 @@ class GetEmailInput(BaseModel):
     message_id: str = Field(description="The message_id of the email to retrieve")
 
 
-class GetEmailTool(BaseTool):
+class GetEmailTool(BaseGoogleTool):
     name: str = "get_email"
     description: str = "Get email from Gmail by message_id"
     args_schema: ArgsSchema = GetEmailInput
@@ -37,39 +34,26 @@ class GetEmailTool(BaseTool):
     def _run(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Retrieving Email...", "icon": "📩"}
+    async def _run_google_task(self, config: RunnableConfig, message_id: str) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Retrieving Email...", "icon": "📩"}
+        )
+        gmail = await get_gmail_service(config)
+        email_cache = get_email_cache(config)
+        if (email := email_cache.get(message_id)) is None:
+            email = email_cache.save(
+                await gmail.get_email(message_id=message_id)
             )
-            gmail = await get_gmail_service(config)
-            email_cache = get_email_cache(config)
-            if (email := email_cache.get(message_id)) is None:
-                email = email_cache.save(
-                    await gmail.get_email(message_id=message_id)
-                )
 
-            return json.dumps(email)
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in GetEmailTool: {e}", exc_info=True)
-            return "Unable to fetch email due to internal error"
+        return json.dumps(email)
 
 
 class GetThreadDetailsInput(BaseModel):
     thread_id: str = Field(description="The ID of the thread to retrieve details for")
 
 
-class GetThreadDetailsTool(BaseTool):
+class GetThreadDetailsTool(BaseGoogleTool):
     name: str = "get_thread_details"
     description: str = "Get detailed information about a specific writer thread including all messages"
     args_schema: ArgsSchema = GetThreadDetailsInput
@@ -77,54 +61,41 @@ class GetThreadDetailsTool(BaseTool):
     def _run(self, thread_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, thread_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+    async def _run_google_task(self, config: RunnableConfig, thread_id: str) -> str:
         """Get detailed information about a specific thread"""
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Retrieving Thread Details...", "icon": "🧵"}
-            )
-            gmail = await get_gmail_service(config)
-            thread = await gmail.get_thread(thread_id)
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Retrieving Thread Details...", "icon": "🧵"}
+        )
+        gmail = await get_gmail_service(config)
+        thread = await gmail.get_thread(thread_id)
 
-            result = {
-                "status": "success",
-                "thread_id": thread.thread_id,
-                "message_count": len(thread.messages),
-                "unread_count": thread.get_unread_count(),
-                "has_unread": thread.has_unread_messages(),
-                "participants": [participant.to_dict() for participant in thread.get_participants()],
-                "messages": [
-                    {
-                        "message_id": msg.message_id,
-                        "subject": msg.subject,
-                        "from": msg.sender,
-                        "to": msg.recipients,
-                        "date_time": msg.date_time.isoformat() if msg.date_time else None,
-                        "snippet": msg.snippet,
-                        "body": msg.get_plain_text_content(),
-                        "is_read": msg.is_read,
-                        "is_starred": msg.is_starred,
-                        "is_important": msg.is_important,
-                        "organization": msg.labels,
-                        "has_attachments": msg.has_attachments()
-                    }
-                    for msg in thread.messages
-                ]
-            }
-            return json.dumps(result)
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in GetThreadDetailsTool: {e}", exc_info=True)
-            return "Unable to get thread details due to internal error"
+        result = {
+            "status": "success",
+            "thread_id": thread.thread_id,
+            "message_count": len(thread.messages),
+            "unread_count": thread.get_unread_count(),
+            "has_unread": thread.has_unread_messages(),
+            "participants": [participant.to_dict() for participant in thread.get_participants()],
+            "messages": [
+                {
+                    "message_id": msg.message_id,
+                    "subject": msg.subject,
+                    "from": msg.sender,
+                    "to": msg.recipients,
+                    "date_time": msg.date_time.isoformat() if msg.date_time else None,
+                    "snippet": msg.snippet,
+                    "body": msg.get_plain_text_content(),
+                    "is_read": msg.is_read,
+                    "is_starred": msg.is_starred,
+                    "is_important": msg.is_important,
+                    "organization": msg.labels,
+                    "has_attachments": msg.has_attachments()
+                }
+                for msg in thread.messages
+            ]
+        }
+        return json.dumps(result)
 
 
 class SearchEmailsInput(BaseModel):
@@ -198,7 +169,7 @@ def build_query(service, params: dict) -> Union[EmailQueryBuilder, AsyncEmailQue
     return query_builder
 
 
-class SearchEmailsTool(BaseTool):
+class SearchEmailsTool(BaseGoogleTool):
     name: str = "search_emails"
     description: str = "search and retrieve emails from Gmail based on various filters. Returns email snippets"
     args_schema: ArgsSchema = SearchEmailsInput
@@ -229,9 +200,9 @@ class SearchEmailsTool(BaseTool):
     ) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(
+    async def _run_google_task(
             self,
-            config: Annotated[RunnableConfig, InjectedToolArg],
+            config: RunnableConfig,
             include_promotions: Optional[bool] = False,
             limit: Optional[int] = 50,
             search: Optional[str] = None,
@@ -253,72 +224,59 @@ class SearchEmailsTool(BaseTool):
             after_date: Optional[str] = None,
             before_date: Optional[str] = None
     ) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Searching Emails...", "icon": "🔍"}
-            )
-            gmail = await get_gmail_service(config)
-            email_cache = get_email_cache(config)
-            params = {
-                "include_promotions": include_promotions,
-                "limit": limit,
-                "search": search,
-                "from_sender": from_sender,
-                "to_recipient": to_recipient,
-                "with_subject": with_subject,
-                "with_attachments": with_attachments,
-                "is_read": is_read,
-                "is_unread": is_unread,
-                "is_starred": is_starred,
-                "is_important": is_important,
-                "in_folder": in_folder,
-                "with_labels": with_labels,
-                "today": today,
-                "yesterday": yesterday,
-                "last_days": last_days,
-                "this_week": this_week,
-                "this_month": this_month,
-                "after_date": after_date,
-                "before_date": before_date
-            }
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Searching Emails...", "icon": "🔍"}
+        )
+        gmail = await get_gmail_service(config)
+        email_cache = get_email_cache(config)
+        params = {
+            "include_promotions": include_promotions,
+            "limit": limit,
+            "search": search,
+            "from_sender": from_sender,
+            "to_recipient": to_recipient,
+            "with_subject": with_subject,
+            "with_attachments": with_attachments,
+            "is_read": is_read,
+            "is_unread": is_unread,
+            "is_starred": is_starred,
+            "is_important": is_important,
+            "in_folder": in_folder,
+            "with_labels": with_labels,
+            "today": today,
+            "yesterday": yesterday,
+            "last_days": last_days,
+            "this_week": this_week,
+            "this_month": this_month,
+            "after_date": after_date,
+            "before_date": before_date
+        }
 
-            query = build_query(gmail, params)
-            message_ids = await query.execute()
+        query = build_query(gmail, params)
+        message_ids = await query.execute()
 
-            result = []
-            not_in_cache = []
+        result = []
+        not_in_cache = []
 
-            for message_id in message_ids:
-                if email := email_cache.get(message_id):
-                    email = email.copy()
-                    del email['body']
-                    del email['attachments']
-                    result.append(email)
-                else:
-                    not_in_cache.append(message_id)
+        for message_id in message_ids:
+            if email := email_cache.get(message_id):
+                email = email.copy()
+                del email['body']
+                del email['attachments']
+                result.append(email)
+            else:
+                not_in_cache.append(message_id)
 
-            emails = await gmail.batch_get_emails(not_in_cache)
-            for email in emails:
-                if not isinstance(email, Exception):
-                    temp = email_cache.save(email).copy()
-                    del temp['body']
-                    del temp['attachments']
-                    result.append(temp)
+        emails = await gmail.batch_get_emails(not_in_cache)
+        for email in emails:
+            if not isinstance(email, Exception):
+                temp = email_cache.save(email).copy()
+                del temp['body']
+                del temp['attachments']
+                result.append(temp)
 
-            return json.dumps(result)
-
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-        
-        except Exception as e:
-            logger.error(f"Error in SearchEmailsTool: {e}", exc_info=True)
-            return "Unable to search emails due to internal error"
+        return json.dumps(result)
 
 
 class DownloadAttachmentInput(BaseModel):
@@ -327,7 +285,7 @@ class DownloadAttachmentInput(BaseModel):
                                          description="ID of the attachment to download. Leave empty to download all attachments in the email")
 
 
-class DownloadAttachmentTool(BaseTool):
+class DownloadAttachmentTool(BaseGoogleTool):
     name: str = "download_attachment"
     description: str = "Download an attachment from an email message"
     args_schema: ArgsSchema = DownloadAttachmentInput
@@ -336,120 +294,94 @@ class DownloadAttachmentTool(BaseTool):
              config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
-                    attachment_id: Optional[str] = None) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Downloading Attachment...", "icon": "📎"}
+    async def _run_google_task(self, config: RunnableConfig, message_id: str, attachment_id: Optional[str] = None) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Downloading Attachment...", "icon": "📎"}
+        )
+        gmail = await get_gmail_service(config)
+        email_cache = get_email_cache(config)
+        user_id = config['configurable'].get('thread_id')
+
+        email = email_cache.get(message_id)
+        if email is None:
+            email = email_cache.save(
+                await gmail.get_email(message_id),
             )
-            gmail = await get_gmail_service(config)
-            email_cache = get_email_cache(config)
-            user_id = config['configurable'].get('thread_id')
 
-            email = email_cache.get(message_id)
-            if email is None:
-                email = email_cache.save(
-                    await gmail.get_email(message_id),
-                )
+        target_attachments = []
+        if attachment_id is None:
+            target_attachments = email["attachments"]
+        else:
+            for attachment in email["attachments"]:
+                if attachment["attachment_id"] == attachment_id:
+                    target_attachments = [attachment]
+                    break
 
-            target_attachments = []
-            if attachment_id is None:
-                target_attachments = email["attachments"]
-            else:
-                for attachment in email["attachments"]:
-                    if attachment["attachment_id"] == attachment_id:
-                        target_attachments = [attachment]
-                        break
+        if not target_attachments:
+            return "No matching attachments found."
 
-            if not target_attachments:
-                return "No matching attachments found."
+        async def process_attachment(attachment):
+            attachment_data = {
+                "message_id": message_id,
+                "attachment_id": attachment["attachment_id"],
+            }
 
-            async def process_attachment(attachment):
-                attachment_data = {
-                    "message_id": message_id,
-                    "attachment_id": attachment["attachment_id"],
-                }
-
-                orig_file = Path(attachment["filename"])
-                unique_filename = f"{orig_file.stem}_{uuid.uuid4().hex[:8]}{orig_file.suffix}"
-                upload_path = f"{user_id}/{unique_filename}"
-                
-                attachment_bytes = await gmail.get_attachment_payload(attachment_data)
-                mime_type = filetype.guess_mime(attachment_bytes) or "application/octet-stream"
-                size = len(attachment_bytes)
-
-                storage_path = await upload_to_supabase(
-                    path=upload_path,
-                    file_bytes=attachment_bytes,
-                    mime_type=mime_type
-                )
-                return {
-                    "filename": unique_filename,
-                    "path": storage_path,
-                    "mime_type": mime_type,
-                    "size": size,
-                }
-
-            # Process in parallel
-            attachment_results = await asyncio.gather(
-                *[process_attachment(a) for a in target_attachments],
-                return_exceptions=True
-            )
+            orig_file = Path(attachment["filename"])
+            unique_filename = f"{orig_file.stem}_{uuid.uuid4().hex[:8]}{orig_file.suffix}"
+            upload_path = f"{user_id}/{unique_filename}"
             
-            # Filter out exceptions and log them
-            results = []
-            for res in attachment_results:
-                if isinstance(res, Exception):
-                    logger.error(f"Failed to process attachment: {res}")
-                else:
-                    results.append(res)
+            attachment_bytes = await gmail.get_attachment_payload(attachment_data)
+            mime_type = filetype.guess_mime(attachment_bytes) or "application/octet-stream"
+            size = len(attachment_bytes)
 
-            return json.dumps(results)
+            storage_path = await upload_to_supabase(
+                path=upload_path,
+                file_bytes=attachment_bytes,
+                mime_type=mime_type
+            )
+            return {
+                "filename": unique_filename,
+                "path": storage_path,
+                "mime_type": mime_type,
+                "size": size,
+            }
 
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
+        # Process in parallel
+        attachment_results = await asyncio.gather(
+            *[process_attachment(a) for a in target_attachments],
+            return_exceptions=True
+        )
         
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
+        # Filter out exceptions and log them
+        results = []
+        for res in attachment_results:
+            if isinstance(res, Exception):
+                logger.error(f"Failed to process attachment: {res}")
+            else:
+                results.append(res)
 
-        except Exception as e:
-            logger.error(f"Error in DownloadAttachmentTool: {e}", exc_info=True)
-            return "Unable to download attachment due to internal error"
+        return json.dumps(results)
 
 
-class ListUserLabelsTool(BaseTool):
+class ListUserLabelsTool(BaseGoogleTool):
     name: str = "list_user_labels"
     description: str = "List all user-created labels in Gmail. It does not include system organization like INBOX, SENT, SPAM, etc."
 
     def _run(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _arun(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
-        try:
-            await adispatch_custom_event(
-                "tool_status",
-                {"text": "Listing Labels...", "icon": "🏷️"}
-            )
-            gmail = await get_gmail_service(config)
-            labels = await gmail.list_labels()
-            user_labels = [label for label in labels if label.type == "user"]
-            user_labels = [{
-                "label_id": label.id,
-                "name": label.name
-            } for label in user_labels
-            ]
-            return json.dumps(user_labels)
-        except (ProviderNotConnectedError, RefreshError):
-            return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-        
-        except HttpError as e:
-            if e.status_code == 403:
-                return "I currently don't have access to your gmail. Connect Gmail from the settings page."
-            raise e
-
-        except Exception as e:
-            logger.error(f"Error in ListUserLabelsTool: {e}", exc_info=True)
-            return "Unable to list user labels due to internal error"
+    async def _run_google_task(self, config: RunnableConfig) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Listing Labels...", "icon": "🏷️"}
+        )
+        gmail = await get_gmail_service(config)
+        labels = await gmail.list_labels()
+        user_labels = [label for label in labels if label.type == "user"]
+        user_labels = [{
+            "label_id": label.id,
+            "name": label.name
+        } for label in user_labels
+        ]
+        return json.dumps(user_labels)
