@@ -16,7 +16,6 @@ export function useAuth() {
 
             if (session?.provider_token && session?.access_token) {
                 try {
-                    console.log("Sending Google tokens to backend...");
                     const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
                     const response = await fetch(`${apiUrl}/integrations/google`, {
                         method: 'POST',
@@ -30,9 +29,7 @@ export function useAuth() {
                         }),
                     });
 
-                    if (response.ok) {
-                        console.log("Successfully synced Google tokens with backend.");
-                    } else {
+                    if (!response.ok) {
                         console.error("Failed to sync Google tokens:", await response.text());
                     }
                 } catch (error) {

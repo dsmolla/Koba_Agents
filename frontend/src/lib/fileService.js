@@ -60,7 +60,7 @@ export const deleteFile = async (file) => {
 export const listFiles = async (user_id) => {
     const files = []
     const {data, error} = await supabase.storage.from(bucket).list(user_id, {sortBy: {column: 'name', order: 'asc'}});
-    console.log(data)
+    
     if (error) {
         throw error;
     }

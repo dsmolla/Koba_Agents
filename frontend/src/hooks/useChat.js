@@ -12,7 +12,6 @@ export const useChat = () => {
     const handleServerMessage = (data) => {
         switch (data.type) {
             case 'history':
-                console.log(data);
                 setMessages(data.messages);
                 setStatus(null);
                 break;
@@ -96,12 +95,10 @@ export const useChat = () => {
 
                 socket.onopen = () => {
                     setIsConnected(true);
-                    console.log("WebSocket connected");
                 };
 
                 socket.onclose = () => {
                     setIsConnected(false);
-                    console.log("WebSocket disconnected. Reconnecting in 3s...");
                     reconnectTimeout = setTimeout(connectWebSocket, 3000);
                 };
 
