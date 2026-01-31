@@ -1,4 +1,4 @@
-import uuid
+import tempfile
 from pathlib import Path
 
 import aiofiles
@@ -8,15 +8,19 @@ from core.supabase_client import download_from_supabase
 
 async def download_to_disk(supabase_paths: list[str]) -> tuple[Path, list[str]]:
     downloaded_files = []
-    folder_name = str(uuid.uuid4())
-    download_folder = Path('.tmp') / Path(folder_name)
-    download_folder.mkdir(parents=True, exist_ok=True)
+    temp_dir = Path(tempfile.mkdtemp(prefix="koba_"))
+
     for path in supabase_paths:
         attachment_bytes = await download_from_supabase(path)
-        filename = path.split("/")[1]  # user_id/filename
-        async with aiofiles.open(download_folder / filename, mode="wb") as file:
+        if attachment_bytes is None:
+            continue
+
+        filename = Path(path).name
+
+        file_path = temp_dir / filename
+        async with aiofiles.open(file_path, mode="wb") as file:
             await file.write(attachment_bytes)
 
-        downloaded_files.append(str(download_folder / filename))
+        downloaded_files.append(str(file_path))
 
-    return download_folder, downloaded_files
+    return temp_dir, downloaded_files

@@ -12,7 +12,7 @@ import logging
 import logging.handlers
 import re
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 from pythonjsonlogger import json
 
@@ -200,7 +200,8 @@ def setup_logging(log_level: int = logging.DEBUG) -> None:
     logging.getLogger('httpx').setLevel(logging.WARNING)
     logging.getLogger('httpcore').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('telegram').setLevel(logging.INFO)
+    logging.getLogger('hpack.hpack').setLevel(logging.WARNING)
+    logging.getLogger('hpack.table').setLevel(logging.WARNING)
 
     root_logger.info("Logging system initialized", extra={
         'log_level': logging.getLevelName(log_level),

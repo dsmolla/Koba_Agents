@@ -30,6 +30,8 @@ class Config:
     REDIS_USERNAME = os.getenv("REDIS_USERNAME")
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:8000").split(",")
+
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
     @classmethod

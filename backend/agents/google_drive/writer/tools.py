@@ -48,6 +48,7 @@ class UploadFileTool(BaseTool):
             parent_folder_id: Optional[str] = None,
             description: Optional[str] = None
     ) -> str:
+        folder = None
         try:
             await adispatch_custom_event(
                 "tool_status",
@@ -55,13 +56,15 @@ class UploadFileTool(BaseTool):
             )
             drive = await get_drive_service(config)
             folder, downloaded_file = await download_to_disk([file_path])
+            if not downloaded_file:
+                return "Failed to download file from storage."
+                
             file = await drive.upload_file(
                 file_path=downloaded_file[0],
                 name=name,
                 parent_folder_id=parent_folder_id,
                 description=description
             )
-            shutil.rmtree(folder)
 
             return f"File uploaded successfully. file_id: {file.file_id}, name: {file.name}"
 
@@ -76,6 +79,9 @@ class UploadFileTool(BaseTool):
         except Exception as e:
             logger.error(f"Error in UploadFileTool: {e}", exc_info=True)
             return "Unable to upload file due to internal error"
+        finally:
+            if folder and folder.exists():
+                shutil.rmtree(folder)
 
 
 class CreateFolderInput(BaseModel):

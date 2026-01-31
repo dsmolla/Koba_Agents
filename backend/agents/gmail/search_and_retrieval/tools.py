@@ -1,6 +1,7 @@
+import asyncio
 import json
 import logging
-import secrets
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union, Annotated
@@ -352,67 +353,59 @@ class DownloadAttachmentTool(BaseTool):
                     await gmail.get_email(message_id),
                 )
 
-            attachments_downloaded = []
+            target_attachments = []
             if attachment_id is None:
-                for attachment in email["attachments"]:
-                    attachment_data = {
-                        "message_id": message_id,
-                        "attachment_id": attachment["attachment_id"],
-                    }
-
-                    short_id = secrets.token_hex(2)
-                    file = Path(attachment["filename"])
-                    filename = f"{file.stem}_{short_id}{file.suffix}"
-                    upload_path = f"{user_id}/{filename}"
-                    attachment_bytes = await gmail.get_attachment_payload(attachment_data)
-                    mime_type = filetype.guess_mime(attachment_bytes)
-                    size = len(attachment_bytes)
-
-                    storage_path = await upload_to_supabase(
-                        path=upload_path,
-                        file_bytes=attachment_bytes,
-                    )
-                    attachments_downloaded.append(
-                        {
-                            "filename": filename,
-                            "path": storage_path,
-                            "mime_type": mime_type,
-                            "size": size,
-                        }
-                    )
-
+                target_attachments = email["attachments"]
             else:
-                file = None
                 for attachment in email["attachments"]:
                     if attachment["attachment_id"] == attachment_id:
-                        file = Path(attachment["filename"])
+                        target_attachments = [attachment]
                         break
 
+            if not target_attachments:
+                return "No matching attachments found."
+
+            async def process_attachment(attachment):
                 attachment_data = {
                     "message_id": message_id,
-                    "attachment_id": attachment_id,
+                    "attachment_id": attachment["attachment_id"],
                 }
-                short_id = secrets.token_hex(2)
-                filename = f"{file.stem}_{short_id}{file.suffix}"
-                upload_path = f"{user_id}/{filename}"
+
+                orig_file = Path(attachment["filename"])
+                unique_filename = f"{orig_file.stem}_{uuid.uuid4().hex[:8]}{orig_file.suffix}"
+                upload_path = f"{user_id}/{unique_filename}"
+                
                 attachment_bytes = await gmail.get_attachment_payload(attachment_data)
-                mime_type = filetype.guess_mime(attachment_bytes)
+                mime_type = filetype.guess_mime(attachment_bytes) or "application/octet-stream"
                 size = len(attachment_bytes)
 
                 storage_path = await upload_to_supabase(
                     path=upload_path,
                     file_bytes=attachment_bytes,
+                    mime_type=mime_type
                 )
-                attachments_downloaded.append(
-                    {
-                        "filename": filename,
-                        "path": storage_path,
-                        "mime_type": mime_type,
-                        "size": size,
-                    }
-                )
+                return {
+                    "filename": unique_filename,
+                    "path": storage_path,
+                    "mime_type": mime_type,
+                    "size": size,
+                }
 
-            return json.dumps(attachments_downloaded)
+            # Process in parallel
+            attachment_results = await asyncio.gather(
+                *[process_attachment(a) for a in target_attachments],
+                return_exceptions=True
+            )
+            
+            # Filter out exceptions and log them
+            results = []
+            for res in attachment_results:
+                if isinstance(res, Exception):
+                    logger.error(f"Failed to process attachment: {res}")
+                else:
+                    results.append(res)
+
+            return json.dumps(results)
 
         except (ProviderNotConnectedError, RefreshError):
             return "I currently don't have access to your gmail. Connect Gmail from the settings page."
