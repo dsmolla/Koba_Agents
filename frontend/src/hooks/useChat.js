@@ -1,5 +1,5 @@
 import {useState, useEffect, useRef, useCallback} from 'react';
-import {supabase} from "../lib/supabase.js";
+import {useAuth} from "./useAuth.js";
 import {uploadFiles} from "../lib/fileService.js";
 
 export const useChat = () => {
@@ -7,7 +7,7 @@ export const useChat = () => {
     const [status, setStatus] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
     const ws = useRef(null);
-    const [session, setSession] = useState(null);
+    const { session } = useAuth();
 
     const handleServerMessage = (data) => {
         switch (data.type) {
@@ -47,20 +47,6 @@ export const useChat = () => {
     };
 
     useEffect(() => {
-        supabase.auth.getSession().then(({data: {session}}) => {
-            setSession(session);
-        });
-
-        const {
-            data: {subscription},
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
-
-    useEffect(() => {
         if (!session?.access_token) return;
 
         let socket = null;
@@ -79,8 +65,11 @@ export const useChat = () => {
                 });
 
                 if (!ticketResponse.ok) {
-                    console.error("Failed to get WebSocket ticket");
-                    reconnectTimeout = setTimeout(connectWebSocket, 5000); // Retry after 5s if auth fails
+                    console.error("Failed to get WebSocket ticket. Status:", ticketResponse.status);
+                    // If 401, the token might be expired. 
+                    // Since 'session' comes from context, relying on AuthContext to update it on refresh.
+                    // We'll retry in 5s hoping for a fresh token.
+                    reconnectTimeout = setTimeout(connectWebSocket, 5000); 
                     return;
                 }
 
@@ -122,7 +111,7 @@ export const useChat = () => {
                 clearTimeout(reconnectTimeout);
             }
         };
-    }, [session]);
+    }, [session?.access_token]); // Depend on access_token specifically to trigger reconnect on refresh
 
     const sendMessage = useCallback(async (text, stagedFiles = [], referencedFiles = []) => {
         if (ws.current?.readyState === WebSocket.OPEN) {
