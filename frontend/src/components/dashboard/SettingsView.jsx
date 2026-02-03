@@ -24,7 +24,8 @@ export default function SettingsView({user}) {
                 const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
                 const response = await fetch(`${apiUrl}/integrations/google`, {
                     headers: {
-                        'Authorization': `Bearer ${session.access_token}`
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'ngrok-skip-browser-warning': true
                     }
                 });
                 if (response.ok) {
