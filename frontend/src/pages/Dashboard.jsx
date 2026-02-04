@@ -26,7 +26,7 @@ function Dashboard() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-950 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
         );
@@ -48,13 +48,13 @@ function Dashboard() {
     };
 
     return (
-        <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden font-sans">
+        <div className="flex h-screen bg-gray-900 overflow-hidden font-sans">
             <Sidebar activeTab={activeTab} onTabChange={setActiveTab} user={user} />
 
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <header
-                    className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 h-16 flex items-center px-8 justify-between shrink-0">
-                    <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 capitalize">
+                    className="bg-gray-900 border-b border-gray-800 h-16 flex items-center px-8 justify-between shrink-0">
+                    <h1 className="text-xl font-semibold text-gray-100 capitalize">
                         {activeTab === 'chat' ? 'Chat Assistant' :
                             activeTab === 'files' ? 'File Manager' :
                                 activeTab === 'tasks' ? 'Recursive Tasks' : 'Settings'}

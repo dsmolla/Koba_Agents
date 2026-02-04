@@ -66,7 +66,7 @@ export const signInWithGoogleProvider = async (scopes) => {
     const {data, error} = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.origin,
+            redirectTo: 'http://localhost:5173',
             queryParams: {
                 access_type: 'offline',
                 prompt: 'consent',

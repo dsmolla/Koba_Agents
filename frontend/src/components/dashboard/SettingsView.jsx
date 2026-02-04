@@ -145,7 +145,7 @@ export default function SettingsView({user}) {
             <div>
                 <h2 className="text-2xl font-bold text-white mb-6">Account Settings</h2>
                 <div
-                    className="bg-secondary-dark-bg rounded-lg shadow-sm border border-dark-border divide-y dark:divide-dark-border">
+                    className="bg-secondary-dark-bg rounded-lg shadow-sm border border-dark-border divide-y divide-dark-border">
                     <div className="p-6">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-medium text-white flex items-center gap-2">

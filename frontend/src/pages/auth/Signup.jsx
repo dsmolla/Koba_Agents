@@ -109,7 +109,7 @@ function Signup() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full mt-1 text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
+                        className="w-full mt-1 text-white focus:ring-4 focus:outline-none ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center bg-primary-600 hover:bg-primary-700 focus:ring-primary-800"
                     >
                         {loading ? 'Signing up...' : 'Sign Up'}
                     </button>
@@ -122,7 +122,7 @@ function Signup() {
                         <div className="w-full border-t border-gray-600"/>
                     </div>
                     <div className="relative flex justify-center text-sm">
-                        <span className="bg-white text-gray-900 px-2 dark:bg-gray-800 dark:text-white">Or continue with</span>
+                        <span className="px-2 bg-gray-800 text-white">Or continue with</span>
                     </div>
                 </div>
 

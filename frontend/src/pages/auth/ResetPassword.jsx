@@ -40,12 +40,12 @@ const ResetPassword = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full mt-1 text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
+                        className="w-full mt-1 text-white focus:ring-4 focus:outline-none  font-medium rounded-lg text-sm px-5 py-2.5 text-center bg-primary-600 hover:bg-primary-700 focus:ring-primary-800"
                     >
                         {loading ? 'Submitting...' : 'Reset Password'}
                     </button>
                 </div>
-                <div className="flex justify-center text-sm font-medium mt-5 text-gray-900 dark:text-white">
+                <div className="flex justify-center text-sm font-medium mt-5  text-white">
                     <a href="/login" className="font-semibold text-indigo-400 hover:text-indigo-300">
                         Sign in
                     </a>

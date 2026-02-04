@@ -108,7 +108,7 @@ export default function FileManager({ files, setFiles }) {
 
                 {files.length === 0 && !isUploading && (
                     <div
-                        className="col-span-full py-12 flex flex-col items-center justify-center text-zinc-400 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
+                        className="col-span-full py-12 flex flex-col items-center justify-center text-zinc-400 border-2 border-dashed border-zinc-800 rounded-lg">
                         <Upload size={48} className="mb-4 opacity-50"/>
                         <p className="text-lg font-medium">No files uploaded</p>
                         <p className="text-sm">Upload files to see them here</p>

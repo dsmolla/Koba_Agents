@@ -145,7 +145,7 @@ export default function TaskManager() {
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div
-                        className="dark:bg-secondary-dark-bg rounded-lg shadow-xl max-w-md w-full overflow-hidden border border-dark-border">
+                        className="bg-secondary-dark-bg rounded-lg shadow-xl max-w-md w-full overflow-hidden border border-dark-border">
                         <div
                             className="flex justify-between items-center p-4 border-b border-dark-border">
                             <h3 className="text-lg font-semibold text-white">Create New Task</h3>
