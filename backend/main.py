@@ -197,8 +197,12 @@ async def websocket_endpoint(
     except Exception as e:
         logger.error(f"Failed to fetch messages: {e}", extra={"user_id": user_id}, exc_info=True)
 
+    is_connected = True
     while True:
         try:
+            if not is_connected:
+                break
+
             data = await websocket.receive_json()
 
             if logger.isEnabledFor(logging.DEBUG):
@@ -226,13 +230,20 @@ async def websocket_endpoint(
                 if kind == "on_custom_event" and event["name"] == "tool_status":
                     data = event["data"]
                     logger.info(f"Tool Status: {data['text']}", extra={"user_id": user_id})
-                    await websocket.send_json(
-                        {
-                            "type": "status",
-                            "content": data["text"],
-                            "icon": data.get("icon", "⏳")
-                        }
-                    )
+                    
+                    if is_connected:
+                        try:
+                            await websocket.send_json(
+                                {
+                                    "type": "status",
+                                    "content": data["text"],
+                                    "icon": data.get("icon", "⏳")
+                                }
+                            )
+                        except (WebSocketDisconnect, RuntimeError):
+                            is_connected = False
+                            logger.info("User disconnected during status update. Continuing in background.", extra={"user_id": user_id})
+
                 elif kind == 'on_chain_end' and event['name'] == 'SupervisorAgent':
                     bot_message: BotMessage = event['data']['output']['structured_response']
                     bot_message_dump = bot_message.model_dump()
@@ -243,32 +254,46 @@ async def websocket_endpoint(
                     else:
                         logger.info(f"Agent Response Sent", extra={"user_id": user_id, "response_time": response_time})
                         
-                    await websocket.send_json(
-                        bot_message_dump
-                    )
+                    if is_connected:
+                        try:
+                            await websocket.send_json(
+                                bot_message_dump
+                            )
+                        except (WebSocketDisconnect, RuntimeError):
+                            is_connected = False
+                            logger.info("User disconnected during final response. Saved to DB.", extra={"user_id": user_id})
+
         except WebSocketDisconnect:
             logger.info(f"User disconnected", extra={"user_id": user_id})
             break
         except ProviderNotConnectedError as e:
             logger.warning(f"Provider not connected: {e}", extra={"user_id": user_id})
-            await websocket.send_json(
-                {
-                    "type": "error",
-                    "code": "AUTH_REQUIRED",
-                    "provider": "Google",
-                    "content": "Please authenticate your Google account."
-                }
-            )
+            if is_connected:
+                try:
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "code": "AUTH_REQUIRED",
+                            "provider": "Google",
+                            "content": "Please authenticate your Google account."
+                        }
+                    )
+                except (WebSocketDisconnect, RuntimeError):
+                    is_connected = False
         except RefreshError as e:
             logger.warning(f"Token refresh failed: {e}", extra={"user_id": user_id})
-            await websocket.send_json(
-                {
-                    "type": "error",
-                    "code": "AUTH_EXPIRED",
-                    "provider": "Google",
-                    "content": "Please re-authenticate your Google account."
-                }
-            )
+            if is_connected:
+                try:
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "code": "AUTH_EXPIRED",
+                            "provider": "Google",
+                            "content": "Please re-authenticate your Google account."
+                        }
+                    )
+                except (WebSocketDisconnect, RuntimeError):
+                    is_connected = False
 
 
 @app.delete("/chat/clear")

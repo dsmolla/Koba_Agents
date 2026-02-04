@@ -30,7 +30,9 @@ export const AuthProvider = ({ children }) => {
             setUser(session?.user ?? null)
             setLoading(false)
 
-            if (session?.provider_token && session?.access_token) {
+            const isIntegrating = localStorage.getItem('integrating_google') === 'true';
+
+            if (session?.provider_token && session?.access_token && isIntegrating) {
                 try {
                     const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
                     const response = await fetch(`${apiUrl}/integrations/google`, {
@@ -47,6 +49,9 @@ export const AuthProvider = ({ children }) => {
 
                     if (!response.ok) {
                         console.error("Failed to sync Google tokens:", await response.text());
+                    } else {
+                        // Only clear the flag if sync was successful or attempted
+                        localStorage.removeItem('integrating_google');
                     }
                 } catch (error) {
                     console.error("Error syncing Google tokens:", error);
