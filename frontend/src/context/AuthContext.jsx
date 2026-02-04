@@ -9,6 +9,12 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
+        // Clear integration flag if the user clicked "Back" to return to the app
+        // This handles the case where a user starts the flow but cancels by navigating back
+        const navEntry = performance.getEntriesByType("navigation")[0];
+        if (navEntry && navEntry.type === 'back_forward') {
+            localStorage.removeItem('integrating_google');
+    }
         // Check active sessions and sets the user
         const checkSession = async () => {
             try {
