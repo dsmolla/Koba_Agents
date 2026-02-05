@@ -57,4 +57,4 @@ def _get_email_cache(user_id: str) -> EmailCache:
     return EmailCache(user_id)
 
 def get_email_cache(config: RunnableConfig) -> EmailCache:
-    return _get_email_cache(config['configurable'].get('user_id'))
+    return _get_email_cache(config['configurable'].get('thread_id'))
