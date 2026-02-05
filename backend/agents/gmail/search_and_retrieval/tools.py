@@ -4,6 +4,7 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
+from textwrap import dedent
 from typing import Optional, Union, Annotated
 
 import filetype
@@ -171,7 +172,10 @@ def build_query(service, params: dict) -> Union[EmailQueryBuilder, AsyncEmailQue
 
 class SearchEmailsTool(BaseGoogleTool):
     name: str = "search_emails"
-    description: str = "search and retrieve emails from Gmail based on various filters. Returns email snippets"
+    description: str =  dedent("""\
+        search and retrieve emails from Gmail based on various filters. 
+        Returns email snippets. Dates are non-inclusive (for emails on 2020-03-04, use after_date=2020-03-03, before_date=2020-03-05)
+    """)
     args_schema: ArgsSchema = SearchEmailsInput
 
     def _run(
