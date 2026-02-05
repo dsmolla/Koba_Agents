@@ -20,6 +20,7 @@ from config import Config
 from core.db import database
 from core.dependencies import get_current_user_ws, get_current_user_http
 from core.exceptions import ProviderNotConnectedError
+from core.rate_limit import RateLimitMiddleware, check_ws_rate_limit
 from core.models import GoogleCredentials, UserMessage, BotMessage
 from core.redis_client import redis_client
 from logging_config import setup_logging
@@ -80,6 +81,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
 
 
 @app.exception_handler(Exception)
@@ -204,6 +206,17 @@ async def websocket_endpoint(
                 break
 
             data = await websocket.receive_json()
+
+            # Check rate limit
+            is_allowed, remaining = await check_ws_rate_limit(user_id)
+            if not is_allowed:
+                logger.warning("WebSocket rate limit exceeded", extra={"user_id": user_id})
+                await websocket.send_json({
+                    "type": "error",
+                    "code": "RATE_LIMITED",
+                    "content": "Too many messages. Please wait before sending more."
+                })
+                continue
 
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(f"Received message content: {data}", extra={"user_id": user_id})

@@ -40,4 +40,30 @@ class RedisClient:
             await self.redis.delete(f"ws_ticket:{ticket}")
         return user_id
 
+    async def check_rate_limit(self, key: str, limit: int, window_seconds: int) -> tuple[bool, int]:
+        """
+        Sliding window rate limiter.
+        Returns (is_allowed, remaining_requests).
+        """
+        import time
+        now = time.time()
+        window_start = now - window_seconds
+        redis_key = f"ratelimit:{key}"
+
+        pipe = self.redis.pipeline()
+        await pipe.zremrangebyscore(redis_key, 0, window_start)
+        await pipe.zadd(redis_key, {str(now): now})
+        await pipe.zcard(redis_key)
+        await pipe.expire(redis_key, window_seconds)
+        results = await pipe.execute()
+
+        request_count = results[2]
+        is_allowed = request_count <= limit
+        remaining = max(0, limit - request_count)
+
+        if not is_allowed:
+            await self.redis.zrem(redis_key, str(now))
+
+        return is_allowed, remaining
+
 redis_client = RedisClient()
