@@ -18,6 +18,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from agents.supervisor import SupervisorAgent
 from config import Config
 from core.db import database
+from core.auth import get_google_service
 from core.dependencies import get_current_user_ws, get_current_user_http
 from core.exceptions import ProviderNotConnectedError
 from core.rate_limit import RateLimitMiddleware, check_ws_rate_limit
@@ -226,6 +227,17 @@ async def websocket_endpoint(
             user_message = UserMessage(**data)
             message_received_at = time.time()
 
+            # Create API service once per message and pass via config
+            api_service = await get_google_service(user_id, timezone)
+            message_config = RunnableConfig(
+                configurable={
+                    "thread_id": user_id,
+                    "timezone": timezone,
+                    "api_service": api_service,
+                },
+                recursion_limit=50
+            )
+
             full_message = user_message.content
             if user_message.files:
                 full_message += "\n\n----------- Attached files -----------\n"
@@ -235,7 +247,7 @@ async def websocket_endpoint(
                     full_message += f"File Path: {file.path}"
 
             input_message = HumanMessage(content=full_message, name='RealUser', additional_kwargs={'message': data})
-            async for event in supervisor_agent.agent.astream_events({"messages": [input_message]}, config=config):
+            async for event in supervisor_agent.agent.astream_events({"messages": [input_message]}, config=message_config):
                 kind = event["event"]
                 if logger.isEnabledFor(logging.DEBUG):
                     log_event(event, user_id)

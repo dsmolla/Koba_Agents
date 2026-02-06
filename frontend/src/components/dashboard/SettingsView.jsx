@@ -4,42 +4,24 @@ import {signOutUser, updateUserData, signInWithGoogleProvider, supabase} from '.
 import {useNavigate} from 'react-router-dom';
 import toast, {Toaster} from "react-hot-toast";
 import {GoogleDriveIcon, GmailIcon, GoogleCalendarIcon, GoogleTasksIcon} from "../../assets/icons.jsx";
+import {useAuth} from '../../hooks/useAuth';
 
 export default function SettingsView({user}) {
     const navigate = useNavigate();
+    const { googleIntegration, fetchGoogleIntegration, session } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
-    const [googleConnected, setGoogleConnected] = useState(false);
-    const [googleScopes, setGoogleScopes] = useState("");
+    const [googleConnected, setGoogleConnected] = useState(googleIntegration.connected);
+    const [googleScopes, setGoogleScopes] = useState(googleIntegration.scopes);
     const [formData, setFormData] = useState({
         email: user?.email || '',
         fullName: user?.user_metadata?.full_name || ''
     });
 
+    // Sync from context when it updates
     useEffect(() => {
-        const checkGoogleConnection = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            try {
-                const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-                const response = await fetch(`${apiUrl}/integrations/google`, {
-                    headers: {
-                        'Authorization': `Bearer ${session.access_token}`,
-                        'ngrok-skip-browser-warning': true
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setGoogleConnected(data.connected);
-                    setGoogleScopes(data.scopes || "");
-                }
-            } catch (error) {
-                console.error("Error checking google connection:", error);
-            }
-        };
-
-        checkGoogleConnection();
-    }, []);
+        setGoogleConnected(googleIntegration.connected);
+        setGoogleScopes(googleIntegration.scopes);
+    }, [googleIntegration]);
 
     const hasScope = (scope) => {
         return googleScopes.includes(scope);
@@ -71,7 +53,6 @@ export default function SettingsView({user}) {
     };
 
     const handleDisconnectService = async (service) => {
-        const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
         try {
@@ -83,8 +64,8 @@ export default function SettingsView({user}) {
                 }
             });
             if (response.ok) {
-                setGoogleConnected(false);
-                setGoogleScopes("");
+                // Refresh integration status from backend
+                fetchGoogleIntegration(session.access_token);
                 toast.success(`Disconnected ${service}`);
             } else {
                 toast.error("Failed to disconnect");

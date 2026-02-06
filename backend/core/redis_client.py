@@ -1,7 +1,11 @@
+import logging
+
 from redis.asyncio import Redis
 
 from config import Config
 from core.token_encryption import token_encryptor
+
+logger = logging.getLogger(__name__)
 
 
 class RedisClient:
@@ -19,19 +23,23 @@ class RedisClient:
         )
 
     async def get_provider_token(self, user_id: str, provider: str) -> dict | None:
+        logger.debug(f"Get provider token for user {user_id}, provider {provider}")
         token = await self.redis.get(f"{user_id}:{provider}")
         if not token:
             return None
         return token_encryptor.decrypt(token)
 
-    async def set_provider_token(self, token: dict, user_id: str, provider: str) -> None:
+    async def set_provider_token(self, user_id: str, provider: str, token: dict) -> None:
+        logger.debug(f"Set provider token for user {user_id}, provider {provider}")
         token = token_encryptor.encrypt(token)
         await self.redis.set(f"{user_id}:{provider}", token, ex=3600)
 
     async def delete_provider_token(self, user_id: str, provider: str) -> None:
+        logger.debug(f"Delete provider token for user {user_id}, provider {provider}")
         await self.redis.delete(f"{user_id}:{provider}")
 
     async def set_ws_ticket(self, ticket: str, user_id: str) -> None:
+        logger.debug(f"Set ws ticket for user {user_id}")
         await self.redis.set(f"ws_ticket:{ticket}", user_id, ex=30)
 
     async def get_ws_ticket(self, ticket: str) -> str | None:
@@ -45,6 +53,7 @@ class RedisClient:
         Sliding window rate limiter.
         Returns (is_allowed, remaining_requests).
         """
+        logger.debug(f"Checking rate limit for key {key}")
         import time
         now = time.time()
         window_start = now - window_seconds
