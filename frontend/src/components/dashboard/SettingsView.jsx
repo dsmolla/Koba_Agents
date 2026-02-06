@@ -215,7 +215,7 @@ export default function SettingsView({user}) {
                                     {googleConnected && (
                                         <button
                                             onClick={() => handleDisconnectService('Google Account')}
-                                            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500 hover:cursor-pointer text-sm font-medium transition-colors shadow-lg shadow-red-900/20"
+                                            className="px-4 py-2 bg-red-500/60 text-white rounded hover:bg-red-500/80 hover:cursor-pointer text-sm font-medium transition-colors shadow-lg shadow-red-900/20"
                                         >
                                             Disconnect
                                         </button>
