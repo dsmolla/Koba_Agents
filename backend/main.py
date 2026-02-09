@@ -228,7 +228,10 @@ async def websocket_endpoint(
             message_received_at = time.time()
 
             # Create API service once per message and pass via config
-            api_service = await get_google_service(user_id, timezone)
+            try:
+                api_service = await get_google_service(user_id, timezone)
+            except (ProviderNotConnectedError, RefreshError):
+                api_service = None
             message_config = RunnableConfig(
                 configurable={
                     "thread_id": user_id,

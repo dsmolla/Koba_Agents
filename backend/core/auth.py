@@ -19,15 +19,27 @@ async def get_google_service(user_id: str, timezone: str) -> APIServiceLayer:
 
 
 async def get_gmail_service(config: RunnableConfig):
-    return config['configurable'].get('api_service').async_gmail
+    api_service = config['configurable'].get('api_service')
+    if not api_service:
+        raise ProviderNotConnectedError('Google')
+    return api_service.async_gmail
 
 async def get_calendar_service(config: RunnableConfig):
-    return config['configurable'].get('api_service').async_calendar
+    api_service = config['configurable'].get('api_service')
+    if not api_service:
+        raise ProviderNotConnectedError('Google')
+    return api_service.async_calendar
 
 
 async def get_drive_service(config: RunnableConfig):
-    return config['configurable'].get('api_service').async_drive
+    api_service = config['configurable'].get('api_service')
+    if not api_service:
+        raise ProviderNotConnectedError('Google')
+    return api_service.async_drive
 
 
 async def get_tasks_service(config: RunnableConfig):
-    return config['configurable'].get('api_service').async_tasks
+    api_service = config['configurable'].get('api_service')
+    if not api_service:
+        raise ProviderNotConnectedError('Google')
+    return api_service.async_tasks
