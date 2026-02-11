@@ -209,3 +209,35 @@ def setup_logging(log_level: int = logging.DEBUG) -> None:
         'console_output': True,
         'json_output': True
     })
+
+
+def log_event(event, user_id):
+    """Log LangGraph agent stream events for debugging."""
+    from langchain_core.messages import HumanMessage, AIMessage
+
+    _logger = logging.getLogger("agents.events")
+    kind = event["event"]
+    name = event.get("name", "Unknown")
+    data = event.get("data", {})
+
+    if kind == "on_chain_start" and "input" in data:
+        input_data = data["input"]
+        if isinstance(input_data, dict) and "messages" in input_data:
+            messages = input_data["messages"]
+            if messages and isinstance(messages[-1], HumanMessage) and messages[-1].name:
+                _logger.debug(f"{messages[-1].name}: {messages[-1].content}", extra={"user_id": user_id})
+
+    elif kind == "on_tool_start":
+        tool_name = name
+        tool_args = data.get("input")
+        _logger.debug(f"tool_call [{tool_name}]: {tool_args}", extra={"user_id": user_id})
+
+    elif kind == "on_tool_end":
+        tool_output = data.get("output")
+        _logger.debug(f"tool_response [{tool_output.name}]: {tool_output.content}", extra={"user_id": user_id})
+
+    elif kind == "on_chat_model_end":
+        output = data.get("output")
+        if isinstance(output, AIMessage) and output.content:
+            if not output.tool_calls:
+                _logger.debug(f"agent_response [{output.name}]: {output.content}", extra={"user_id": user_id})
