@@ -209,6 +209,7 @@ class CreateEventInput(BaseModel):
     description: Optional[str] = Field(default=None, description="The description of the event")
     location: Optional[str] = Field(default=None, description="The location of the event")
     attendees: Optional[List[str]] = Field(default=None, description="List of attendee writer addresses")
+    create_google_meet: bool = Field(default=False, description="Whether or not to add a google meet link to the event")
     recurrence: Optional[List[str]] = Field(default=None, description="Recurrence rules for the event in RRULE format")
 
 
@@ -240,6 +241,7 @@ class CreateEventTool(BaseGoogleTool):
             description: Optional[str] = None,
             location: Optional[str] = None,
             attendees: Optional[List[str]] = None,
+            create_google_meet: bool = False,
             recurrence: Optional[List[str]] = None,
             calendar_id: str = 'primary'
     ) -> str:
@@ -257,10 +259,11 @@ class CreateEventTool(BaseGoogleTool):
             description=description,
             location=location,
             attendees=[Attendee(email=attendee) for attendee in attendees],
+            create_google_meet=create_google_meet,
             recurrence=recurrence,
             calendar_id=calendar_id
         )
-        return f"Event created successfully. event_id: {event.event_id}"
+        return f"Event created successfully. event_id: {event.event_id}, calendar_id: {event.calendar_id}"
 
 
 class DeleteEventInput(BaseModel):
@@ -286,7 +289,7 @@ class DeleteEventTool(BaseGoogleTool):
         )
         calendar_service = await get_calendar_service(config)
         await calendar_service.delete_event(event=event_id, calendar_id=calendar_id)
-        return f"Event deleted successfully. event_id: {event_id}"
+        return f"Event deleted successfully. event_id: {event_id}, calendar_id: {calendar_id}"
 
 
 class UpdateEventInput(BaseModel):
@@ -374,8 +377,39 @@ class UpdateEventTool(BaseGoogleTool):
             event.recurrence = recurrence
 
         updated_event = await calendar_service.update_event(event=event)
-        return f"Event updated successfully. event_id: {updated_event.event_id}"
+        return f"Event updated successfully. event_id: {updated_event.event_id}, calendar_id: {updated_event.calendar_id}"
 
+class AddGoogleMeetsToEventInput(BaseModel):
+    calendar_id: Optional[str] = Field('primary',
+                                       description="The calendar_id containing the event. Default is primary")
+    event_id: str = Field(description="The event_id of the event to add the meeting to")
+
+class AddGoogleMeetsToEventTool(BaseGoogleTool):
+    name: str = "add_google_meets_to_event"
+    description: str = "Adds a google meets link to an already existing event"
+    args_schema: ArgsSchema = AddGoogleMeetsToEventInput
+
+    def _run(
+            self,
+            event_id: str,
+            config: Annotated[RunnableConfig, InjectedToolArg],
+            calendar_id: str = 'primary',
+    ) -> str:
+        raise NotImplementedError("Use async execution.")
+
+    async def _run_google_task(
+            self,
+            config: RunnableConfig,
+            event_id: str,
+            calendar_id: str = 'primary',
+    ) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Adding Meeting to Event...", "icon": "📅"}
+        )
+        calendar_service = await get_calendar_service(config)
+        await calendar_service.add_meeting(event_id, calendar_id)
+        return f"Meeting Link added successfully. event_id: {event_id}, calendar_id: {calendar_id}"
 
 class FindFreeSlotsInput(BaseModel):
     duration_minutes: int = Field(description="Minimum duration for free slots in minutes")

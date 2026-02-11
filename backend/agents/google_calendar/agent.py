@@ -23,6 +23,7 @@ class CalendarAgent(BaseAgent):
             CreateEventTool(),
             DeleteEventTool(),
             UpdateEventTool(),
+            AddGoogleMeetsToEventTool(),
             FindFreeSlotsTool(),
         ]
         tool_descriptions = []
