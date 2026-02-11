@@ -14,6 +14,7 @@ from core.rate_limit import RateLimitMiddleware
 from logging_config import setup_logging
 from routes.auth import router as auth_router
 from routes.chat import router as chat_router
+from routes.health import router as health_router
 from routes.integrations import router as integrations_router
 
 load_dotenv()
@@ -46,6 +47,7 @@ app.add_middleware(
 app.add_middleware(RateLimitMiddleware)
 
 app.include_router(auth_router)
+app.include_router(health_router)
 app.include_router(integrations_router)
 app.include_router(chat_router)
 
