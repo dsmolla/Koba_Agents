@@ -4,6 +4,8 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from google.auth.exceptions import RefreshError
+from google.genai.errors import APIError as GenAIAPIError
+from langchain_google_genai._common import GoogleGenerativeAIError
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 
@@ -183,6 +185,17 @@ async def websocket_endpoint(
                         "code": "AUTH_EXPIRED",
                         "provider": "Google",
                         "content": "Please re-authenticate your Google account."
+                    })
+                except (WebSocketDisconnect, RuntimeError):
+                    is_connected = False
+        except (GenAIAPIError, GoogleGenerativeAIError) as e:
+            logger.error(f"Model API error: {e}", extra={"user_id": user_id}, exc_info=True)
+            if is_connected:
+                try:
+                    await websocket.send_json({
+                        "type": "error",
+                        "code": "MODEL_ERROR",
+                        "content": "The AI model is temporarily unavailable. Please try again shortly."
                     })
                 except (WebSocketDisconnect, RuntimeError):
                     is_connected = False
