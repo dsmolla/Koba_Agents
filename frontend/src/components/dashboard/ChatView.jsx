@@ -8,9 +8,24 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
     const [stagedFiles, setStagedFiles] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [selectedModel, setSelectedModel] = useState(
+        () => localStorage.getItem('selectedModel') || ''
+    );
+    const [models, setModels] = useState([]);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const inputRef = useRef(null);
+
+    useEffect(() => {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+        fetch(`${backendUrl}/models`)
+            .then(res => res.json())
+            .then(data => {
+                setModels(data.models);
+                setSelectedModel(data.default)
+            })
+            .catch(err => console.error("Failed to fetch models:", err));
+    }, []);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({behavior: "instant"});
@@ -24,7 +39,7 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
             inputText.includes(`@${file.filename}`)
         );
 
-        sendMessage(inputText, stagedFiles, referencedFiles)
+        sendMessage(inputText, stagedFiles, referencedFiles, selectedModel || null)
 
         setInputText("");
         setStagedFiles([]);
@@ -226,6 +241,21 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
                     >
                         <Paperclip size={20}/>
                     </button>
+                    <select
+                        value={selectedModel}
+                        onChange={(e) => {
+                            setSelectedModel(e.target.value);
+                            localStorage.setItem('selectedModel', e.target.value);
+                        }}
+                        className="text-xs bg-dark-input-bg text-zinc-300 border border-gray-600 rounded-md px-2 py-2 outline-none appearance-none cursor-pointer hover:border-gray-500 transition-colors"
+                        title="Select model"
+                    >
+                        {models.map(m => (
+                            <option key={m.id} value={m.id}>
+                                {m.name}
+                            </option>
+                        ))}
+                    </select>
                     <input
                         type="text"
                         ref={inputRef}

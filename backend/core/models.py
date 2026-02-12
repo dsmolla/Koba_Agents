@@ -19,6 +19,7 @@ class UserMessage(BaseModel):
     content: str
     files: List[FileAttachment] = Field(default_factory=list)
     timestamp: int
+    model: str | None = None
 
 
 class BotMessage(BaseModel):

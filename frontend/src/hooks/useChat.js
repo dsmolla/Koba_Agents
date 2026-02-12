@@ -113,7 +113,7 @@ export const useChat = () => {
         };
     }, [session?.access_token]); // Depend on access_token specifically to trigger reconnect on refresh
 
-    const sendMessage = useCallback(async (text, stagedFiles = [], referencedFiles = []) => {
+    const sendMessage = useCallback(async (text, stagedFiles = [], referencedFiles = [], model = null) => {
         if (ws.current?.readyState === WebSocket.OPEN) {
             const timestamp = Date.now();
 
@@ -144,7 +144,8 @@ export const useChat = () => {
                 sender: 'user',
                 content: text,
                 files: allFiles,
-                timestamp: timestamp
+                timestamp: timestamp,
+                ...(model && { model }),
             }));
 
             setStatus(null);

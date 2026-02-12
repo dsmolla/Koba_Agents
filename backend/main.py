@@ -16,6 +16,7 @@ from routes.auth import router as auth_router
 from routes.chat import router as chat_router
 from routes.health import router as health_router
 from routes.integrations import router as integrations_router
+from routes.models import router as models_router
 
 load_dotenv()
 Config.validate()
@@ -23,14 +24,25 @@ setup_logging(Config.LOG_LEVEL)
 
 logger = logging.getLogger(__name__)
 
-LLM = ChatGoogleGenerativeAI(model=Config.GEMINI_MODEL)
+
+def get_agent(app, model_name: str) -> SupervisorAgent:
+    """Get or lazily create a SupervisorAgent for the given model."""
+    if model_name not in Config.ALLOWED_MODELS:
+        model_name = Config.DEFAULT_MODEL
+    if model_name not in app.state.agents:
+        llm = ChatGoogleGenerativeAI(model=model_name)
+        app.state.agents[model_name] = SupervisorAgent(model=llm, checkpointer=app.state.checkpointer)
+        logger.info(f"Created agent for model: {model_name}")
+    return app.state.agents[model_name]
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await database.connect()
     checkpointer = await database.get_checkpointer()
-    app.state.supervisor_agent = SupervisorAgent(model=LLM, checkpointer=checkpointer)
+    app.state.checkpointer = checkpointer
+    default_llm = ChatGoogleGenerativeAI(model=Config.DEFAULT_MODEL)
+    app.state.agents = {Config.DEFAULT_MODEL: SupervisorAgent(model=default_llm, checkpointer=checkpointer)}
     yield
     await database.disconnect()
 
@@ -49,6 +61,7 @@ app.add_middleware(RateLimitMiddleware)
 app.include_router(auth_router)
 app.include_router(health_router)
 app.include_router(integrations_router)
+app.include_router(models_router)
 app.include_router(chat_router)
 
 

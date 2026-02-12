@@ -9,6 +9,7 @@ from langchain_google_genai._common import GoogleGenerativeAIError
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 
+from config import Config
 from core.auth import get_google_service
 from core.db import database
 from core.dependencies import get_current_user_ws, get_current_user_http
@@ -131,10 +132,12 @@ async def websocket_endpoint(
     user_id = user.id
     timezone = websocket.query_params.get("timezone", "UTC")
     config = RunnableConfig(configurable={"thread_id": user_id, "timezone": timezone})
-    agent = websocket.app.state.supervisor_agent
+
+    from main import get_agent
+    default_agent = get_agent(websocket.app, Config.DEFAULT_MODEL)
 
     logger.info("User connected", extra={"user_id": user_id})
-    await send_chat_history(websocket, agent, config, user_id)
+    await send_chat_history(websocket, default_agent, config, user_id)
 
     is_connected = True
     while True:
@@ -154,11 +157,13 @@ async def websocket_endpoint(
                 })
                 continue
 
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(f"Received message content: {data}", extra={"user_id": user_id})
-            else:
-                logger.info("Received message", extra={"user_id": user_id, "content_length": len(str(data))})
+            model_name = data.get("model") or Config.DEFAULT_MODEL
+            agent = get_agent(websocket.app, model_name)
 
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"Received message content: {data}", extra={"user_id": user_id, "model": model_name})
+            else:
+                logger.info("Received message", extra={"user_id": user_id, "content_length": len(str(data)), "model": model_name})
             is_connected = await process_message(websocket, agent, config, data, user_id)
 
         except WebSocketDisconnect:

@@ -6,7 +6,14 @@ load_dotenv()
 
 
 class Config:
-    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", "gemini-2.5-flash")
+    ALLOWED_MODELS = {
+        "gemini-3-pro-preview": "Gemini 3.0 Pro",
+        "gemini-3-flash-preview": "Gemini 3.0 Flash",
+        "gemini-2.5-flash": "Gemini 2.5 Flash",
+        "gemini-2.5-pro": "Gemini 2.5 Pro",
+        "gemini-2.0-flash": "Gemini 2.0 Flash",
+    }
     GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY")
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
     GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
