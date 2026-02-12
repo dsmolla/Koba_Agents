@@ -1,4 +1,4 @@
-import {useState, useRef, useEffect, Children} from 'react';
+import {useState, useRef, useEffect} from 'react';
 import {Send, Paperclip, Bot, User, FileText, Image, Film, Music, X, Trash2} from 'lucide-react';
 import Markdown from "react-markdown";
 import {downloadFile} from "../../lib/fileService.js";
@@ -108,21 +108,9 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
         return (
             <Markdown
                 components={{
-                    p: ({node, children, ...props}) => {
-                        const processedChildren = Children.map(children, child => {
-                            if (typeof child === 'string') {
-                                const parts = child.split(/(\s@\S+|^@\S+)/g);
-                                return parts.map((part, i) => {
-                                    if (part.trim().startsWith('@')) {
-                                        return <span key={i} className="text-blue-400 font-medium">{part}</span>;
-                                    }
-                                    return part;
-                                });
-                            }
-                            return child;
-                        });
-                        return <p className="text-sm whitespace-pre-wrap" {...props}>{processedChildren}</p>;
-                    }
+                    p: ({node, children, ...props}) => (
+                        <p className="text-sm whitespace-pre-wrap" {...props}>{children}</p>
+                    )
                 }}
             >
                 {content}
