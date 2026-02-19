@@ -1,10 +1,12 @@
 import {useState, useEffect} from 'react';
-import {User, Mail, Shield, Bell, LogOut, Edit2, Check, X, Share2} from 'lucide-react';
+import {User, Mail, Shield, Bell, LogOut, Edit2, Check, X, Share2, Globe} from 'lucide-react';
 import {signOutUser, updateUserData, signInWithGoogleProvider, supabase} from '../../lib/supabase';
 import {useNavigate} from 'react-router-dom';
 import toast, {Toaster} from "react-hot-toast";
 import {GoogleDriveIcon, GmailIcon, GoogleCalendarIcon, GoogleTasksIcon} from "../../assets/icons.jsx";
 import {useAuth} from '../../hooks/useAuth';
+
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 export default function SettingsView({user}) {
     const navigate = useNavigate();
@@ -12,6 +14,8 @@ export default function SettingsView({user}) {
     const [isEditing, setIsEditing] = useState(false);
     const [googleConnected, setGoogleConnected] = useState(googleIntegration.connected);
     const [googleScopes, setGoogleScopes] = useState(googleIntegration.scopes);
+    const [timezone, setTimezone] = useState('');
+    const [timezoneLoading, setTimezoneLoading] = useState(false);
     const [formData, setFormData] = useState({
         email: user?.email || '',
         fullName: user?.user_metadata?.full_name || ''
@@ -22,6 +26,66 @@ export default function SettingsView({user}) {
         setGoogleConnected(googleIntegration.connected);
         setGoogleScopes(googleIntegration.scopes);
     }, [googleIntegration]);
+
+    // Fetch user timezone on mount
+    useEffect(() => {
+        if (!session) return;
+        const fetchTimezone = async () => {
+            try {
+                const res = await fetch(`${API_URL}/settings`, {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setTimezone(data.timezone);
+                }
+            } catch (e) {
+                console.error('Failed to fetch timezone:', e);
+            }
+        };
+        fetchTimezone();
+    }, [session]);
+
+    const handleTimezoneChange = async (e) => {
+        const newTz = e.target.value;
+        setTimezone(newTz);
+        setTimezoneLoading(true);
+        try {
+            const res = await fetch(`${API_URL}/settings`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({ timezone: newTz })
+            });
+            if (res.ok) {
+                toast.success('Timezone updated');
+            } else {
+                toast.error('Failed to update timezone');
+            }
+        } catch {
+            toast.error('Failed to update timezone');
+        } finally {
+            setTimezoneLoading(false);
+        }
+    };
+
+    // Get available timezones from the browser
+    const availableTimezones = (() => {
+        try {
+            return Intl.supportedValuesOf('timeZone');
+        } catch {
+            // Fallback for older browsers
+            return [
+                'UTC', 'America/New_York', 'America/Chicago', 'America/Denver',
+                'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu',
+                'Europe/London', 'Europe/Berlin', 'Europe/Paris', 'Europe/Moscow',
+                'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata', 'Asia/Dubai',
+                'Australia/Sydney', 'Pacific/Auckland', 'Africa/Cairo', 'Africa/Nairobi'
+            ];
+        }
+    })();
 
     const hasScope = (scope) => {
         return googleScopes.includes(scope);
@@ -40,7 +104,7 @@ export default function SettingsView({user}) {
         try {
             const validScopes = googleScopes ? googleScopes.split(' ') : [];
             const newScopesToAdd = newScope.split(' ');
-            
+
             const allScopes = new Set([...validScopes, ...newScopesToAdd]);
             const scopeString = Array.from(allScopes).join(' ');
 
@@ -318,6 +382,26 @@ export default function SettingsView({user}) {
                             <Bell size={20}/> Preferences
                         </h3>
                         <div className="space-y-4">
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-medium text-gray-200 mb-2">
+                                    <Globe size={16} className="text-gray-400"/>
+                                    Default Timezone
+                                </label>
+                                <p className="text-xs text-gray-400 mb-2">
+                                    Used for background tasks like auto-reply scheduling
+                                </p>
+                                <select
+                                    value={timezone}
+                                    onChange={handleTimezoneChange}
+                                    disabled={timezoneLoading}
+                                    className="bg-dark-input-bg border border-dark-input-border text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                                >
+                                    {!timezone && <option value="">Select timezone...</option>}
+                                    {availableTimezones.map(tz => (
+                                        <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <label className="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox" className="w-4 h-4 text-blue-500 rounded focus:ring-blue-400"
                                        defaultChecked/>

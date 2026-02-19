@@ -53,26 +53,29 @@ class RedisClient:
         Sliding window rate limiter.
         Returns (is_allowed, remaining_requests).
         """
-        logger.debug(f"Checking rate limit for key {key}")
         import time
-        now = time.time()
-        window_start = now - window_seconds
-        redis_key = f"ratelimit:{key}"
+        try:
+            now = time.time()
+            window_start = now - window_seconds
+            redis_key = f"ratelimit:{key}"
 
-        pipe = self.redis.pipeline()
-        await pipe.zremrangebyscore(redis_key, 0, window_start)
-        await pipe.zadd(redis_key, {str(now): now})
-        await pipe.zcard(redis_key)
-        await pipe.expire(redis_key, window_seconds)
-        results = await pipe.execute()
+            pipe = self.redis.pipeline()
+            await pipe.zremrangebyscore(redis_key, 0, window_start)
+            await pipe.zadd(redis_key, {str(now): now})
+            await pipe.zcard(redis_key)
+            await pipe.expire(redis_key, window_seconds)
+            results = await pipe.execute()
 
-        request_count = results[2]
-        is_allowed = request_count <= limit
-        remaining = max(0, limit - request_count)
+            request_count = results[2]
+            is_allowed = request_count <= limit
+            remaining = max(0, limit - request_count)
 
-        if not is_allowed:
-            await self.redis.zrem(redis_key, str(now))
+            if not is_allowed:
+                await self.redis.zrem(redis_key, str(now))
 
-        return is_allowed, remaining
+            return is_allowed, remaining
+        except Exception as e:
+            logger.error(f"Redis rate limit check failed for key '{key}': {e}", exc_info=True)
+            return True, limit  # fail open — allow the request
 
 redis_client = RedisClient()

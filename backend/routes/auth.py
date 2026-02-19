@@ -16,5 +16,5 @@ router = APIRouter(tags=["auth"])
 async def generate_ws_ticket(user: Any = Depends(get_current_user_http)):
     ticket = str(uuid.uuid4())
     await redis_client.set_ws_ticket(ticket, user.id)
-    logger.info("Generated WebSocket ticket", extra={"user_id": user.id})
+    logger.debug("Generated WebSocket ticket", extra={"user_id": user.id})
     return {"ticket": ticket}

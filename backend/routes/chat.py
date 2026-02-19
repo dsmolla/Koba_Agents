@@ -39,7 +39,7 @@ async def send_chat_history(websocket: WebSocket, agent, config: RunnableConfig,
                         BotMessage.model_validate(msg.tool_calls[0]['args']).model_dump()
                     )
 
-        logger.info("History payload sent", extra={"user_id": user_id, "message_count": len(history_payload)})
+        logger.debug("History payload sent", extra={"user_id": user_id, "message_count": len(history_payload)})
         await websocket.send_json({"type": "history", "messages": history_payload})
     except Exception as e:
         logger.error(f"Failed to fetch messages: {e}", extra={"user_id": user_id}, exc_info=True)
@@ -90,7 +90,7 @@ async def process_message(
 
         if kind == "on_custom_event" and event["name"] == "tool_status":
             status_data = event["data"]
-            logger.info(f"Tool Status: {status_data['text']}", extra={"user_id": user_id})
+            logger.debug(f"Tool Status: {status_data['text']}", extra={"user_id": user_id})
 
             if is_connected:
                 try:
@@ -101,24 +101,21 @@ async def process_message(
                     })
                 except (WebSocketDisconnect, RuntimeError):
                     is_connected = False
-                    logger.info("User disconnected during status update. Continuing in background.", extra={"user_id": user_id})
+                    logger.debug("User disconnected during status update. Continuing in background.", extra={"user_id": user_id})
 
         elif kind == 'on_chain_end' and event['name'] == 'SupervisorAgent':
             bot_message: BotMessage = event['data']['output']['structured_response']
             bot_message_dump = bot_message.model_dump()
             response_time = time.time() - message_received_at
 
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(f"Agent Response content: {bot_message_dump}", extra={"user_id": user_id, "response_time": response_time})
-            else:
-                logger.info(f"Agent Response Sent", extra={"user_id": user_id, "response_time": response_time})
+            logger.debug(f"Agent Response content: {bot_message_dump}", extra={"user_id": user_id, "response_time": response_time})
 
             if is_connected:
                 try:
                     await websocket.send_json(bot_message_dump)
                 except (WebSocketDisconnect, RuntimeError):
                     is_connected = False
-                    logger.info("User disconnected during final response. Saved to DB.", extra={"user_id": user_id})
+                    logger.debug("User disconnected during final response. Saved to DB.", extra={"user_id": user_id})
 
     return is_connected
 
@@ -160,10 +157,7 @@ async def websocket_endpoint(
             model_name = data.get("model") or Config.DEFAULT_MODEL
             agent = get_agent(websocket.app, model_name)
 
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(f"Received message content: {data}", extra={"user_id": user_id, "model": model_name})
-            else:
-                logger.info("Received message", extra={"user_id": user_id, "content_length": len(str(data)), "model": model_name})
+            logger.debug(f"Received message content: {data}", extra={"user_id": user_id, "model": model_name})
             is_connected = await process_message(websocket, agent, config, data, user_id)
 
         except WebSocketDisconnect:

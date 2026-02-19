@@ -42,6 +42,21 @@ class Config:
 
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
+    # Auto-Reply / Gmail Pub/Sub
+    PUBSUB_TOPIC = os.getenv("PUBSUB_TOPIC")
+    PUBSUB_WEBHOOK_TOKEN = os.getenv("PUBSUB_WEBHOOK_TOKEN")
+    AUTO_REPLY_HOURLY_LIMIT = int(os.getenv("AUTO_REPLY_HOURLY_LIMIT", "20"))
+
+    # Cloud Tasks
+    CLOUD_TASKS_PROJECT = os.getenv("CLOUD_TASKS_PROJECT")
+    CLOUD_TASKS_LOCATION = os.getenv("CLOUD_TASKS_LOCATION")
+    CLOUD_TASKS_QUEUE_NAME = os.getenv("CLOUD_TASKS_QUEUE_NAME")
+    CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL=os.getenv("CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL")
+    CLOUD_TASKS_TOKEN = os.getenv("CLOUD_TASKS_TOKEN")
+
+    BASE_PROJECT_URL = os.getenv("BASE_PROJECT_URL")
+
+
     @classmethod
     def validate(cls):
         errors = []

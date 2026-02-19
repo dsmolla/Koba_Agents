@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -7,6 +8,8 @@ from psycopg_pool import AsyncConnectionPool
 from config import Config
 from core.exceptions import ProviderNotConnectedError
 from core.token_encryption import token_encryptor
+
+logger = logging.getLogger(__name__)
 
 
 class Database:
@@ -18,7 +21,7 @@ class Database:
         if self._pool is None:
             self._pool = AsyncConnectionPool(
                 conninfo=Config.SUPABASE_DB_URL,
-                max_size=30,
+                max_size=10,
                 min_size=1,
                 open=False,
                 check=AsyncConnectionPool.check_connection,
@@ -29,18 +32,25 @@ class Database:
                     "keepalives_count": 5,
                 }
             )
-            await self._pool.open()
-            await self._pool.wait()
+            try:
+                await self._pool.open()
+                await self._pool.wait()
+                logger.info("Database connection pool opened", extra={"max_size": 10})
+            except Exception as e:
+                logger.critical(f"Failed to open database connection pool: {e}", exc_info=True)
+                raise
 
     async def disconnect(self):
         if self._pool:
             await self._pool.close()
+            logger.info("Database connection pool closed")
 
     async def get_checkpointer(self):
         if self._checkpointer is None:
             await self.connect()
             self._checkpointer = AsyncPostgresSaver(self._pool)
             await self._checkpointer.setup()
+            logger.info("LangGraph checkpointer ready")
 
         return self._checkpointer
 
@@ -105,6 +115,27 @@ class Database:
         async with self._pool.connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query, params)
+
+    async def get_user_timezone(self, user_id: str) -> str:
+        row = await self.fetch_one(
+            "SELECT timezone FROM public.user_settings WHERE user_id = %s",
+            (user_id,)
+        )
+        return row['timezone'] if row else 'UTC'
+
+    async def set_user_timezone(self, user_id: str, timezone: str):
+        await self.execute(
+            """
+            INSERT INTO public.user_settings (user_id, timezone)
+            VALUES (%s, %s)
+            ON CONFLICT (user_id) DO UPDATE SET timezone = EXCLUDED.timezone, updated_at = NOW()
+            """,
+            (user_id, timezone)
+        )
+
+    async def pubsub_notification_exists(self, message_id: int) -> bool:
+        row = await self.fetch_one("SELECT id FROM public.pubsub_notifications WHERE message_id = %s", (message_id,))
+        return bool(row)
 
 
 database = Database()
