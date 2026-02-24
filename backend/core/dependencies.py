@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import WebSocket, HTTPException, Header, WebSocketException, status
 from google.auth.transport import requests
 
@@ -51,7 +53,7 @@ async def verify_google_token(authorization: str = Header(None)):
         raise HTTPException(401, "Missing Token")
     token = authorization.replace("Bearer ", "")
     try:
-        id_info = id_token.verify_oauth2_token(token, requests.Request())
+        id_info = await asyncio.to_thread(id_token.verify_oauth2_token, token, requests.Request())
         logger.debug("Google token verified")
         return id_info
     except Exception as e:

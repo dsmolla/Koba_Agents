@@ -21,8 +21,8 @@ class Database:
         if self._pool is None:
             self._pool = AsyncConnectionPool(
                 conninfo=Config.SUPABASE_DB_URL,
-                max_size=10,
-                min_size=1,
+                max_size=30,
+                min_size=3,
                 open=False,
                 check=AsyncConnectionPool.check_connection,
                 kwargs={
@@ -35,7 +35,7 @@ class Database:
             try:
                 await self._pool.open()
                 await self._pool.wait()
-                logger.info("Database connection pool opened", extra={"max_size": 10})
+                logger.info("Database connection pool opened", extra={"max_size": 30})
             except Exception as e:
                 logger.critical(f"Failed to open database connection pool: {e}", exc_info=True)
                 raise

@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Request, Query, HTTPException, Depends
+from starlette.requests import ClientDisconnect
 
 from config import Config
 from core.db import database
@@ -27,7 +28,11 @@ async def gmail_push_notification(
         logger.warning("Invalid webhook token")
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    body = await request.json()
+    try:
+        body = await request.json()
+    except ClientDisconnect:
+        logger.debug("Pub/Sub closed connection before body was read — ignoring")
+        return {"status": "ok"}
     message = body["message"]
     message_id = message["message_id"]
     data = message["data"]
@@ -50,8 +55,8 @@ async def gmail_push_notification(
     )
 
     watch_state = await database.fetch_one(
-        "SELECT user_id FROM public.gmail_watch_state WHERE LOWER(email) = %s AND is_active = TRUE",
-        (email_address,)
+        "SELECT user_id FROM public.gmail_watch_state WHERE email = %s AND is_active = TRUE",
+        (email_address.lower(),)
     )
 
     if not watch_state:
@@ -60,7 +65,7 @@ async def gmail_push_notification(
 
     user_id = str(watch_state['user_id'])
     if Config.CLOUD_TASKS_PROJECT:
-        await enqueue_notification_task(user_id, history_id)
+        background_tasks.add_task(enqueue_notification_task, user_id, history_id)
     else:
         background_tasks.add_task(process_notification, user_id, history_id)
 

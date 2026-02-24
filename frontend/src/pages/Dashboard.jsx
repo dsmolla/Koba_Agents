@@ -15,14 +15,14 @@ function Dashboard() {
     const [files, setFiles] = useState([]);
 
     useEffect(() => {
-        if (!user) return;
+        if (!user?.id) return;
 
         const loadFiles = async () => {
             const files = await listFiles(user.id);
             setFiles(files);
         }
         loadFiles();
-    }, [user]);
+    }, [user?.id]); // Use user.id — avoids refetch on unrelated user object reference changes
 
     if (loading) {
         return (

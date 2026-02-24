@@ -28,7 +28,7 @@ export default function AutoReplyRuleModal({ isOpen, onClose, onSave, rule }) {
                 tone: 'Professional',
             });
         }
-    }, [rule, isOpen]);
+    }, [rule]); // isOpen removed — form should only reset when the rule being edited changes
 
     const handleChange = (e) => {
         const { name, value } = e.target;

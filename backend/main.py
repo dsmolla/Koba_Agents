@@ -5,6 +5,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.requests import ClientDisconnect
+from starlette.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -29,6 +31,20 @@ Config.validate()
 setup_logging(Config.LOG_LEVEL)
 
 logger = logging.getLogger(__name__)
+
+# Patch googleapiclient discovery cache with an in-memory implementation.
+# Without this, build() logs "file_cache is only supported with oauth2client<4.0.0"
+# and fetches the discovery document from the network on every single API call.
+# With this patch, the document is fetched once and reused for the process lifetime.
+import googleapiclient.discovery_cache
+from googleapiclient.discovery_cache.base import Cache as _DiscoveryCache
+
+class _MemoryCache(_DiscoveryCache):
+    _store: dict = {}
+    def get(self, url): return self._store.get(url)
+    def set(self, url, content): self._store[url] = content
+
+googleapiclient.discovery_cache.autodetect = lambda: _MemoryCache()
 
 
 async def _renew_watches_job():
@@ -96,6 +112,9 @@ app.include_router(chat_router)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, ClientDisconnect):
+        logger.debug("Client disconnected before response was sent")
+        return Response(status_code=200)
     logger.error(f"Global exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,

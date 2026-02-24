@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 SKIP_SENDERS = ['noreply', 'no-reply', 'donotreply', 'do-not-reply', 'mailer-daemon', 'postmaster']
 SKIP_LABELS = {'SENT', 'DRAFT', 'SPAM', 'TRASH', 'CATEGORY_PROMOTIONS'}
 
+# Single agent instance shared across all notifications — rules are passed per invocation.
+_auto_reply_agent = GmailAutoReplyAgent(ChatGoogleGenerativeAI(model=Config.DEFAULT_MODEL))
+
 
 async def should_skip_email(gmail_service: AsyncGmailApiService, message_id: str) -> tuple[bool, str | None]:
     """Return (True, None) if this email should NOT get an auto-reply, else (False, subject)."""
@@ -38,11 +41,11 @@ async def should_skip_email(gmail_service: AsyncGmailApiService, message_id: str
             return True, None
 
     # Check auto-generated email headers
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     try:
         raw_msg = await loop.run_in_executor(
-            gmail_service._executor,
+            None,
             lambda: gmail_service._service().users().messages().get(
                 userId='me', id=message_id, format='metadata',
                 metadataHeaders=['Auto-Submitted', 'X-Autoreply', 'X-Auto-Response-Suppress', 'Precedence']
@@ -114,31 +117,44 @@ async def process_notification(user_id: str, notification_history_id: int):
         if notification_history_id <= stored_history_id:
             return
 
-        rules = await database.fetch_all(
-            "SELECT * FROM public.auto_reply_rules WHERE user_id = %s AND is_enabled = TRUE ORDER BY sort_order ASC",
-            (user_id,)
+        rules, user_tz = await asyncio.gather(
+            database.fetch_all(
+                "SELECT when_condition, do_action, tone FROM public.auto_reply_rules "
+                "WHERE user_id = %s AND is_enabled = TRUE ORDER BY sort_order ASC",
+                (user_id,)
+            ),
+            database.get_user_timezone(user_id)
         )
         if not rules:
             return
 
-        user_tz = await database.get_user_timezone(user_id)
         api_service = await get_google_service(user_id, user_tz)
         gmail_service = api_service.async_gmail
 
         new_message_ids = await get_history_changes(gmail_service, stored_history_id)
 
-        llm = ChatGoogleGenerativeAI(model=Config.DEFAULT_MODEL)
-        auto_reply_agent = GmailAutoReplyAgent(llm, rules)
+        rules_text = "\n".join(
+            f"{i}. When: {r['when_condition']}\n   Do: {r['do_action']}\n   Tone: {r['tone']}"
+            for i, r in enumerate(rules, 1)
+        )
+
+        # check already-processed message IDs
+        if new_message_ids:
+            placeholders = ','.join(['%s'] * len(new_message_ids))
+            processed_rows = await database.fetch_all(
+                f"SELECT message_id FROM public.auto_reply_log "
+                f"WHERE user_id = %s AND message_id IN ({placeholders})",
+                (user_id, *new_message_ids)
+            )
+            already_processed_ids = {row['message_id'] for row in processed_rows}
+        else:
+            already_processed_ids = set()
 
         for message_id in new_message_ids:
             if not await check_rate_limit(user_id):
                 break
 
-            already_processed = await database.fetch_one(
-                "SELECT id FROM public.auto_reply_log WHERE user_id = %s AND message_id = %s",
-                (user_id, message_id)
-            )
-            if already_processed:
+            if message_id in already_processed_ids:
                 continue
             should_skip, subject = await should_skip_email(api_service.async_gmail, message_id)
             if should_skip:
@@ -153,7 +169,8 @@ async def process_notification(user_id: str, notification_history_id: int):
             )
 
             try:
-                response = await auto_reply_agent.arun(message_id, config)
+                prompt = f"<rules>\n{rules_text}\n</rules>\n<email_id>{message_id}</email_id>"
+                response = await _auto_reply_agent.arun(prompt, config)
                 result = response.content.strip()
 
                 if result.upper() == "IGNORE":

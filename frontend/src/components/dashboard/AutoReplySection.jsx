@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { MailPlus, Plus, Trash2, Edit2, ChevronDown, ChevronUp, GripVertical, Radio, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -19,7 +19,7 @@ import AutoReplyRuleModal from './AutoReplyRuleModal';
 
 const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
-function SortableRuleItem({ rule, onToggle, onEdit, onDelete }) {
+const SortableRuleItem = memo(function SortableRuleItem({ rule, onToggle, onEdit, onDelete }) {
     const {
         attributes,
         listeners,
@@ -106,7 +106,7 @@ function SortableRuleItem({ rule, onToggle, onEdit, onDelete }) {
             </div>
         </div>
     );
-}
+});
 
 export default function AutoReplySection({ session }) {
     const [rules, setRules] = useState([]);
@@ -151,11 +151,11 @@ export default function AutoReplySection({ session }) {
     }, [session.access_token]);
 
     useEffect(() => {
-        fetchRules();
-        fetchWatchStatus();
+        // Fetch rules and watch status in parallel — independent requests
+        Promise.all([fetchRules(), fetchWatchStatus()]);
     }, [fetchRules, fetchWatchStatus]);
 
-    const handleToggleWatch = async () => {
+    const handleToggleWatch = useCallback(async () => {
         setWatchToggling(true);
         try {
             const response = await fetch(`${apiUrl}/auto-reply/watch/toggle`, {
@@ -174,9 +174,9 @@ export default function AutoReplySection({ session }) {
         } finally {
             setWatchToggling(false);
         }
-    };
+    }, [session.access_token]);
 
-    const handleSaveRule = async (payload) => {
+    const handleSaveRule = useCallback(async (payload) => {
         try {
             const isEdit = !!editingRule;
             const url = isEdit
@@ -201,9 +201,9 @@ export default function AutoReplySection({ session }) {
         } catch {
             toast.error('Failed to save rule');
         }
-    };
+    }, [editingRule, session.access_token, fetchRules]);
 
-    const handleDeleteRule = async (ruleId) => {
+    const handleDeleteRule = useCallback(async (ruleId) => {
         try {
             const response = await fetch(`${apiUrl}/auto-reply/rules/${ruleId}`, {
                 method: 'DELETE',
@@ -218,9 +218,9 @@ export default function AutoReplySection({ session }) {
         } catch {
             toast.error('Failed to delete rule');
         }
-    };
+    }, [session.access_token, fetchRules]);
 
-    const handleToggleRule = async (ruleId) => {
+    const handleToggleRule = useCallback(async (ruleId) => {
         try {
             const response = await fetch(`${apiUrl}/auto-reply/rules/${ruleId}/toggle`, {
                 method: 'PATCH',
@@ -234,7 +234,12 @@ export default function AutoReplySection({ session }) {
         } catch {
             toast.error('Failed to toggle rule');
         }
-    };
+    }, [session.access_token, fetchRules]);
+
+    const handleEdit = useCallback((rule) => {
+        setEditingRule(rule);
+        setModalOpen(true);
+    }, []);
 
     const handleReorder = useCallback(async (event) => {
         const { active, over } = event;
@@ -349,7 +354,7 @@ export default function AutoReplySection({ session }) {
                                     key={rule.id}
                                     rule={rule}
                                     onToggle={handleToggleRule}
-                                    onEdit={(rule) => { setEditingRule(rule); setModalOpen(true); }}
+                                    onEdit={handleEdit}
                                     onDelete={handleDeleteRule}
                                 />
                             ))}

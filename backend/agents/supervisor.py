@@ -13,6 +13,9 @@ from agents.google_tasks.agent import TasksAgent
 from core.models import BotMessage
 from .common.tools import CurrentDateTimeTool
 
+# Cache the raw prompt text at module level — read from disk once, not per instantiation
+_SYSTEM_PROMPT_TEMPLATE = Path(__file__).parent.joinpath('system_prompt.txt').read_text()
+
 
 class SupervisorAgent(BaseAgent):
     name: str = "SupervisorAgent"
@@ -28,11 +31,10 @@ class SupervisorAgent(BaseAgent):
             ]
         ] + [CurrentDateTimeTool()]
 
-        tool_descriptions = []
-        for tool in tools:
-            tool_descriptions.append(f"- {tool.name}: {tool.description}")
-        system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt.txt'))
-        system_prompt = system_prompt.format(tools='\n'.join(tool_descriptions))
+        tool_descriptions = "\n".join(f"- {tool.name}: {tool.description}" for tool in tools)
+        system_prompt = PromptTemplate.from_template(_SYSTEM_PROMPT_TEMPLATE).format(
+            tools=tool_descriptions
+        )
 
         response_format = ToolStrategy(BotMessage)
 

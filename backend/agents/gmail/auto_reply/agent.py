@@ -8,12 +8,14 @@ from agents.common.tools import CurrentDateTimeTool
 from agents.gmail.search_and_retrieval.tools import GetEmailTool, GetThreadDetailsTool
 from agents.gmail.writer.tools import ReplyEmailTool, DraftEmailTool
 
+_SYSTEM_PROMPT_TEMPLATE = Path(__file__).parent.joinpath('system_prompt.txt').read_text()
+
 
 class GmailAutoReplyAgent(BaseAgent):
     name = "GmailAutoReplyAgent"
     description = "Specialized agent for automatically replying or creating drafts to a user's emails."
 
-    def __init__(self, model: BaseChatModel, rules: list[dict]):
+    def __init__(self, model: BaseChatModel):
         tools = [
             CurrentDateTimeTool(),
             GetEmailTool(),
@@ -22,15 +24,7 @@ class GmailAutoReplyAgent(BaseAgent):
             DraftEmailTool(),
         ]
 
-        rules_text = "\n".join(
-            f"{i}. When: {r['when_condition']}\n   Do: {r['do_action']}\n   Tone: {r['tone']}"
-            for i, r in enumerate(rules, 1)
-        )
-
-        tool_descriptions = []
-        for tool in tools:
-            tool_descriptions.append(f"- {tool.name}: {tool.description}")
-        system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt.txt'))
-        system_prompt = system_prompt.format(tools='\n'.join(tool_descriptions), rules=rules_text)
+        tool_descriptions = [f"- {tool.name}: {tool.description}" for tool in tools]
+        system_prompt = PromptTemplate.from_template(_SYSTEM_PROMPT_TEMPLATE).format(tools='\n'.join(tool_descriptions))
 
         super().__init__(model, tools, system_prompt)

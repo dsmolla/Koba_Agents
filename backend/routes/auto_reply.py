@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auto-reply", tags=["auto-reply"])
 
 
-# --- Pydantic Models ---
-
 class AutoReplyRuleCreate(BaseModel):
     name: str = Field(max_length=255)
     when_condition: str = Field(min_length=1)
@@ -33,7 +31,6 @@ class ReorderRulesRequest(BaseModel):
     rule_ids: list[str]
 
 
-# --- Watch Routes ---
 
 @router.get("/watch")
 async def get_watch_status(user: Any = Depends(get_current_user_http)):
@@ -61,8 +58,6 @@ async def toggle_watch(user: Any = Depends(get_current_user_http)):
         logger.error(f"Failed to toggle watch: {e}", extra={"user_id": user.id}, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to toggle watch")
 
-
-# --- Rule Routes ---
 
 @router.post("/rules")
 async def create_rule(
@@ -128,26 +123,13 @@ async def update_rule(
         update: AutoReplyRuleUpdate,
         user: Any = Depends(get_current_user_http)
 ):
-    existing = await database.fetch_one(
-        "SELECT id FROM public.auto_reply_rules WHERE id = %s AND user_id = %s",
-        (rule_id, user.id)
-    )
-    if not existing:
-        raise HTTPException(status_code=404, detail="Rule not found")
-
-    fields = []
-    values = []
     update_data = update.model_dump(exclude_unset=True)
-
-    for field_name, value in update_data.items():
-        fields.append(f"{field_name} = %s")
-        values.append(value)
-
-    if not fields:
+    if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
 
+    fields = [f"{field_name} = %s" for field_name in update_data]
     fields.append("updated_at = NOW()")
-    values.extend([rule_id, user.id])
+    values = list(update_data.values()) + [rule_id, user.id]
 
     try:
         row = await database.fetch_one(
@@ -160,7 +142,11 @@ async def update_rule(
             """,
             tuple(values)
         )
+        if not row:
+            raise HTTPException(status_code=404, detail="Rule not found")
         return _format_rule(row)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to update rule: {e}", extra={"user_id": user.id}, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update rule")
@@ -168,19 +154,16 @@ async def update_rule(
 
 @router.delete("/rules/{rule_id}")
 async def delete_rule(rule_id: str, user: Any = Depends(get_current_user_http)):
-    existing = await database.fetch_one(
-        "SELECT id FROM public.auto_reply_rules WHERE id = %s AND user_id = %s",
-        (rule_id, user.id)
-    )
-    if not existing:
-        raise HTTPException(status_code=404, detail="Rule not found")
-
     try:
-        await database.execute(
-            "DELETE FROM public.auto_reply_rules WHERE id = %s AND user_id = %s",
+        row = await database.fetch_one(
+            "DELETE FROM public.auto_reply_rules WHERE id = %s AND user_id = %s RETURNING id",
             (rule_id, user.id)
         )
+        if not row:
+            raise HTTPException(status_code=404, detail="Rule not found")
         return {"message": "Rule deleted"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to delete rule: {e}", extra={"user_id": user.id}, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete rule")
@@ -212,14 +195,22 @@ async def reorder_rules(
         raise HTTPException(status_code=400, detail="rule_ids must not be empty")
 
     try:
+        cases = " ".join(
+            f"WHEN %s THEN {position}"
+            for position, _ in enumerate(body.rule_ids, start=1)
+        )
+        params = (*body.rule_ids, user.id, body.rule_ids)
         async with database.transaction() as conn:
             async with conn.cursor() as cur:
-                for position, rule_id in enumerate(body.rule_ids, start=1):
-                    await cur.execute(
-                        "UPDATE public.auto_reply_rules SET sort_order = %s, updated_at = NOW() "
-                        "WHERE id = %s AND user_id = %s",
-                        (position, rule_id, user.id)
-                    )
+                await cur.execute(
+                    f"""
+                    UPDATE public.auto_reply_rules
+                    SET sort_order = CASE id::text {cases} END,
+                        updated_at = NOW()
+                    WHERE user_id = %s AND id::text = ANY(%s)
+                    """,
+                    params
+                )
         return {"message": "Rules reordered"}
     except Exception as e:
         logger.error(f"Failed to reorder rules: {e}", extra={"user_id": user.id}, exc_info=True)

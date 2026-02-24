@@ -7,6 +7,8 @@ from langchain_core.prompts import PromptTemplate
 from agents.common.agent import BaseAgent
 from .tools import MoveFileTool, RenameFileTool, DeleteFileTool
 
+_SYSTEM_PROMPT_TEMPLATE = Path(__file__).parent.joinpath('system_prompt.txt').read_text()
+
 
 class OrganizationAgent(BaseAgent):
     name: str = "OrganizationAgent"
@@ -26,7 +28,6 @@ class OrganizationAgent(BaseAgent):
         tool_descriptions = []
         for tool in tools:
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
-        system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt.txt'))
-        system_prompt = system_prompt.format(tools='\n'.join(tool_descriptions))
+        system_prompt = PromptTemplate.from_template(_SYSTEM_PROMPT_TEMPLATE).format(tools='\n'.join(tool_descriptions))
 
         super().__init__(model, tools, system_prompt)

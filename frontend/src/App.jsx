@@ -1,58 +1,68 @@
+import { lazy, Suspense } from 'react'
 import {BrowserRouter, Routes, Route, Navigate} from 'react-router-dom'
-import Signup from './pages/auth/Signup.jsx'
-import Login from './pages/auth/Login.jsx'
-import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import AuthRoute from './components/AuthRoute'
-import UpdatePassword from "./pages/auth/UpdatePassword.jsx";
-import ResetPassword from "./pages/auth/ResetPassword.jsx";
+
+// Route-level code splitting — each page chunk is downloaded only when first visited.
+// Users on /login no longer download Dashboard, dnd-kit, react-markdown, etc.
+const Signup = lazy(() => import('./pages/auth/Signup.jsx'))
+const Login = lazy(() => import('./pages/auth/Login.jsx'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const UpdatePassword = lazy(() => import('./pages/auth/UpdatePassword.jsx'))
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword.jsx'))
 
 function App() {
     return (
         <BrowserRouter>
-            <Routes>
-                <Route
-                    path="/signup"
-                    element={
-                        <AuthRoute>
-                            <Signup/>
-                        </AuthRoute>
-                    }
-                />
-                <Route
-                    path="/login"
-                    element={
-                        <AuthRoute>
-                            <Login/>
-                        </AuthRoute>
-                    }
-                />
-                <Route
-                    path="/"
-                    element={
+            <Suspense fallback={
+                <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+            }>
+                <Routes>
+                    <Route
+                        path="/signup"
+                        element={
+                            <AuthRoute>
+                                <Signup/>
+                            </AuthRoute>
+                        }
+                    />
+                    <Route
+                        path="/login"
+                        element={
+                            <AuthRoute>
+                                <Login/>
+                            </AuthRoute>
+                        }
+                    />
+                    <Route
+                        path="/"
+                        element={
+                            <ProtectedRoute>
+                                <Dashboard/>
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/update-password"
+                        element={
                         <ProtectedRoute>
-                            <Dashboard/>
+                            <UpdatePassword/>
                         </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="/update-password"
-                    element={
-                    <ProtectedRoute>
-                        <UpdatePassword/>
-                    </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="/reset-password"
-                    element={
-                    <AuthRoute>
-                        <ResetPassword/>
-                    </AuthRoute>
-                    }
-                />
-                <Route path="*" element={<Navigate to="/signup" replace/>}/>
-            </Routes>
+                        }
+                    />
+                    <Route
+                        path="/reset-password"
+                        element={
+                        <AuthRoute>
+                            <ResetPassword/>
+                        </AuthRoute>
+                        }
+                    />
+                    <Route path="*" element={<Navigate to="/signup" replace/>}/>
+                </Routes>
+            </Suspense>
         </BrowserRouter>
     )
 }

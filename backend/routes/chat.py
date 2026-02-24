@@ -27,7 +27,9 @@ async def send_chat_history(websocket: WebSocket, agent, config: RunnableConfig,
     """Load conversation history from LangGraph state and send to client."""
     try:
         state_snapshot = await agent.agent.aget_state(config)
-        messages = state_snapshot.values.get("messages", [])
+        # Limit to the most recent 200 LangGraph messages to avoid loading full history
+        # for long conversations (200 raw msgs ≈ 50-100 visible user/bot message pairs)
+        messages = state_snapshot.values.get("messages", [])[-200:]
         history_payload = []
         for msg in messages:
             if isinstance(msg, HumanMessage) and msg.name == "RealUser":

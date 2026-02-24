@@ -1,7 +1,10 @@
 import { createContext, useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
+// Separate contexts so that a googleIntegration update does NOT
+// re-render components that only consume auth state (user/session/loading).
 export const AuthContext = createContext({})
+export const GoogleIntegrationContext = createContext({})
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null)
@@ -29,7 +32,6 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         // Clear integration flag if the user clicked "Back" to return to the app
-        // This handles the case where a user starts the flow but cancels by navigating back
         const navEntry = performance.getEntriesByType("navigation")[0];
         if (navEntry && navEntry.type === 'back_forward') {
             localStorage.removeItem('integrating_google');
@@ -58,6 +60,9 @@ export const AuthProvider = ({ children }) => {
             setUser(session?.user ?? null)
             setLoading(false)
 
+            // TOKEN_REFRESHED is a background Supabase operation — no need to re-check integration
+            if (event === 'TOKEN_REFRESHED') return;
+
             const isIntegrating = localStorage.getItem('integrating_google') === 'true';
 
             if (session?.provider_token && session?.access_token && isIntegrating) {
@@ -78,9 +83,7 @@ export const AuthProvider = ({ children }) => {
                     if (!response.ok) {
                         console.error("Failed to sync Google tokens:", await response.text());
                     } else {
-                        // Only clear the flag if sync was successful or attempted
                         localStorage.removeItem('integrating_google');
-                        // Refresh integration status
                         fetchGoogleIntegration(session.access_token);
                     }
                 } catch (error) {
@@ -93,8 +96,10 @@ export const AuthProvider = ({ children }) => {
     }, [fetchGoogleIntegration])
 
     return (
-        <AuthContext.Provider value={{ user, session, loading, googleIntegration, fetchGoogleIntegration }}>
-            {children}
+        <AuthContext.Provider value={{ user, session, loading }}>
+            <GoogleIntegrationContext.Provider value={{ googleIntegration, fetchGoogleIntegration }}>
+                {children}
+            </GoogleIntegrationContext.Provider>
         </AuthContext.Provider>
     )
 }

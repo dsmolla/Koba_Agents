@@ -1,3 +1,5 @@
+import hashlib
+
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from core.redis_client import redis_client
@@ -21,14 +23,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Skip non-rate-limited paths
         path = request.url.path
-        if path in ["/docs", "/openapi.json", "/health"]:
+        if path in ["/docs", "/openapi.json", "/health"] or path.startswith(("/webhooks/", "/internal/")):
             return await call_next(request)
 
         # Use user ID from auth header if present, otherwise IP
         auth_header = request.headers.get("authorization", "")
         if auth_header.startswith("Bearer "):
             # Hash the token to create a consistent key without storing the token
-            import hashlib
             key = f"http:user:{hashlib.sha256(auth_header.encode()).hexdigest()[:16]}"
         else:
             client_ip = request.client.host if request.client else "unknown"

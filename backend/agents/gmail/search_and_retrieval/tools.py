@@ -259,27 +259,7 @@ class SearchEmailsTool(BaseGoogleTool):
         query = build_query(gmail, params)
         message_ids = await query.execute()
 
-        result = []
-        not_in_cache = []
-
-        for message_id in message_ids:
-            if email := email_cache.get(message_id):
-                email = email.copy()
-                del email['body']
-                del email['attachments']
-                result.append(email)
-            else:
-                not_in_cache.append(message_id)
-
-        emails = await gmail.batch_get_emails(not_in_cache)
-        for email in emails:
-            if not isinstance(email, Exception):
-                temp = email_cache.save(email).copy()
-                del temp['body']
-                del temp['attachments']
-                result.append(temp)
-
-        return json.dumps(result)
+        return "Here are the message_ids for the search query:\n" + json.dumps(message_ids)
 
 
 class DownloadAttachmentInput(BaseModel):
