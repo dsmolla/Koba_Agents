@@ -85,7 +85,6 @@ class GetThreadDetailsTool(BaseGoogleTool):
                     "from": msg.sender,
                     "to": msg.recipients,
                     "date_time": msg.date_time.isoformat() if msg.date_time else None,
-                    "snippet": msg.snippet,
                     "body": msg.get_plain_text_content(),
                     "is_read": msg.is_read,
                     "is_starred": msg.is_starred,
@@ -172,7 +171,7 @@ def build_query(service, params: dict) -> Union[EmailQueryBuilder, AsyncEmailQue
 
 class SearchEmailsTool(BaseGoogleTool):
     name: str = "search_emails"
-    description: str =  dedent("""\
+    description: str = dedent("""\
         search and retrieve emails from Gmail based on various filters. 
         Returns email snippets. Dates are non-inclusive (for emails on 2020-03-04, use after_date=2020-03-03, before_date=2020-03-05)
     """)
@@ -260,27 +259,7 @@ class SearchEmailsTool(BaseGoogleTool):
         query = build_query(gmail, params)
         message_ids = await query.execute()
 
-        result = []
-        not_in_cache = []
-
-        for message_id in message_ids:
-            if email := email_cache.get(message_id):
-                email = email.copy()
-                del email['body']
-                del email['attachments']
-                result.append(email)
-            else:
-                not_in_cache.append(message_id)
-
-        emails = await gmail.batch_get_emails(not_in_cache)
-        for email in emails:
-            if not isinstance(email, Exception):
-                temp = email_cache.save(email).copy()
-                del temp['body']
-                del temp['attachments']
-                result.append(temp)
-
-        return json.dumps(result)
+        return "Here are the message_ids for the search query:\n" + json.dumps(message_ids)
 
 
 class DownloadAttachmentInput(BaseModel):
@@ -298,7 +277,8 @@ class DownloadAttachmentTool(BaseGoogleTool):
              config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, message_id: str, attachment_id: Optional[str] = None) -> str:
+    async def _run_google_task(self, config: RunnableConfig, message_id: str,
+                               attachment_id: Optional[str] = None) -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Downloading Attachment...", "icon": "📎"}
@@ -334,7 +314,7 @@ class DownloadAttachmentTool(BaseGoogleTool):
             orig_file = Path(attachment["filename"])
             unique_filename = f"{orig_file.stem}_{uuid.uuid4().hex[:8]}{orig_file.suffix}"
             upload_path = f"{user_id}/{unique_filename}"
-            
+
             attachment_bytes = await gmail.get_attachment_payload(attachment_data)
             mime_type = filetype.guess_mime(attachment_bytes) or "application/octet-stream"
             size = len(attachment_bytes)
@@ -356,7 +336,7 @@ class DownloadAttachmentTool(BaseGoogleTool):
             *[process_attachment(a) for a in target_attachments],
             return_exceptions=True
         )
-        
+
         # Filter out exceptions and log them
         results = []
         for res in attachment_results:

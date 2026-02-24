@@ -8,6 +8,8 @@ from agents.common.agent import BaseAgent
 from agents.common.tools import CurrentDateTimeTool
 from .tools import GetEmailTool, SearchEmailsTool, ListUserLabelsTool, DownloadAttachmentTool
 
+_SYSTEM_PROMPT_TEMPLATE = Path(__file__).parent.joinpath('system_prompt.txt').read_text()
+
 
 class SearchAndRetrievalAgent(BaseAgent):
     name = "RetrievalAgent"
@@ -32,7 +34,6 @@ class SearchAndRetrievalAgent(BaseAgent):
         tool_descriptions = []
         for tool in tools:
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
-        system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt.txt'))
-        system_prompt = system_prompt.format(tools='\n'.join(tool_descriptions))
+        system_prompt = PromptTemplate.from_template(_SYSTEM_PROMPT_TEMPLATE).format(tools='\n'.join(tool_descriptions))
 
         super().__init__(model, tools, system_prompt)

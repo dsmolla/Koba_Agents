@@ -9,6 +9,8 @@ from .search_and_retrieval.agent import SearchAndRetrievalAgent
 from .writer.agent import WriterAgent
 from ..common.tools import CurrentDateTimeTool
 
+_SYSTEM_PROMPT_TEMPLATE = Path(__file__).parent.joinpath('system_prompt.txt').read_text()
+
 
 class DriveAgent(BaseAgent):
     name: str = "DriveAgent"
@@ -26,7 +28,6 @@ class DriveAgent(BaseAgent):
         tool_descriptions = []
         for tool in tools:
             tool_descriptions.append(f"- {tool.name}: {tool.description}")
-        system_prompt = PromptTemplate.from_file(str(Path(__file__).parent / 'system_prompt.txt'))
-        system_prompt = system_prompt.format(tools='\n'.join(tool_descriptions))
+        system_prompt = PromptTemplate.from_template(_SYSTEM_PROMPT_TEMPLATE).format(tools='\n'.join(tool_descriptions))
 
         super().__init__(model, tools, system_prompt)

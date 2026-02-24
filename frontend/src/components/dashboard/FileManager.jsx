@@ -1,4 +1,4 @@
-import {useState, useRef} from 'react';
+import {useState, useRef, useEffect} from 'react';
 import {FileText, Trash2, Upload, Image, Film, Music, Loader2} from 'lucide-react';
 import {useAuth} from "../../hooks/useAuth.js";
 import {bytesToSize, deleteFile, downloadFile, uploadFiles} from "../../lib/fileService.js";
@@ -7,15 +7,23 @@ export default function FileManager({ files, setFiles }) {
     const { user, loading } = useAuth()
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef(null);
+    const mountedRef = useRef(true);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => { mountedRef.current = false; };
+    }, []);
 
     const handleDelete = async (file) => {
         if (!user) return;
-        
+
         try {
-            await deleteFile(file)
-            setFiles(files.filter(f => f.filename !== file.filename));
+            await deleteFile(file);
+            if (mountedRef.current) {
+                setFiles(files.filter(f => f.filename !== file.filename));
+            }
         } catch {
-            alert("Failed to delete file.");
+            if (mountedRef.current) alert("Failed to delete file.");
         }
     };
 
@@ -30,11 +38,15 @@ export default function FileManager({ files, setFiles }) {
         try {
             setIsUploading(true);
             const uploadedFiles = await uploadFiles(user.id, filesList);
-            setFiles(prev => [...uploadedFiles, ...prev]);
+            if (mountedRef.current) {
+                setFiles(prev => [...uploadedFiles, ...prev]);
+            }
         } catch {
-            alert("Failed to upload files.");
+            if (mountedRef.current) alert("Failed to upload files.");
         } finally {
-            setIsUploading(false);
+            if (mountedRef.current) {
+                setIsUploading(false);
+            }
             e.target.value = null;
         }
     };

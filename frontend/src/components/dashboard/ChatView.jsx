@@ -1,7 +1,59 @@
-import {useState, useRef, useEffect} from 'react';
+import {useState, useRef, useEffect, memo} from 'react';
 import {Send, Paperclip, Bot, User, FileText, Image, Film, Music, X, Trash2} from 'lucide-react';
 import Markdown from "react-markdown";
 import {downloadFile} from "../../lib/fileService.js";
+
+// Memoized message bubble — only re-renders when its own message data changes,
+// not when other messages in the list update (e.g., during streaming of the latest message).
+const MessageBubble = memo(function MessageBubble({ msg, getFileIcon }) {
+    return (
+        <div className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex items-start max-w-[80%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                    msg.sender === 'user' ? 'bg-blue-400 ml-2' : 'bg-green-400 mr-2'
+                }`}>
+                    {msg.sender === 'user' ? <User size={16} className="text-white"/> :
+                        <Bot size={16} className="text-white"/>}
+                </div>
+
+                <div className={`p-3 rounded-xl ${
+                    msg.sender === 'user'
+                        ? 'bg-blue-500 text-white rounded-tr-none'
+                        : 'bg-gray-700 text-white rounded-tl-none'
+                }`}>
+                    {msg.content && (
+                        <Markdown
+                            components={{
+                                p: ({node, children, ...props}) => (
+                                    <p className="text-sm whitespace-pre-wrap" {...props}>{children}</p>
+                                )
+                            }}
+                        >
+                            {msg.content}
+                        </Markdown>
+                    )}
+                    {msg.files && msg.files.length > 0 && (
+                        <div className={`flex flex-col gap-2 ${msg.content ? 'mt-2' : ''}`}>
+                            {msg.files.map((file, idx) => (
+                                <div key={file?.id || idx} className="flex items-center gap-3 bg-black/20 p-2 rounded-lg cursor-pointer hover:bg-black/50" onClick={() => downloadFile(file)}>
+                                    <div className="p-2 bg-white/20 rounded-lg shrink-0">
+                                        {getFileIcon(file.mime_type?.split('/')[0], 24)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{file.filename}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <span className="text-xs opacity-75 mt-1 block text-right">
+                        {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : ''}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+});
 
 export default function ChatView({ messages, sendMessage, clearMessages, status, isConnected, files = [] }) {
     const [inputText, setInputText] = useState("");
@@ -22,7 +74,10 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
             .then(res => res.json())
             .then(data => {
                 setModels(data.models);
-                setSelectedModel(data.default)
+                // Only use API default if the user has no stored preference
+                if (!localStorage.getItem('selectedModel')) {
+                    setSelectedModel(data.default);
+                }
             })
             .catch(err => console.error("Failed to fetch models:", err));
     }, []);
@@ -102,22 +157,6 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
         return <FileText size={size} className="text-blue-500"/>;
     };
 
-    const renderMessageContent = (content) => {
-        if (!content) return null;
-
-        return (
-            <Markdown
-                components={{
-                    p: ({node, children, ...props}) => (
-                        <p className="text-sm whitespace-pre-wrap" {...props}>{children}</p>
-                    )
-                }}
-            >
-                {content}
-            </Markdown>
-        );
-    };
-
     return (
         <div
             className="flex flex-col h-full bg-secondary-dark-bg rounded-lg shadow-sm border border-dark-border overflow-hidden">
@@ -134,45 +173,13 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg, idx) => (
-                    <div
-                        key={ idx }
-                        className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                        <div
-                            className={`flex items-start max-w-[80%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                                msg.sender === 'user' ? 'bg-blue-400 ml-2' : 'bg-green-400 mr-2'
-                            }`}>
-                                {msg.sender === 'user' ? <User size={16} className="text-white"/> :
-                                    <Bot size={16} className="text-white"/>}
-                            </div>
-
-                            <div className={`p-3 rounded-xl ${
-                                msg.sender === 'user'
-                                    ? 'bg-blue-500 text-white rounded-tr-none'
-                                    : 'bg-gray-700 text-white rounded-tl-none'
-                            }`}>
-                                {msg.content && renderMessageContent(msg.content)}
-                                {msg.files && msg.files.length > 0 && (
-                                    <div className={`flex flex-col gap-2 ${msg.content ? 'mt-2' : ''}`}>
-                                        {msg.files.map((file, idx) => (
-                                            <div key={file?.id || idx} className="flex items-center gap-3 bg-black/20 p-2 rounded-lg cursor-pointer hover:bg-black/50" onClick={() => downloadFile(file)}>
-                                                <div className="p-2 bg-white/20 rounded-lg shrink-0">
-                                                    {getFileIcon(file.mime_type?.split('/')[0], 24)}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium truncate">{file.filename}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                <span className="text-xs opacity-75 mt-1 block text-right">
-                                    {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : ''}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                    // Use timestamp+sender as key — stable identity prevents full-list reconciliation
+                    // when new messages arrive. Falls back to index only if timestamps are missing.
+                    <MessageBubble
+                        key={msg.timestamp ? `${msg.timestamp}-${msg.sender}` : idx}
+                        msg={msg}
+                        getFileIcon={getFileIcon}
+                    />
                 ))}
                 <div ref={messagesEndRef}/>
             </div>

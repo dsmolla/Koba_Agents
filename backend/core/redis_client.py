@@ -1,4 +1,5 @@
 import logging
+import time
 
 from redis.asyncio import Redis
 
@@ -17,7 +18,7 @@ class RedisClient:
             password=Config.REDIS_PASSWORD,
             decode_responses=True,
             # ssl=True,
-            max_connections=20,
+            max_connections=50,
             socket_timeout=10.0,
             socket_connect_timeout=5.0,
         )
@@ -43,36 +44,39 @@ class RedisClient:
         await self.redis.set(f"ws_ticket:{ticket}", user_id, ex=30)
 
     async def get_ws_ticket(self, ticket: str) -> str | None:
-        user_id = await self.redis.get(f"ws_ticket:{ticket}")
-        if user_id:
-            await self.redis.delete(f"ws_ticket:{ticket}")
-        return user_id
+        # Atomic GET + DELETE — prevents ticket reuse under concurrent connections
+        return await self.redis.getdel(f"ws_ticket:{ticket}")
 
     async def check_rate_limit(self, key: str, limit: int, window_seconds: int) -> tuple[bool, int]:
         """
         Sliding window rate limiter.
         Returns (is_allowed, remaining_requests).
+        Uses a check-before-add pattern to avoid adding rejected requests to the window.
         """
-        logger.debug(f"Checking rate limit for key {key}")
-        import time
-        now = time.time()
-        window_start = now - window_seconds
-        redis_key = f"ratelimit:{key}"
+        try:
+            now = time.time()
+            window_start = now - window_seconds
+            redis_key = f"ratelimit:{key}"
 
-        pipe = self.redis.pipeline()
-        await pipe.zremrangebyscore(redis_key, 0, window_start)
-        await pipe.zadd(redis_key, {str(now): now})
-        await pipe.zcard(redis_key)
-        await pipe.expire(redis_key, window_seconds)
-        results = await pipe.execute()
+            # Phase 1: clean expired entries and count current window — single round-trip
+            pipe = self.redis.pipeline()
+            pipe.zremrangebyscore(redis_key, 0, window_start)
+            pipe.zcard(redis_key)
+            results = await pipe.execute()
 
-        request_count = results[2]
-        is_allowed = request_count <= limit
-        remaining = max(0, limit - request_count)
+            request_count = results[1]
+            if request_count >= limit:
+                return False, 0
 
-        if not is_allowed:
-            await self.redis.zrem(redis_key, str(now))
+            # Phase 2: add new entry only if allowed — single round-trip
+            pipe2 = self.redis.pipeline()
+            pipe2.zadd(redis_key, {str(now): now})
+            pipe2.expire(redis_key, window_seconds)
+            await pipe2.execute()
 
-        return is_allowed, remaining
+            return True, max(0, limit - request_count - 1)
+        except Exception as e:
+            logger.error(f"Redis rate limit check failed for key '{key}': {e}", exc_info=True)
+            return True, limit  # fail open — allow the request
 
 redis_client = RedisClient()

@@ -48,7 +48,10 @@ async def get_integration_status(
         user: Any = Depends(get_current_user_http)
 ):
     try:
-        creds = await database.get_provider_token(user.id, provider)
+        # Check Redis cache first — avoids a DB round-trip on the hot path
+        creds = await redis_client.get_provider_token(user.id, provider)
+        if creds is None:
+            creds = await database.get_provider_token(user.id, provider)
         return {"connected": True, "scopes": creds.get("scopes", "")}
     except ProviderNotConnectedError:
         return {"connected": False, "scopes": ""}

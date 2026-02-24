@@ -1,7 +1,13 @@
 import {useState, useEffect} from 'react';
 import {Clock, Play, Pause, MoreVertical, Plus, X, Trash, Edit} from 'lucide-react';
+import {Toaster} from 'react-hot-toast';
+import {useAuth, useGoogleIntegration} from '../../hooks/useAuth';
+import AutoReplySection from './AutoReplySection';
 
 export default function TaskManager() {
+    const { session } = useAuth();
+    const { googleIntegration } = useGoogleIntegration();
+    const gmailConnected = googleIntegration.scopes?.includes('https://mail.google.com/');
     const [tasks, setTasks] = useState([
         {
             id: 1,
@@ -194,6 +200,14 @@ export default function TaskManager() {
                             </div>
                         </form>
                     </div>
+                </div>
+            )}
+
+            {/* Auto-Reply Rules */}
+            {session && gmailConnected && (
+                <div className="bg-secondary-dark-bg rounded-lg shadow-sm border border-dark-border">
+                    <Toaster />
+                    <AutoReplySection session={session} />
                 </div>
             )}
         </div>
