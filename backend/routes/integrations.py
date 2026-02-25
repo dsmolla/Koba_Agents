@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
+_ALLOWED_PROVIDERS = frozenset({"google"})
+
 
 @router.post("/google")
 async def save_google_credentials(
@@ -23,12 +25,15 @@ async def save_google_credentials(
 ):
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={creds.token}")
+            resp = await client.get(
+                "https://www.googleapis.com/oauth2/v1/tokeninfo",
+                headers={"Authorization": f"Bearer {creds.token}"}
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 scopes = data.get("scope", "")
             else:
-                logger.warning(f"Failed to fetch token info: {resp.text}", extra={"user_id": user.id})
+                logger.warning(f"Failed to fetch token info: HTTP {resp.status_code}", extra={"user_id": user.id})
                 scopes = ""
 
         creds_dict = creds.model_dump()
@@ -47,6 +52,8 @@ async def get_integration_status(
         provider: str,
         user: Any = Depends(get_current_user_http)
 ):
+    if provider not in _ALLOWED_PROVIDERS:
+        raise HTTPException(status_code=400, detail="Invalid provider")
     try:
         # Check Redis cache first — avoids a DB round-trip on the hot path
         creds = await redis_client.get_provider_token(user.id, provider)
@@ -65,6 +72,8 @@ async def delete_integration(
         provider: str,
         user: Any = Depends(get_current_user_http)
 ):
+    if provider not in _ALLOWED_PROVIDERS:
+        raise HTTPException(status_code=400, detail="Invalid provider")
     try:
         token = await database.get_provider_token(user.id, provider)
         await database.delete_provider_token(user.id, provider)

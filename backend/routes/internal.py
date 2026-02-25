@@ -1,3 +1,4 @@
+import hmac
 import logging
 from typing import Any
 
@@ -18,7 +19,7 @@ async def process_auto_reply_task(
         id_info: Any = Depends(verify_google_token)
 ):
     token = request.headers.get("X-Cloud-Tasks-Token")
-    if token != Config.CLOUD_TASKS_TOKEN:
+    if not hmac.compare_digest(token or "", Config.CLOUD_TASKS_TOKEN or ""):
         logger.warning("Invalid or missing Cloud Tasks token")
         raise HTTPException(status_code=403, detail="Forbidden")
 

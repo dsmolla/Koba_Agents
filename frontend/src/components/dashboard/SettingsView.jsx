@@ -113,7 +113,7 @@ export default function SettingsView({user}) {
             const allScopes = new Set([...validScopes, ...newScopesToAdd]);
             const scopeString = Array.from(allScopes).join(' ');
 
-            localStorage.setItem('integrating_google', 'true');
+            sessionStorage.setItem('integrating_google', 'true');
             await signInWithGoogleProvider(scopeString);
         } catch (error) {
             console.error(`Error connecting ${service}:`, error);

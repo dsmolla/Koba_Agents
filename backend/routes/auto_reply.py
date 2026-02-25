@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,18 +14,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auto-reply", tags=["auto-reply"])
 
 
+class ToneEnum(str, Enum):
+    PROFESSIONAL = "Professional"
+    CASUAL = "Casual"
+    BRIEF = "Brief"
+
+
 class AutoReplyRuleCreate(BaseModel):
-    name: str = Field(max_length=255)
-    when_condition: str = Field(min_length=1)
-    do_action: str = Field(min_length=1)
-    tone: str = 'Professional'
+    name: str = Field(min_length=1, max_length=255)
+    when_condition: str = Field(min_length=1, max_length=500)
+    do_action: str = Field(min_length=1, max_length=500)
+    tone: ToneEnum = ToneEnum.PROFESSIONAL
 
 
 class AutoReplyRuleUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=255)
-    when_condition: str | None = Field(default=None, min_length=1)
-    do_action: str | None = Field(default=None, min_length=1)
-    tone: str | None = None
+    when_condition: str | None = Field(default=None, min_length=1, max_length=500)
+    do_action: str | None = Field(default=None, min_length=1, max_length=500)
+    tone: ToneEnum | None = None
 
 
 class ReorderRulesRequest(BaseModel):
@@ -222,7 +229,7 @@ async def get_auto_reply_log(user: Any = Depends(get_current_user_http)):
     try:
         rows = await database.fetch_all(
             """
-            SELECT id, message_id, replied_at, reply_message_id, status, error_message, llm_model, subject
+            SELECT id, message_id, replied_at, reply_message_id, status, error_message, llm_model
             FROM public.auto_reply_log
             WHERE user_id = %s
             ORDER BY replied_at DESC
@@ -256,7 +263,6 @@ def _format_log_entry(row: dict) -> dict:
     return {
         "id": str(row['id']),
         "message_id": row['message_id'],
-        "subject": row['subject'],
         "replied_at": row['replied_at'].isoformat() if row['replied_at'] else None,
         "reply_message_id": row['reply_message_id'],
         "status": row['status'],

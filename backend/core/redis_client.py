@@ -14,10 +14,11 @@ class RedisClient:
         self.redis = Redis(
             host=Config.REDIS_HOST,
             port=Config.REDIS_PORT,
-            username=Config.REDIS_USERNAME,
+            # username=Config.REDIS_USERNAME,
             password=Config.REDIS_PASSWORD,
             decode_responses=True,
-            # ssl=True,
+            ssl=True,
+            ssl_ca_certs=r"C:\Users\Dagmawi\Downloads\server-ca.pem",
             max_connections=50,
             socket_timeout=10.0,
             socket_connect_timeout=5.0,

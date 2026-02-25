@@ -84,17 +84,17 @@ async def check_rate_limit(user_id: str) -> bool:
     return is_allowed
 
 
-async def log_auto_reply(user_id, message_id, reply_message_id=None, status='sent', error_message=None, llm_model=None, subject=None):
+async def log_auto_reply(user_id, message_id, reply_message_id=None, status='sent', error_message=None, llm_model=None):
     """Log an auto-reply attempt. rule_id is optional (agent decides, not programmatic matching)."""
     try:
         await database.execute(
             """
             INSERT INTO public.auto_reply_log
-                (user_id, message_id, reply_message_id, status, error_message, llm_model, subject)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (user_id, message_id, reply_message_id, status, error_message, llm_model)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT (user_id, message_id) DO NOTHING
             """,
-            (user_id, message_id, reply_message_id, status, error_message, llm_model, subject)
+            (user_id, message_id, reply_message_id, status, error_message, llm_model)
         )
         return True
     except Exception as e:
@@ -179,7 +179,7 @@ async def process_notification(user_id: str, notification_history_id: int):
                 await log_auto_reply(
                     user_id, message_id,
                     reply_message_id=result,
-                    status='sent', llm_model=Config.DEFAULT_MODEL, subject=subject
+                    status='sent', llm_model=Config.DEFAULT_MODEL
                 )
                 logger.info(f"Auto-reply agent acted on {message_id}", extra={"user_id": user_id})
 
@@ -188,7 +188,7 @@ async def process_notification(user_id: str, notification_history_id: int):
                 await log_auto_reply(
                     user_id, message_id,
                     status='failed', error_message=str(e)[:500],
-                    llm_model=Config.DEFAULT_MODEL, subject=subject
+                    llm_model=Config.DEFAULT_MODEL
                 )
 
         await database.execute(

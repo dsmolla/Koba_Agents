@@ -57,3 +57,11 @@ async def check_ws_rate_limit(user_id: str) -> tuple[bool, int]:
     return await redis_client.check_rate_limit(
         f"ws:user:{user_id}", WS_RATE_LIMIT, WS_WINDOW_SECONDS
     )
+
+
+async def check_ws_connection_limit(user_id: str) -> bool:
+    """Limit WebSocket connection attempts to 10 per minute per user."""
+    is_allowed, _ = await redis_client.check_rate_limit(
+        f"ws_conn:{user_id}", limit=10, window_seconds=60
+    )
+    return is_allowed

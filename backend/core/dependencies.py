@@ -3,6 +3,7 @@ import asyncio
 from fastapi import WebSocket, HTTPException, Header, WebSocketException, status
 from google.auth.transport import requests
 
+from config import Config
 from core.supabase_client import get_supabase
 from core.redis_client import redis_client
 import logging
@@ -54,8 +55,13 @@ async def verify_google_token(authorization: str = Header(None)):
     token = authorization.replace("Bearer ", "")
     try:
         id_info = await asyncio.to_thread(id_token.verify_oauth2_token, token, requests.Request())
+        if id_info.get("iss") not in ("https://accounts.google.com", "accounts.google.com"):
+            raise ValueError("Unexpected issuer")
+        expected_sa = Config.PUBSUB_SERVICE_ACCOUNT_EMAIL
+        if id_info.get("email") != expected_sa:
+            raise ValueError("Unexpected service account email")
         logger.debug("Google token verified")
         return id_info
     except Exception as e:
-        logger.error(f"Google token validation failed: {e}")
+        logger.warning(f"OIDC validation failed: {e}")
         raise HTTPException(401, "Invalid OIDC Token")

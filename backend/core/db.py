@@ -19,8 +19,11 @@ class Database:
 
     async def connect(self):
         if self._pool is None:
+            db_url = Config.SUPABASE_DB_URL
+            if "sslmode" not in db_url:
+                db_url += ("&" if "?" in db_url else "?") + "sslmode=require"
             self._pool = AsyncConnectionPool(
-                conninfo=Config.SUPABASE_DB_URL,
+                conninfo=db_url,
                 max_size=30,
                 min_size=3,
                 open=False,

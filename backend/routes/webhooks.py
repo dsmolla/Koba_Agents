@@ -1,4 +1,5 @@
 import base64
+import hmac
 import json
 import logging
 from typing import Any
@@ -24,7 +25,7 @@ async def gmail_push_notification(
         id_info: Any = Depends(verify_google_token),
         token: str | None = Query(default=None)
 ):
-    if Config.PUBSUB_WEBHOOK_TOKEN and token != Config.PUBSUB_WEBHOOK_TOKEN:
+    if Config.PUBSUB_WEBHOOK_TOKEN and not hmac.compare_digest(token or "", Config.PUBSUB_WEBHOOK_TOKEN):
         logger.warning("Invalid webhook token")
         raise HTTPException(status_code=403, detail="Forbidden")
 

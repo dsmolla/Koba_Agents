@@ -1,21 +1,24 @@
 import logging
 import time
 from typing import Any
+from zoneinfo import available_timezones as _get_all_tz
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from google.auth.exceptions import RefreshError
 from google.genai.errors import APIError as GenAIAPIError
-from langchain_google_genai._common import GoogleGenerativeAIError
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
+from langchain_google_genai._common import GoogleGenerativeAIError
 
 from config import Config
+
+_VALID_TIMEZONES = _get_all_tz()
 from core.auth import get_google_service
 from core.db import database
 from core.dependencies import get_current_user_ws, get_current_user_http
 from core.exceptions import ProviderNotConnectedError
 from core.models import UserMessage, BotMessage
-from core.rate_limit import check_ws_rate_limit
+from core.rate_limit import check_ws_rate_limit, check_ws_connection_limit
 from logging_config import log_event
 
 logger = logging.getLogger(__name__)
@@ -48,11 +51,11 @@ async def send_chat_history(websocket: WebSocket, agent, config: RunnableConfig,
 
 
 async def process_message(
-    websocket: WebSocket,
-    agent,
-    config: RunnableConfig,
-    data: dict,
-    user_id: str,
+        websocket: WebSocket,
+        agent,
+        config: RunnableConfig,
+        data: dict,
+        user_id: str,
 ) -> bool:
     """Process a single user message through the agent pipeline.
 
@@ -103,14 +106,16 @@ async def process_message(
                     })
                 except (WebSocketDisconnect, RuntimeError):
                     is_connected = False
-                    logger.debug("User disconnected during status update. Continuing in background.", extra={"user_id": user_id})
+                    logger.debug("User disconnected during status update. Continuing in background.",
+                                 extra={"user_id": user_id})
 
         elif kind == 'on_chain_end' and event['name'] == 'SupervisorAgent':
             bot_message: BotMessage = event['data']['output']['structured_response']
             bot_message_dump = bot_message.model_dump()
             response_time = time.time() - message_received_at
 
-            logger.debug(f"Agent Response content: {bot_message_dump}", extra={"user_id": user_id, "response_time": response_time})
+            logger.debug(f"Agent Response content: {bot_message_dump}",
+                         extra={"user_id": user_id, "response_time": response_time})
 
             if is_connected:
                 try:
@@ -127,10 +132,16 @@ async def websocket_endpoint(
         websocket: WebSocket,
         user: Any = Depends(get_current_user_ws)
 ):
+    if not await check_ws_connection_limit(user.id):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     await websocket.accept()
     user_id = user.id
-    timezone = websocket.query_params.get("timezone", "UTC")
-    config = RunnableConfig(configurable={"thread_id": user_id, "timezone": timezone})
+    tz = websocket.query_params.get("timezone", "UTC")
+    if tz not in _VALID_TIMEZONES:
+        tz = "UTC"
+    config = RunnableConfig(configurable={"thread_id": user_id, "timezone": tz})
 
     from main import get_agent
     default_agent = get_agent(websocket.app, Config.DEFAULT_MODEL)

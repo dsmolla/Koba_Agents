@@ -1,7 +1,11 @@
 import {useState, useRef, useEffect, memo} from 'react';
 import {Send, Paperclip, Bot, User, FileText, Image, Film, Music, X, Trash2} from 'lucide-react';
 import Markdown from "react-markdown";
+import toast from "react-hot-toast";
 import {downloadFile} from "../../lib/fileService.js";
+
+const _ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf', 'text/plain', 'text/csv']);
+const _MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 // Memoized message bubble — only re-renders when its own message data changes,
 // not when other messages in the list update (e.g., during streaming of the latest message).
@@ -23,6 +27,7 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon }) {
                 }`}>
                     {msg.content && (
                         <Markdown
+                            skipHtml={true}
                             components={{
                                 p: ({node, children, ...props}) => (
                                     <p className="text-sm whitespace-pre-wrap" {...props}>{children}</p>
@@ -74,10 +79,10 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
             .then(res => res.json())
             .then(data => {
                 setModels(data.models);
-                // Only use API default if the user has no stored preference
-                if (!localStorage.getItem('selectedModel')) {
-                    setSelectedModel(data.default);
-                }
+                // Use stored model only if it's in the valid list, otherwise fall back to API default
+                const validIds = new Set(data.models.map(m => m.id));
+                const stored = localStorage.getItem('selectedModel');
+                setSelectedModel(validIds.has(stored) ? stored : data.default);
             })
             .catch(err => console.error("Failed to fetch models:", err));
     }, []);
@@ -139,7 +144,17 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
     };
 
     const handleFileChange = (e) => {
-        const files = Array.from(e.target.files || []);
+        const files = Array.from(e.target.files || []).filter(file => {
+            if (!_ALLOWED_TYPES.has(file.type)) {
+                toast.error(`${file.name}: file type not allowed`);
+                return false;
+            }
+            if (file.size > _MAX_SIZE) {
+                toast.error(`${file.name}: exceeds 10MB limit`);
+                return false;
+            }
+            return true;
+        });
         if (files.length === 0) return;
 
         setStagedFiles(prev => [...prev, ...files]);

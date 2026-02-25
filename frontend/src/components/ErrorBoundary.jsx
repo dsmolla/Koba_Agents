@@ -24,7 +24,7 @@ class ErrorBoundary extends React.Component {
                         <p className="text-lg">We're sorry, but an unexpected error occurred.</p>
                         <pre
                             className="text-xs text-left bg-gray-200 dark:bg-gray-800 p-4 rounded overflow-auto max-h-40">
-                {this.state.error?.toString()}
+                An unexpected error occurred. Please refresh the page.
              </pre>
                         <button
                             onClick={() => window.location.reload()}

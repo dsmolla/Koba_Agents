@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
         // Clear integration flag if the user clicked "Back" to return to the app
         const navEntry = performance.getEntriesByType("navigation")[0];
         if (navEntry && navEntry.type === 'back_forward') {
-            localStorage.removeItem('integrating_google');
+            sessionStorage.removeItem('integrating_google');
         }
         // Check active sessions and sets the user
         const checkSession = async () => {
@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }) => {
             // TOKEN_REFRESHED is a background Supabase operation — no need to re-check integration
             if (event === 'TOKEN_REFRESHED') return;
 
-            const isIntegrating = localStorage.getItem('integrating_google') === 'true';
+            const isIntegrating = sessionStorage.getItem('integrating_google') === 'true';
 
             if (session?.provider_token && session?.access_token && isIntegrating) {
                 try {
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }) => {
                     if (!response.ok) {
                         console.error("Failed to sync Google tokens:", await response.text());
                     } else {
-                        localStorage.removeItem('integrating_google');
+                        sessionStorage.removeItem('integrating_google');
                         fetchGoogleIntegration(session.access_token);
                     }
                 } catch (error) {
