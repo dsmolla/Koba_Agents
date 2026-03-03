@@ -46,16 +46,32 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon }) {
                             ))}
                         </div>
                     )}
-                    <span className="text-xs opacity-75 mt-1 block text-right">
-                        {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : ''}
-                    </span>
                 </div>
             </div>
         </div>
     );
 });
 
-export default function ChatView({ messages, sendMessage, clearMessages, status, isConnected, files = [] }) {
+const TypingIndicator = memo(function TypingIndicator() {
+    return (
+        <div className="flex justify-start">
+            <div className="flex items-start flex-row">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-green-400 mr-2">
+                    <Bot size={16} className="text-white"/>
+                </div>
+                <div className="p-3 rounded-xl bg-gray-700 text-white rounded-tl-none">
+                    <div className="flex gap-1 items-center h-5">
+                        <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+export default function ChatView({ messages, sendMessage, clearMessages, status, isConnected, isTyping = false, files = [] }) {
     const [inputText, setInputText] = useState("");
     const [stagedFiles, setStagedFiles] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
@@ -84,7 +100,7 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({behavior: "instant"});
-    }, [messages]);
+    }, [messages, isTyping]);
 
     const handleSend = (e) => {
         e.preventDefault();
@@ -173,14 +189,13 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg, idx) => (
-                    // Use timestamp+sender as key — stable identity prevents full-list reconciliation
-                    // when new messages arrive. Falls back to index only if timestamps are missing.
                     <MessageBubble
-                        key={msg.timestamp ? `${msg.timestamp}-${msg.sender}` : idx}
+                        key={idx}
                         msg={msg}
                         getFileIcon={getFileIcon}
                     />
                 ))}
+                {isTyping && <TypingIndicator />}
                 <div ref={messagesEndRef}/>
             </div>
 

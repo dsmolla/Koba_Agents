@@ -202,6 +202,7 @@ def setup_logging(log_level: int = logging.DEBUG) -> None:
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.getLogger('hpack.hpack').setLevel(logging.WARNING)
     logging.getLogger('hpack.table').setLevel(logging.WARNING)
+    logging.getLogger('asyncio').setLevel(logging.WARNING)
 
     root_logger.info("Logging system initialized", extra={
         'log_level': logging.getLevelName(log_level),

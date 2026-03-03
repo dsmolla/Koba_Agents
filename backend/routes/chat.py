@@ -53,6 +53,7 @@ async def process_message(
     config: RunnableConfig,
     data: dict,
     user_id: str,
+    api_service,
 ) -> bool:
     """Process a single user message through the agent pipeline.
 
@@ -61,11 +62,6 @@ async def process_message(
     is_connected = True
     user_message = UserMessage(**data)
     message_received_at = time.time()
-
-    try:
-        api_service = await get_google_service(user_id, config.get("configurable", {}).get("timezone", "UTC"))
-    except (ProviderNotConnectedError, RefreshError):
-        api_service = None
 
     message_config = RunnableConfig(
         configurable={
@@ -135,6 +131,11 @@ async def websocket_endpoint(
     from main import get_agent
     default_agent = get_agent(websocket.app, Config.DEFAULT_MODEL)
 
+    try:
+        api_service = await get_google_service(user_id, timezone)
+    except (ProviderNotConnectedError, RefreshError):
+        api_service = None
+
     logger.info("User connected", extra={"user_id": user_id})
     await send_chat_history(websocket, default_agent, config, user_id)
 
@@ -160,7 +161,7 @@ async def websocket_endpoint(
             agent = get_agent(websocket.app, model_name)
 
             logger.debug(f"Received message content: {data}", extra={"user_id": user_id, "model": model_name})
-            is_connected = await process_message(websocket, agent, config, data, user_id)
+            is_connected = await process_message(websocket, agent, config, data, user_id, api_service)
 
         except WebSocketDisconnect:
             logger.info("User disconnected", extra={"user_id": user_id})
@@ -179,6 +180,10 @@ async def websocket_endpoint(
                     is_connected = False
         except RefreshError as e:
             logger.warning(f"Token refresh failed: {e}", extra={"user_id": user_id})
+            try:
+                api_service = await get_google_service(user_id, timezone)
+            except Exception:
+                api_service = None
             if is_connected:
                 try:
                     await websocket.send_json({
