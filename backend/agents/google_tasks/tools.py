@@ -165,81 +165,96 @@ class ListTasksTool(BaseGoogleTool):
 
 
 class DeleteTaskInput(BaseModel):
-    task_id: str = Field(description="The ID of the task to delete")
+    task_ids: list[str] = Field(description="The IDs of the tasks to delete")
     task_list_id: Optional[str] = Field(default='@default',
-                                        description="The task_list_id the task belongs to, defaults to '@default'")
+                                        description="The task_list_id the tasks belong to, defaults to '@default'")
 
 
 class DeleteTaskTool(BaseGoogleTool):
     name: str = "delete_task"
-    description: str = "Delete a task"
+    description: str = "Delete one or more tasks."
     args_schema: ArgsSchema = DeleteTaskInput
 
-    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+    def _run(self, task_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg],
              task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, task_id: str,
+    async def _run_google_task(self, config: RunnableConfig, task_ids: list[str],
                     task_list_id: str = "@default") -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Deleting Task...", "icon": "🗑️"}
         )
         tasks_service = await get_tasks_service(config)
-        await tasks_service.delete_task(task=task_id, task_list_id=task_list_id)
-        return f"Task deleted successfully. task_id: {task_id}, task_list_id: {task_list_id}"
+        results = await tasks_service.batch_delete_tasks(tasks=task_ids, task_list_id=task_list_id)
+        successes = sum(1 for r in results if r is True)
+        errors = sum(1 for r in results if isinstance(r, tuple))
+        msg = f"{successes} of {len(task_ids)} task(s) deleted."
+        if errors:
+            msg += f" {errors} failed."
+        return msg
 
 
 class CompleteTaskInput(BaseModel):
-    task_id: str = Field(description="The ID of the task to complete")
+    task_ids: list[str] = Field(description="The IDs of the tasks to complete")
     task_list_id: Optional[str] = Field(default='@default',
-                                        description="The task list ID the task belongs to, defaults to '@default'")
+                                        description="The task list ID the tasks belong to, defaults to '@default'")
 
 
 class CompleteTaskTool(BaseGoogleTool):
     name: str = "complete_task"
-    description: str = "Mark a task as completed"
+    description: str = "Mark one or more tasks as completed."
     args_schema: ArgsSchema = CompleteTaskInput
 
-    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+    def _run(self, task_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg],
              task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, task_id: str,
+    async def _run_google_task(self, config: RunnableConfig, task_ids: list[str],
                     task_list_id: str = "@default") -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Completing Task...", "icon": "✅"}
         )
         tasks_service = await get_tasks_service(config)
-        task = await tasks_service.mark_completed(task=task_id, task_list_id=task_list_id)
-        return f"Task marked as completed. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
+        results = await tasks_service.batch_mark_completed(tasks=task_ids, task_list_id=task_list_id)
+        successes = [r for r in results if not isinstance(r, tuple)]
+        errors = [r for r in results if isinstance(r, tuple)]
+        msg = f"{len(successes)} of {len(task_ids)} task(s) marked as completed."
+        if errors:
+            msg += f" {len(errors)} failed."
+        return msg
 
 
 class ReopenTaskInput(BaseModel):
-    task_id: str = Field(description="The ID of the task to reopen")
+    task_ids: list[str] = Field(description="The IDs of the tasks to reopen")
     task_list_id: Optional[str] = Field(default='@default',
-                                        description="The task list ID the task belongs to, defaults to '@default'")
+                                        description="The task list ID the tasks belong to, defaults to '@default'")
 
 
 class ReopenTaskTool(BaseGoogleTool):
     name: str = "reopen_task"
-    description: str = "Reopen a completed task"
+    description: str = "Reopen one or more completed tasks."
     args_schema: ArgsSchema = ReopenTaskInput
 
-    def _run(self, task_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+    def _run(self, task_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg],
              task_list_id: str = "@default") -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, task_id: str,
+    async def _run_google_task(self, config: RunnableConfig, task_ids: list[str],
                     task_list_id: str = "@default") -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Reopening Task...", "icon": "🔄"}
         )
         tasks_service = await get_tasks_service(config)
-        task = await tasks_service.mark_incomplete(task=task_id, task_list_id=task_list_id)
-        return f"Task reopened successfully. task_id: {task.task_id}, task_list_id: {task.task_list_id}"
+        results = await tasks_service.batch_mark_incomplete(tasks=task_ids, task_list_id=task_list_id)
+        successes = [r for r in results if not isinstance(r, tuple)]
+        errors = [r for r in results if isinstance(r, tuple)]
+        msg = f"{len(successes)} of {len(task_ids)} task(s) reopened."
+        if errors:
+            msg += f" {len(errors)} failed."
+        return msg
 
 
 class UpdateTaskInput(BaseModel):

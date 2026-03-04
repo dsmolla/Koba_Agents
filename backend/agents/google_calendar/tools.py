@@ -267,29 +267,34 @@ class CreateEventTool(BaseGoogleTool):
 
 
 class DeleteEventInput(BaseModel):
-    event_id: str = Field(description="The event_id of the event to delete")
+    event_ids: list[str] = Field(description="The event_ids of the events to delete")
     calendar_id: Optional[str] = Field('primary',
-                                       description="The calendar_id containing the event. Default is primary")
+                                       description="The calendar_id containing the events. Default is primary")
 
 
 class DeleteEventTool(BaseGoogleTool):
     name: str = "delete_event"
-    description: str = "Delete an event from the user's primary calendar"
+    description: str = "Delete one or more events from a calendar."
     args_schema: ArgsSchema = DeleteEventInput
 
-    def _run(self, event_id: str, config: Annotated[RunnableConfig, InjectedToolArg],
+    def _run(self, event_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg],
              calendar_id: str = 'primary') -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, event_id: str,
+    async def _run_google_task(self, config: RunnableConfig, event_ids: list[str],
                     calendar_id: str = 'primary') -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Deleting Event...", "icon": "🗑️"}
         )
         calendar_service = await get_calendar_service(config)
-        await calendar_service.delete_event(event=event_id, calendar_id=calendar_id)
-        return f"Event deleted successfully. event_id: {event_id}, calendar_id: {calendar_id}"
+        results = await calendar_service.batch_delete_events(events=event_ids, calendar_id=calendar_id)
+        successes = sum(1 for r in results if r is True)
+        errors = sum(1 for r in results if isinstance(r, tuple))
+        msg = f"{successes} of {len(event_ids)} event(s) deleted from calendar '{calendar_id}'."
+        if errors:
+            msg += f" {errors} failed."
+        return msg
 
 
 class UpdateEventInput(BaseModel):

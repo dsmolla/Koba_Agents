@@ -1,9 +1,11 @@
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Annotated, Any, Coroutine
 
 from dotenv import load_dotenv
+from google.genai.errors import ServerError
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ResponseFormat
 from langchain_core.language_models import BaseChatModel
@@ -50,8 +52,17 @@ class BaseAgent(ABC):
         )
 
     async def arun(self, task: str, config: RunnableConfig):
-        input = {"messages": [("user", task)]}
-        response = await self.agent.ainvoke(input, config=config)
+        input_data = {"messages": [("user", task)]}
+        for attempt in range(4):
+            try:
+                response = await self.agent.ainvoke(input_data, config=config)
+                break
+            except ServerError:
+                if attempt == 3:
+                    raise
+                wait = 2 ** attempt  # 1s, 2s, 4s
+                logger.warning(f"[{self.name}] Model 503, retry {attempt + 1}/4 in {wait}s")
+                await asyncio.sleep(wait)
         content = response['messages'][-1].text
         return AIMessage(content=content, additional_kwargs={"timestamp": datetime.now(tz=timezone.utc).isoformat()})
 

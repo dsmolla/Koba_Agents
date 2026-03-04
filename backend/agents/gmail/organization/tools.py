@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from textwrap import dedent
 from typing import Annotated
@@ -14,10 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class ApplyLabelInput(BaseModel):
-    message_id: str = Field(description="The Message ID of the writer to mark")
+    message_ids: list[str] = Field(description="The Message IDs of the emails to label")
     label_id: str = Field(description=dedent(
         """
-        The label_id to apply to the email. Can be one of the following system labels:
+        The label_id to apply to the emails. Can be one of the following system labels:
             - SPAM
             - UNREAD
             - STARRED
@@ -34,30 +35,30 @@ class ApplyLabelInput(BaseModel):
 
 class ApplyLabelTool(BaseGoogleTool):
     name: str = "apply_label"
-    description: str = "Mark an email with a specific label in Gmail."
+    description: str = "Apply a label to one or more emails in Gmail."
     args_schema: ArgsSchema = ApplyLabelInput
 
-    def _run(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+    def _run(self, message_ids: list[str], label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, message_id: str, label_id: str) -> str:
+    async def _run_google_task(self, config: RunnableConfig, message_ids: list[str], label_id: str) -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Applying Labels...", "icon": "📩"}
         )
         gmail = await get_gmail_service(config)
-        status = await gmail.add_label(email=message_id, labels=[label_id])
-        if status:
-            return f"Label {label_id} applied to email (message_id={message_id})"
-
-        return "Unable to apply label due to internal error"
+        results = await asyncio.gather(
+            *[gmail.add_label(email=mid, labels=[label_id]) for mid in message_ids]
+        )
+        successes = sum(1 for r in results if r)
+        return f"Label {label_id} applied to {successes} of {len(message_ids)} email(s)."
 
 
 class RemoveLabelInput(BaseModel):
-    message_id: str = Field(description="The Message ID of the writer to unmark")
+    message_ids: list[str] = Field(description="The Message IDs of the emails to remove the label from")
     label_id: str = Field(description=dedent(
         """
-        The label_id to apply to the email. Can be one of the following system labels:
+        The label_id to remove from the emails. Can be one of the following system labels:
             - SPAM
             - UNREAD
             - STARRED
@@ -74,22 +75,23 @@ class RemoveLabelInput(BaseModel):
 
 class RemoveLabelTool(BaseGoogleTool):
     name: str = "remove_label"
-    description: str = "Remove a label from an email."
+    description: str = "Remove a label from one or more emails."
     args_schema: ArgsSchema = RemoveLabelInput
 
-    def _run(self, message_id: str, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+    def _run(self, message_ids: list[str], label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, message_id: str, label_id: str) -> str:
+    async def _run_google_task(self, config: RunnableConfig, message_ids: list[str], label_id: str) -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Removing Label...", "icon": "🏷️"}
         )
         gmail = await get_gmail_service(config)
-        if await gmail.remove_label(email=message_id, labels=[label_id]):
-            return f"Label {label_id} removed from email with message_id: {message_id}"
-
-        return "Unable to remove label due to internal error"
+        results = await asyncio.gather(
+            *[gmail.remove_label(email=mid, labels=[label_id]) for mid in message_ids]
+        )
+        successes = sum(1 for r in results if r)
+        return f"Label {label_id} removed from {successes} of {len(message_ids)} email(s)."
 
 
 class CreateLabelInput(BaseModel):
@@ -165,24 +167,27 @@ class RenameLabelTool(BaseGoogleTool):
 
 
 class DeleteEmailInput(BaseModel):
-    message_id: str = Field(description="Message ID of the writer to delete")
+    message_ids: list[str] = Field(description="Message IDs of the emails to delete")
 
 
 class DeleteEmailTool(BaseGoogleTool):
-    name: str = "delete_email"
-    description: str = "Delete an email message from Gmail. Email is moved to Trash by default"
+    name: str = "delete_emails"
+    description: str = "Delete one or more email messages from Gmail. Emails are moved to Trash."
     args_schema: ArgsSchema = DeleteEmailInput
 
-    def _run(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+    def _run(self, message_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, message_id: str) -> str:
+    async def _run_google_task(self, config: RunnableConfig, message_ids: list[str]) -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Deleting Email...", "icon": "🗑️"}
         )
         gmail = await get_gmail_service(config)
-        if await gmail.delete_email(email=message_id, permanent=False):
-            return f"Email with message_id {message_id} deleted"
-
-        return "Unable to delete email message due to internal error"
+        results = await gmail.batch_delete_emails(emails=message_ids, permanent=False)
+        successes = sum(1 for r in results if r is True)
+        errors = sum(1 for r in results if isinstance(r, tuple))
+        msg = f"{successes} of {len(message_ids)} email(s) deleted."
+        if errors:
+            msg += f" {errors} failed."
+        return msg

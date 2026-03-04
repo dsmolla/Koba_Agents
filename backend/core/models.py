@@ -27,7 +27,6 @@ class BotMessage(BaseModel):
     sender: Literal["bot"] = "bot"
     content: str
     files: List[FileAttachment] = Field(default_factory=list, description="Files requested by the user")
-    timestamp: int = int(time.time() * 1000)
 
 
 class GoogleCredentials(BaseModel):

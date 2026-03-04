@@ -8,6 +8,7 @@ export const useChat = () => {
     const [messages, setMessages] = useState([]);
     const [status, setStatus] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
+    const [isTyping, setIsTyping] = useState(false);
     const ws = useRef(null);
     const { session } = useAuth();
 
@@ -26,6 +27,7 @@ export const useChat = () => {
                 break;
 
             case 'message':
+                setIsTyping(false);
                 setMessages(prev => {
                     const updated = [...prev, {
                         sender: data.sender,
@@ -44,6 +46,7 @@ export const useChat = () => {
                 break;
 
             case 'error':
+                setIsTyping(false);
                 if (data.code === 'AUTH_REQUIRED') {
                     console.error("Auth required:", data.content);
                     alert(`Authentication Session Expired: ${data.content}`);
@@ -105,6 +108,7 @@ export const useChat = () => {
 
                 socket.onclose = () => {
                     setIsConnected(false);
+                    setIsTyping(false);
                     if (!cancelled) reconnectTimeout = setTimeout(connectWebSocket, 3000);
                 };
 
@@ -157,6 +161,8 @@ export const useChat = () => {
                 timestamp: timestamp
             }]);
 
+            setIsTyping(true);
+
             ws.current.send(JSON.stringify({
                 type: 'message',
                 sender: 'user',
@@ -195,5 +201,5 @@ export const useChat = () => {
         }
     }, [session]);
 
-    return {messages, sendMessage, clearMessages, status, isConnected};
+    return {messages, sendMessage, clearMessages, status, isConnected, isTyping};
 };
