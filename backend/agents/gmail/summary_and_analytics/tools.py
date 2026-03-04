@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from textwrap import dedent
@@ -25,7 +26,7 @@ class SummarizeEmailsInput(BaseModel):
 
 class SummarizeEmailsTool(BaseGoogleTool):
     name: str = "summarize_emails"
-    description: str = "Summarize an email or a list of emails"
+    description: str = "Summarize a list of emails"
     args_schema: ArgsSchema = SummarizeEmailsInput
 
     def _run(self, message_ids: list[str], summary_type: Optional[
@@ -43,17 +44,28 @@ class SummarizeEmailsTool(BaseGoogleTool):
         gmail = await get_gmail_service(config)
         email_cache = get_email_cache(config)
 
+        email_map = {}
+        missing_ids = []
+        for message_id in message_ids:
+            if cached := email_cache.get(message_id):
+                email_map[message_id] = cached
+            else:
+                missing_ids.append(message_id)
+
+        if missing_ids:
+            fetched = await gmail.batch_get_emails(missing_ids)
+            for result in fetched:
+                if not isinstance(result, tuple):
+                    email_map[result.message_id] = email_cache.save(result)
+
         emails = []
         for message_id in message_ids:
-            if email_cache.get(message_id):
-                email = email_cache.get(message_id).copy()
-            else:
-                email = email_cache.save(await gmail.get_email(message_id)).copy()
-
-            keys_to_remove = ['message_id', 'thread_id', 'snippet', 'label_ids', 'has_attachments']
-            for key in keys_to_remove:
-                email.pop(key, None)
-            emails.append(email)
+            if email_data := email_map.get(message_id):
+                email = email_data.copy()
+                keys_to_remove = ['message_id', 'thread_id', 'snippet', 'label_ids', 'has_attachments']
+                for key in keys_to_remove:
+                    email.pop(key, None)
+                emails.append(email)
 
         system_prompt = dedent(
             """
@@ -64,7 +76,7 @@ class SummarizeEmailsTool(BaseGoogleTool):
             """
         )
         llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
-        summaries = []
+        tasks = []
 
         for i in range(0, len(emails), 5):
             conversation_emails = emails[i: min(i + 5, len(emails))]
@@ -104,14 +116,19 @@ class SummarizeEmailsTool(BaseGoogleTool):
                     """
                 )
 
-            summary = llm.invoke([
+            task = llm.ainvoke([
                 SystemMessage(system_prompt),
                 HumanMessage(summary_prompt),
             ])
+            tasks.append(task)
 
-            summaries.append(summary.content)
+        summaries = await asyncio.gather(*tasks)
+        summaries = [summary.content for summary in summaries]
 
-        final_answer = llm.invoke([
+        if len(summaries) == 1:
+            return summaries[0]
+
+        final_answer = await llm.ainvoke([
             HumanMessage(dedent(
                 f"""
                 You are tasked with creating a unified summary from multiple email batch summaries.
@@ -139,8 +156,8 @@ class ExtractFromEmailInput(BaseModel):
 
 
 class ExtractFromEmailTool(BaseGoogleTool):
-    name: str = "extract_from_email"
-    description: str = "Extract specific fields or information from emails"
+    name: str = "extract_from_emails"
+    description: str = "Extract specific fields or information from multiple emails"
     args_schema: ArgsSchema = ExtractFromEmailInput
 
     def _run(self, message_ids: list[str], fields: list[str],
@@ -155,15 +172,24 @@ class ExtractFromEmailTool(BaseGoogleTool):
         gmail = await get_gmail_service(config)
         email_cache = get_email_cache(config)
 
+        email_map = {}
+        missing_ids = []
+        for message_id in message_ids:
+            if cached := email_cache.get(message_id):
+                email_map[message_id] = cached
+            else:
+                missing_ids.append(message_id)
+
+        if missing_ids:
+            fetched = await gmail.batch_get_emails(missing_ids)
+            for result in fetched:
+                if not isinstance(result, tuple):
+                    email_map[result.message_id] = email_cache.save(result)
+
         emails = []
         for message_id in message_ids:
-            if email := email_cache.get(message_id):
-                email = email.copy()
-                del email["snippet"]
-                del email["has_attachments"]
-                emails.append(email)
-            else:
-                email = email_cache.save(await gmail.get_email(message_id)).copy()
+            if email_data := email_map.get(message_id):
+                email = email_data.copy()
                 del email["snippet"]
                 del email["has_attachments"]
                 emails.append(email)
@@ -178,7 +204,7 @@ class ExtractFromEmailTool(BaseGoogleTool):
         )
 
         llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
-        extracted_data = []
+        tasks = []
 
         for i in range(0, len(emails), 5):
             email_batch = emails[i: min(i + 5, len(emails))]
@@ -198,14 +224,19 @@ class ExtractFromEmailTool(BaseGoogleTool):
                     """
             )
 
-            response = llm.invoke([
+            task = llm.ainvoke([
                 SystemMessage(system_prompt),
                 HumanMessage(extraction_prompt),
             ])
+            tasks.append(task)
 
-            extracted_data.append(response.content)
+        extracted_data = await asyncio.gather(*tasks)
+        extracted_data = [ed.content for ed in extracted_data]
 
-        final_answer = llm.invoke([
+        if len(extracted_data) == 1:
+            return extracted_data[0]
+
+        final_answer = await llm.ainvoke([
             HumanMessage(dedent(
                 f"""
                 You are tasked with creating a unified output from multiple email batch outputs.
@@ -233,7 +264,7 @@ class ClassifyEmailInput(BaseModel):
 
 
 class ClassifyEmailTool(BaseGoogleTool):
-    name: str = "classify_email"
+    name: str = "classify_emails"
     description: str = "Classify emails into specified categories"
     args_schema: ArgsSchema = ClassifyEmailInput
 
@@ -251,15 +282,24 @@ class ClassifyEmailTool(BaseGoogleTool):
         gmail = await get_gmail_service(config)
         email_cache = get_email_cache(config)
 
+        email_map = {}
+        missing_ids = []
+        for message_id in message_ids:
+            if cached := email_cache.get(message_id):
+                email_map[message_id] = cached
+            else:
+                missing_ids.append(message_id)
+
+        if missing_ids:
+            fetched = await gmail.batch_get_emails(missing_ids)
+            for result in fetched:
+                if not isinstance(result, tuple):
+                    email_map[result.message_id] = email_cache.save(result)
+
         emails = []
         for message_id in message_ids:
-            if email := email_cache.get(message_id):
-                email = email.copy()
-                del email["snippet"]
-                del email["has_attachments"]
-                emails.append(email)
-            else:
-                email = email_cache.save(await gmail.get_email(message_id))
+            if email_data := email_map.get(message_id):
+                email = email_data.copy()
                 del email["snippet"]
                 del email["has_attachments"]
                 emails.append(email)
@@ -274,7 +314,7 @@ class ClassifyEmailTool(BaseGoogleTool):
         )
 
         llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
-        classified_emails = []
+        tasks = []
 
         for i in range(0, len(emails), 5):
             email_batch = emails[i: min(i + 5, len(emails))]
@@ -291,13 +331,19 @@ class ClassifyEmailTool(BaseGoogleTool):
                     """
             )
 
-            response = llm.invoke([
+            task = llm.ainvoke([
                 SystemMessage(system_prompt),
                 HumanMessage(classification_prompt),
             ])
-            classified_emails.append(response.content)
+            tasks.append(task)
 
-        final_answer = llm.invoke([
+        classified_emails = await asyncio.gather(*tasks)
+        classified_emails = [ce.content for ce in classified_emails]
+
+        if len(classified_emails) == 1:
+            return classified_emails[0]
+
+        final_answer = await llm.ainvoke([
             HumanMessage(dedent(
                 f"""
                 You are tasked with creating a unified output from multiple email batch outputs.

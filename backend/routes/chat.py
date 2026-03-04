@@ -205,6 +205,17 @@ async def websocket_endpoint(
                     })
                 except (WebSocketDisconnect, RuntimeError):
                     is_connected = False
+        except Exception as e:
+            logger.error(f"Unexpected error processing message: {e}", extra={"user_id": user_id}, exc_info=True)
+            if is_connected:
+                try:
+                    await websocket.send_json({
+                        "type": "error",
+                        "code": "INTERNAL_ERROR",
+                        "content": "An unexpected error occurred. Please try again."
+                    })
+                except (WebSocketDisconnect, RuntimeError):
+                    is_connected = False
 
 
 @router.delete("/chat/clear")

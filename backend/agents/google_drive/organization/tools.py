@@ -14,37 +14,40 @@ logger = logging.getLogger(__name__)
 
 
 class MoveFileInput(BaseModel):
-    file_id: str = Field(description="The file_id or folder_id to move")
+    file_ids: list[str] = Field(description="The file_ids or folder_ids to move")
     target_folder_id: str = Field(description="The folder_id of the destination folder")
 
 
 class MoveFileTool(BaseGoogleTool):
     name: str = "move_file"
-    description: str = "Move a file or folder to a different folder"
+    description: str = "Move one or more files or folders to a target folder."
     args_schema: ArgsSchema = MoveFileInput
 
-    def _run(self, file_id: str, target_folder_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+    def _run(self, file_ids: list[str], target_folder_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, file_id: str, target_folder_id: str) -> str:
+    async def _run_google_task(self, config: RunnableConfig, file_ids: list[str], target_folder_id: str) -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Moving File...", "icon": "📦"}
         )
         drive = await get_drive_service(config)
-        item = await drive.get(file_id)
         target_folder = await drive.get(target_folder_id)
 
         if not isinstance(target_folder, DriveFolder):
             return f"Target {target_folder_id} is not a folder"
 
-        updated_item = await drive.move(
-            item=item,
+        results = await drive.batch_move(
+            items=file_ids,
             target_folder=target_folder,
             remove_from_current_parents=True
         )
-
-        return f"{updated_item.name} moved successfully to folder {target_folder.name}"
+        successes = [r for r in results if not isinstance(r, tuple)]
+        errors = [r for r in results if isinstance(r, tuple)]
+        msg = f"{len(successes)} item(s) moved to '{target_folder.name}'."
+        if errors:
+            msg += f" {len(errors)} failed."
+        return msg
 
 
 class RenameFileInput(BaseModel):
@@ -73,24 +76,27 @@ class RenameFileTool(BaseGoogleTool):
 
 
 class DeleteFileInput(BaseModel):
-    file_id: str = Field(description="The file_id or folder_id of the item to delete")
+    file_ids: list[str] = Field(description="The file_ids or folder_ids of the items to delete")
 
 
 class DeleteFileTool(BaseGoogleTool):
     name: str = "delete_file"
-    description: str = "Delete a file or folder from Google Drive permanently"
+    description: str = "Permanently delete one or more files or folders from Google Drive."
     args_schema: ArgsSchema = DeleteFileInput
 
-    def _run(self, file_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+    def _run(self, file_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, file_id: str) -> str:
+    async def _run_google_task(self, config: RunnableConfig, file_ids: list[str]) -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Deleting File...", "icon": "🗑️"}
         )
         drive = await get_drive_service(config)
-        item = await drive.get(file_id)
-        await drive.delete(item)
-
-        return f"Item deleted successfully. file_id: {file_id}"
+        results = await drive.batch_delete(items=file_ids)
+        successes = sum(1 for r in results if r is True)
+        errors = sum(1 for r in results if isinstance(r, tuple))
+        msg = f"{successes} of {len(file_ids)} item(s) deleted."
+        if errors:
+            msg += f" {errors} failed."
+        return msg

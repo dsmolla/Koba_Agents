@@ -24,78 +24,92 @@ logger = logging.getLogger(__name__)
 
 
 class GetEmailInput(BaseModel):
-    message_id: str = Field(description="The message_id of the email to retrieve")
+    message_ids: list[str] = Field(description="The message_ids of the emails to retrieve")
 
 
 class GetEmailTool(BaseGoogleTool):
-    name: str = "get_email"
-    description: str = "Get email from Gmail by message_id"
+    name: str = "get_emails"
+    description: str = "Get one or more emails from Gmail by message_id"
     args_schema: ArgsSchema = GetEmailInput
 
-    def _run(self, message_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+    def _run(self, message_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, message_id: str) -> str:
+    async def _run_google_task(self, config: RunnableConfig, message_ids: list[str]) -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Retrieving Email...", "icon": "📩"}
         )
         gmail = await get_gmail_service(config)
         email_cache = get_email_cache(config)
-        if (email := email_cache.get(message_id)) is None:
-            email = email_cache.save(
-                await gmail.get_email(message_id=message_id)
-            )
 
-        return json.dumps(email)
+        email_map = {}
+        missing_ids = []
+        for message_id in message_ids:
+            if cached := email_cache.get(message_id):
+                email_map[message_id] = cached
+            else:
+                missing_ids.append(message_id)
+
+        if missing_ids:
+            fetched = await gmail.batch_get_emails(missing_ids)
+            for result in fetched:
+                if not isinstance(result, tuple):
+                    email_map[result.message_id] = email_cache.save(result)
+
+        emails = [email_map[mid] for mid in message_ids if mid in email_map]
+        return json.dumps(emails)
 
 
 class GetThreadDetailsInput(BaseModel):
-    thread_id: str = Field(description="The ID of the thread to retrieve details for")
+    thread_ids: list[str] = Field(description="The IDs of the threads to retrieve details for")
 
 
 class GetThreadDetailsTool(BaseGoogleTool):
     name: str = "get_thread_details"
-    description: str = "Get detailed information about a specific writer thread including all messages"
+    description: str = "Get detailed information about one or more email threads including all messages"
     args_schema: ArgsSchema = GetThreadDetailsInput
 
-    def _run(self, thread_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
+    def _run(self, thread_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
 
-    async def _run_google_task(self, config: RunnableConfig, thread_id: str) -> str:
-        """Get detailed information about a specific thread"""
+    async def _run_google_task(self, config: RunnableConfig, thread_ids: list[str]) -> str:
         await adispatch_custom_event(
             "tool_status",
             {"text": "Retrieving Thread Details...", "icon": "🧵"}
         )
         gmail = await get_gmail_service(config)
-        thread = await gmail.get_thread(thread_id)
+        threads = await gmail.batch_get_threads(thread_ids)
 
-        result = {
-            "status": "success",
-            "thread_id": thread.thread_id,
-            "message_count": len(thread.messages),
-            "unread_count": thread.get_unread_count(),
-            "has_unread": thread.has_unread_messages(),
-            "participants": [participant.to_dict() for participant in thread.get_participants()],
-            "messages": [
-                {
-                    "message_id": msg.message_id,
-                    "subject": msg.subject,
-                    "from": msg.sender,
-                    "to": msg.recipients,
-                    "date_time": msg.date_time.isoformat() if msg.date_time else None,
-                    "body": msg.get_plain_text_content(),
-                    "is_read": msg.is_read,
-                    "is_starred": msg.is_starred,
-                    "is_important": msg.is_important,
-                    "organization": msg.labels,
-                    "has_attachments": msg.has_attachments()
-                }
-                for msg in thread.messages
-            ]
-        }
-        return json.dumps(result)
+        results = []
+        for thread in threads:
+            if isinstance(thread, tuple):
+                logger.warning(f"Failed to fetch thread: {thread[1]}")
+                continue
+            results.append({
+                "thread_id": thread.thread_id,
+                "message_count": len(thread.messages),
+                "unread_count": thread.get_unread_count(),
+                "has_unread": thread.has_unread_messages(),
+                "participants": [participant.to_dict() for participant in thread.get_participants()],
+                "messages": [
+                    {
+                        "message_id": msg.message_id,
+                        "subject": msg.subject,
+                        "from": msg.sender,
+                        "to": msg.recipients,
+                        "date_time": msg.date_time.isoformat() if msg.date_time else None,
+                        "body": msg.get_plain_text_content(),
+                        "is_read": msg.is_read,
+                        "is_starred": msg.is_starred,
+                        "is_important": msg.is_important,
+                        "organization": msg.labels,
+                        "has_attachments": msg.has_attachments()
+                    }
+                    for msg in thread.messages
+                ]
+            })
+        return json.dumps(results)
 
 
 class SearchEmailsInput(BaseModel):
@@ -173,7 +187,7 @@ class SearchEmailsTool(BaseGoogleTool):
     name: str = "search_emails"
     description: str = dedent("""\
         search and retrieve emails from Gmail based on various filters. 
-        Returns email snippets. Dates are non-inclusive (for emails on 2020-03-04, use after_date=2020-03-03, before_date=2020-03-05)
+        Returns email snippets. Dates are non-inclusive (for emails on 2020-03-04, use after_date=2020-03-04, before_date=2020-03-05)
     """)
     args_schema: ArgsSchema = SearchEmailsInput
 
