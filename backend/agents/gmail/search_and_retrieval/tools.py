@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -14,7 +15,7 @@ from langchain_core.tools import ArgsSchema, InjectedToolArg
 from pydantic import BaseModel, Field
 
 from agents.common.tools import BaseGoogleTool
-from core.auth import get_gmail_service
+from core.auth import get_gmail_service, get_drive_service
 from core.cache import get_email_cache
 from core.supabase_client import upload_to_supabase
 from google_client.services.gmail import EmailQueryBuilder
@@ -29,7 +30,10 @@ class GetEmailInput(BaseModel):
 
 class GetEmailTool(BaseGoogleTool):
     name: str = "get_emails"
-    description: str = "Get one or more emails from Gmail by message_id"
+    description: str = dedent("""
+        - Fetches the full content of a single email and attachment metadata.
+        - Requires a message_id.
+    """)
     args_schema: ArgsSchema = GetEmailInput
 
     def _run(self, message_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
@@ -67,7 +71,10 @@ class GetThreadDetailsInput(BaseModel):
 
 class GetThreadDetailsTool(BaseGoogleTool):
     name: str = "get_thread_details"
-    description: str = "Get detailed information about one or more email threads including all messages"
+    description: str = dedent("""
+        - Fetches all messages in a thread in chronological order, including full content for each.
+        - Requires a thread_id.
+    """)
     args_schema: ArgsSchema = GetThreadDetailsInput
 
     def _run(self, thread_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
@@ -185,9 +192,11 @@ def build_query(service, params: dict) -> Union[EmailQueryBuilder, AsyncEmailQue
 
 class SearchEmailsTool(BaseGoogleTool):
     name: str = "search_emails"
-    description: str = dedent("""\
-        search and retrieve emails from Gmail based on various filters. 
-        Returns email snippets. Dates are non-inclusive (for emails on 2020-03-04, use after_date=2020-03-04, before_date=2020-03-05)
+    description: str = dedent("""
+        - Searches the user's mailbox and returns a list of matching email IDs, not email content.
+        - Use this as the first step when the user refers to emails by description rather than a known ID.
+        - Do NOT use this if you already have a message_id
+        - Dates are non-inclusive (for emails on 2020-03-04, use after_date=2020-03-04, before_date=2020-03-05)
     """)
     args_schema: ArgsSchema = SearchEmailsInput
 
@@ -284,7 +293,12 @@ class DownloadAttachmentInput(BaseModel):
 
 class DownloadAttachmentTool(BaseGoogleTool):
     name: str = "download_attachment"
-    description: str = "Download an attachment from an email message"
+    description: str = dedent("""
+        - Downloads an attachment(s) from an email
+        - Returns the paths of the attachments
+        - To download a specific attachment(s) provide the attachment_id(s) as well. Otherwise, it will download all attachments in the email
+        - Requires message_id
+    """)
     args_schema: ArgsSchema = DownloadAttachmentInput
 
     def _run(self, message_id: str, attachment_id: Optional[str] = None,
@@ -364,7 +378,10 @@ class DownloadAttachmentTool(BaseGoogleTool):
 
 class ListUserLabelsTool(BaseGoogleTool):
     name: str = "list_user_labels"
-    description: str = "List all user-created labels in Gmail. It does not include system organization like INBOX, SENT, SPAM, etc."
+    description: str = dedent("""
+        - Returns all user-created labels in the user's Gmail account along their label_ids. This doesn't include system labels like, INBOX, SENT, SPAM, etc.
+        - Always call this first if label_id is unknown.
+    """)
 
     def _run(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")
@@ -383,3 +400,74 @@ class ListUserLabelsTool(BaseGoogleTool):
         } for label in user_labels
         ]
         return json.dumps(user_labels)
+
+
+class SaveAttachmentToDriveInput(BaseModel):
+    message_id: str = Field(description="Message ID of the email containing the attachment")
+    attachment_id: Optional[str] = Field(default=None,
+                                         description="ID of the attachment to save. Leave empty to save all attachments in the email")
+    folder_id: Optional[str] = Field(default=None,
+                                     description="Drive folder_id to save the attachment into. Saves to root if not specified")
+
+
+class SaveAttachmentToDriveTool(BaseGoogleTool):
+    name: str = "save_attachment_to_drive"
+    description: str = "Save one or all email attachments directly to Google Drive, bypassing intermediate storage"
+    args_schema: ArgsSchema = SaveAttachmentToDriveInput
+
+    def _run(self, message_id: str, attachment_id: Optional[str] = None,
+             folder_id: Optional[str] = None,
+             config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
+        raise NotImplementedError("Use async execution.")
+
+    async def _run_google_task(self, config: RunnableConfig, message_id: str,
+                               attachment_id: Optional[str] = None,
+                               folder_id: Optional[str] = None) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Saving Attachment to Drive...", "icon": "📎"}
+        )
+        gmail = await get_gmail_service(config)
+        drive = await get_drive_service(config)
+        email_cache = get_email_cache(config)
+
+        email = email_cache.get(message_id)
+        if email is None:
+            email = email_cache.save(await gmail.get_email(message_id))
+
+        if attachment_id is None:
+            target_attachments = email["attachments"]
+        else:
+            target_attachments = [a for a in email["attachments"] if a["attachment_id"] == attachment_id]
+
+        if not target_attachments:
+            return "No matching attachments found."
+
+        async def upload_one(attachment):
+            attachment_data = {
+                "message_id": message_id,
+                "attachment_id": attachment["attachment_id"],
+            }
+            attachment_bytes = await gmail.get_attachment_payload(attachment_data)
+            suffix = Path(attachment["filename"]).suffix
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                tmp.write(attachment_bytes)
+                tmp_path = Path(tmp.name)
+            try:
+                file = await drive.upload_file(
+                    file_path=tmp_path,
+                    name=attachment["filename"],
+                    parent_folder_id=folder_id,
+                )
+                return {"filename": attachment["filename"], "file_id": file.file_id, "name": file.name}
+            finally:
+                tmp_path.unlink(missing_ok=True)
+
+        results = await asyncio.gather(*[upload_one(a) for a in target_attachments], return_exceptions=True)
+
+        successes = [r for r in results if not isinstance(r, Exception)]
+        for err in results:
+            if isinstance(err, Exception):
+                logger.error(f"Failed to save attachment to Drive: {err}")
+
+        return json.dumps(successes)
