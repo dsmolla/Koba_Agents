@@ -35,7 +35,11 @@ class ApplyLabelInput(BaseModel):
 
 class ApplyLabelTool(BaseGoogleTool):
     name: str = "apply_label"
-    description: str = "Apply a label to one or more emails in Gmail."
+    description: str = dedent("""
+        - Applies a label to one or more emails.
+        - Always use list_user_label tool first if label_id is unknown.
+        - Requires a label_id and one or more message_ids.
+    """)
     args_schema: ArgsSchema = ApplyLabelInput
 
     def _run(self, message_ids: list[str], label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
@@ -75,7 +79,11 @@ class RemoveLabelInput(BaseModel):
 
 class RemoveLabelTool(BaseGoogleTool):
     name: str = "remove_label"
-    description: str = "Remove a label from one or more emails."
+    description: str = dedent("""
+        - Removes a label from one or more emails.
+        - Always confirm the label_id with list_user_label tool.
+        - Requires a label_id and one or more message_ids.
+    """)
     args_schema: ArgsSchema = RemoveLabelInput
 
     def _run(self, message_ids: list[str], label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
@@ -122,7 +130,11 @@ class DeleteLabelInput(BaseModel):
 
 class DeleteLabelTool(BaseGoogleTool):
     name: str = "delete_label"
-    description: str = "Delete a user-created label in Gmail"
+    description: str = dedent("""
+        - Permanently deletes a label from the user's Gmail account.
+        - Always confirm the label_id with list_user_label tool before calling.
+        - Requires a label_id.
+    """)
     args_schema: ArgsSchema = DeleteLabelInput
 
     def _run(self, label_id: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
@@ -147,7 +159,11 @@ class RenameLabelInput(BaseModel):
 
 class RenameLabelTool(BaseGoogleTool):
     name: str = "rename_label"
-    description: str = "Rename a user-created label in Gmail"
+    description: str = dedent("""
+        - Renames an existing label without changing which emails it is applied to.
+        - Always confirm the label_id with list_user_label tool before calling.
+        - Requires a label_id and the new label name.
+    """)
     args_schema: ArgsSchema = RenameLabelInput
 
     def _run(self, label_id: str, new_name: str, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
@@ -172,7 +188,12 @@ class DeleteEmailInput(BaseModel):
 
 class DeleteEmailTool(BaseGoogleTool):
     name: str = "delete_emails"
-    description: str = "Delete one or more email messages from Gmail. Emails are moved to Trash."
+    description: str = dedent("""
+        - Moves an email to trash.
+        - Use only when the user explicitly requests deletion.
+        - When deleting multiple emails, pass all message_ids in a single call — do NOT call this tool repeatedly.
+        - Requires one or more message_ids.
+    """)
     args_schema: ArgsSchema = DeleteEmailInput
 
     def _run(self, message_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:

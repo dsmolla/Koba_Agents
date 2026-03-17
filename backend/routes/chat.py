@@ -37,8 +37,12 @@ async def send_chat_history(websocket: WebSocket, agent, config: RunnableConfig,
                 history_payload.append(original_msg)
             elif isinstance(msg, AIMessage) and msg.name == "SupervisorAgent":
                 if msg.tool_calls and msg.tool_calls[0]['name'] == 'BotMessage':
+                    args = msg.tool_calls[0]['args']
                     history_payload.append(
-                        BotMessage.model_validate(msg.tool_calls[0]['args']).model_dump()
+                        BotMessage(
+                            content=args.get('content', ''),
+                            files=args.get('files', []),
+                        ).model_dump()
                     )
 
         logger.debug("History payload sent", extra={"user_id": user_id, "message_count": len(history_payload)})

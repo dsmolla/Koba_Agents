@@ -45,7 +45,7 @@ class SensitiveDataFilter(logging.Filter):
         (re.compile(r'\b([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b'), r'***@\2'),
 
         # Long base64-like strings (likely tokens)
-        (re.compile(r'\b[A-Za-z0-9+/]{40,}={0,2}\b'), '[REDACTED_TOKEN]'),
+        # (re.compile(r'\b[A-Za-z0-9+/]{40,}={0,2}\b'), '[REDACTED_TOKEN]'),
     ]
 
     def filter(self, record: logging.LogRecord) -> bool:

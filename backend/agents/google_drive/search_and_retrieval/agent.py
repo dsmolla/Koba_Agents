@@ -5,7 +5,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 
 from agents.common.agent import BaseAgent
-from .tools import SearchFilesTool, GetFileTool, DownloadFileTool, ListFolderContentsTool, GetPermissionsTool
+from .tools import SearchFilesTool, GetFileTool, DownloadFileTool, ListFolderContentsTool, GetPermissionsTool, SaveAttachmentToDriveTool
 from ...common.tools import CurrentDateTimeTool
 
 _SYSTEM_PROMPT_TEMPLATE = Path(__file__).parent.joinpath('system_prompt.txt').read_text()
@@ -30,6 +30,7 @@ class SearchAndRetrievalAgent(BaseAgent):
             DownloadFileTool(),
             ListFolderContentsTool(),
             GetPermissionsTool(),
+            SaveAttachmentToDriveTool()
         ]
 
         tool_descriptions = []

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -14,7 +15,7 @@ from langchain_core.tools import ArgsSchema, InjectedToolArg
 from pydantic import BaseModel, Field
 
 from agents.common.tools import BaseGoogleTool
-from core.auth import get_gmail_service
+from core.auth import get_gmail_service, get_drive_service
 from core.cache import get_email_cache
 from core.supabase_client import upload_to_supabase
 from google_client.services.gmail import EmailQueryBuilder
@@ -29,7 +30,10 @@ class GetEmailInput(BaseModel):
 
 class GetEmailTool(BaseGoogleTool):
     name: str = "get_emails"
-    description: str = "Get one or more emails from Gmail by message_id"
+    description: str = dedent("""
+        - Fetches the full content of a single email and attachment metadata.
+        - Requires a message_id.
+    """)
     args_schema: ArgsSchema = GetEmailInput
 
     def _run(self, message_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
@@ -67,7 +71,10 @@ class GetThreadDetailsInput(BaseModel):
 
 class GetThreadDetailsTool(BaseGoogleTool):
     name: str = "get_thread_details"
-    description: str = "Get detailed information about one or more email threads including all messages"
+    description: str = dedent("""
+        - Fetches all messages in a thread in chronological order, including full content for each.
+        - Requires a thread_id.
+    """)
     args_schema: ArgsSchema = GetThreadDetailsInput
 
     def _run(self, thread_ids: list[str], config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
@@ -185,9 +192,11 @@ def build_query(service, params: dict) -> Union[EmailQueryBuilder, AsyncEmailQue
 
 class SearchEmailsTool(BaseGoogleTool):
     name: str = "search_emails"
-    description: str = dedent("""\
-        search and retrieve emails from Gmail based on various filters. 
-        Returns email snippets. Dates are non-inclusive (for emails on 2020-03-04, use after_date=2020-03-04, before_date=2020-03-05)
+    description: str = dedent("""
+        - Searches the user's mailbox and returns a list of matching email IDs, not email content.
+        - Use this as the first step when the user refers to emails by description rather than a known ID.
+        - Do NOT use this if you already have a message_id
+        - Dates are non-inclusive (for emails on 2020-03-04, use after_date=2020-03-04, before_date=2020-03-05)
     """)
     args_schema: ArgsSchema = SearchEmailsInput
 
@@ -284,7 +293,12 @@ class DownloadAttachmentInput(BaseModel):
 
 class DownloadAttachmentTool(BaseGoogleTool):
     name: str = "download_attachment"
-    description: str = "Download an attachment from an email message"
+    description: str = dedent("""
+        - Downloads an attachment(s) from an email
+        - Returns the paths of the attachments
+        - To download a specific attachment(s) provide the attachment_id(s) as well. Otherwise, it will download all attachments in the email
+        - Requires message_id
+    """)
     args_schema: ArgsSchema = DownloadAttachmentInput
 
     def _run(self, message_id: str, attachment_id: Optional[str] = None,
@@ -364,7 +378,10 @@ class DownloadAttachmentTool(BaseGoogleTool):
 
 class ListUserLabelsTool(BaseGoogleTool):
     name: str = "list_user_labels"
-    description: str = "List all user-created labels in Gmail. It does not include system organization like INBOX, SENT, SPAM, etc."
+    description: str = dedent("""
+        - Returns all user-created labels in the user's Gmail account along their label_ids. This doesn't include system labels like, INBOX, SENT, SPAM, etc.
+        - Always call this first if label_id is unknown.
+    """)
 
     def _run(self, config: Annotated[RunnableConfig, InjectedToolArg]) -> str:
         raise NotImplementedError("Use async execution.")

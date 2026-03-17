@@ -1,5 +1,6 @@
 from google_client.api_service import APIServiceLayer
 from google_client.services.calendar import AsyncCalendarApiService
+from google_client.services.drive import AsyncDriveApiService
 from google_client.services.gmail import AsyncGmailApiService
 from google_client.services.tasks import AsyncTasksApiService
 from langchain_core.runnables import RunnableConfig
@@ -34,7 +35,7 @@ async def get_calendar_service(config: RunnableConfig) -> AsyncCalendarApiServic
     return api_service.async_calendar
 
 
-async def get_drive_service(config: RunnableConfig) -> AsyncGmailApiService:
+async def get_drive_service(config: RunnableConfig) -> AsyncDriveApiService:
     api_service = config['configurable'].get('api_service')
     if not api_service:
         raise ProviderNotConnectedError('Google')
