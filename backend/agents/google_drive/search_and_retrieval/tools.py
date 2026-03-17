@@ -1,20 +1,23 @@
+import asyncio
 import json
 import logging
+import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Annotated
 
 import filetype
+from google_client.services.drive.types import DriveFile, DriveFolder, DriveItem
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
 from pydantic import BaseModel, Field
 
 from agents.common.tools import BaseGoogleTool
-from core.auth import get_drive_service
+from core.auth import get_drive_service, get_gmail_service
+from core.cache import get_email_cache
 from core.supabase_client import upload_to_supabase
-from google_client.services.drive.types import DriveFile, DriveFolder, DriveItem
 
 logger = logging.getLogger(__name__)
 
@@ -354,3 +357,74 @@ class GetPermissionsTool(BaseGoogleTool):
         ]
 
         return json.dumps(permissions_data)
+
+
+class SaveAttachmentToDriveInput(BaseModel):
+    message_id: str = Field(description="Message ID of the email containing the attachment")
+    attachment_id: Optional[str] = Field(default=None,
+                                         description="ID of the attachment to save. Leave empty to save all attachments in the email")
+    folder_id: Optional[str] = Field(default=None,
+                                     description="Drive folder_id to save the attachment into. Saves to root if not specified")
+
+
+class SaveAttachmentToDriveTool(BaseGoogleTool):
+    name: str = "save_attachment_to_drive"
+    description: str = "Save one or all email attachments directly to Google Drive, bypassing intermediate storage"
+    args_schema: ArgsSchema = SaveAttachmentToDriveInput
+
+    def _run(self, message_id: str, attachment_id: Optional[str] = None,
+             folder_id: Optional[str] = None,
+             config: Annotated[RunnableConfig, InjectedToolArg] = None) -> str:
+        raise NotImplementedError("Use async execution.")
+
+    async def _run_google_task(self, config: RunnableConfig, message_id: str,
+                               attachment_id: Optional[str] = None,
+                               folder_id: Optional[str] = None) -> str:
+        await adispatch_custom_event(
+            "tool_status",
+            {"text": "Saving Attachment to Drive...", "icon": "📎"}
+        )
+        gmail = await get_gmail_service(config)
+        drive = await get_drive_service(config)
+        email_cache = get_email_cache(config)
+
+        email = email_cache.get(message_id)
+        if email is None:
+            email = email_cache.save(await gmail.get_email(message_id))
+
+        if attachment_id is None:
+            target_attachments = email["attachments"]
+        else:
+            target_attachments = [a for a in email["attachments"] if a["attachment_id"] == attachment_id]
+
+        if not target_attachments:
+            return "No matching attachments found."
+
+        async def upload_one(attachment):
+            attachment_data = {
+                "message_id": message_id,
+                "attachment_id": attachment["attachment_id"],
+            }
+            attachment_bytes = await gmail.get_attachment_payload(attachment_data)
+            suffix = Path(attachment["filename"]).suffix
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                tmp.write(attachment_bytes)
+                tmp_path = Path(tmp.name)
+            try:
+                file = await drive.upload_file(
+                    file_path=tmp_path,
+                    name=attachment["filename"],
+                    parent_folder_id=folder_id,
+                )
+                return {"filename": attachment["filename"], "file_id": file.file_id, "name": file.name}
+            finally:
+                tmp_path.unlink(missing_ok=True)
+
+        results = await asyncio.gather(*[upload_one(a) for a in target_attachments], return_exceptions=True)
+
+        successes = [r for r in results if not isinstance(r, Exception)]
+        for err in results:
+            if isinstance(err, Exception):
+                logger.error(f"Failed to save attachment to Drive: {err}")
+
+        return json.dumps(successes)
