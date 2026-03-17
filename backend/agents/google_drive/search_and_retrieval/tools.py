@@ -231,7 +231,7 @@ class DownloadFileTool(BaseGoogleTool):
         if not isinstance(file, DriveFile):
             return f"Item {file_id} is a folder, not a file"
 
-        file_uuid = uuid.uuid4().hex[:8]
+        file_uuid = uuid.uuid4().hex[:4]
         file_path = Path(file.name)
         filename = f"{file_path.stem}_{file_uuid}{file_path.suffix}"
         upload_path = f"{user_id}/{filename}"

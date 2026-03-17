@@ -326,7 +326,7 @@ class DownloadAttachmentTool(BaseGoogleTool):
             }
 
             orig_file = Path(attachment["filename"])
-            unique_filename = f"{orig_file.stem}_{uuid.uuid4().hex[:8]}{orig_file.suffix}"
+            unique_filename = f"{orig_file.stem}_{uuid.uuid4().hex[:4]}{orig_file.suffix}"
             upload_path = f"{user_id}/{unique_filename}"
 
             attachment_bytes = await gmail.get_attachment_payload(attachment_data)
