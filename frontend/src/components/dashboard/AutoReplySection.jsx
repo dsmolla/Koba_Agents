@@ -287,7 +287,7 @@ export default function AutoReplySection({ session }) {
     if (loading) {
         return (
             <div className="p-6">
-                <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2 whitespace-nowrap">
                     <MailPlus size={20} /> Auto-Reply
                 </h3>
                 <p className="text-gray-400 text-sm">Loading...</p>
@@ -298,16 +298,16 @@ export default function AutoReplySection({ session }) {
     return (
         <div className="p-6">
             {/* Header */}
-            <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-medium text-white flex items-center gap-2">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+                <h3 className="text-lg font-medium text-white flex items-center gap-2 whitespace-nowrap">
                     <MailPlus size={20} /> Auto-Reply
                 </h3>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     {/* Watch toggle */}
                     <button
                         onClick={handleToggleWatch}
                         disabled={watchToggling}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 ${
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 whitespace-nowrap shrink-0 ${
                             watchActive
                                 ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-600/30'
                                 : 'bg-dark-input-bg text-gray-400 hover:text-gray-200 border border-dark-border'
@@ -320,7 +320,7 @@ export default function AutoReplySection({ session }) {
                     {/* Add rule */}
                     <button
                         onClick={() => { setEditingRule(null); setModalOpen(true); }}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-500 text-sm font-medium transition-colors"
+                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-500 text-sm font-medium transition-colors whitespace-nowrap shrink-0"
                     >
                         <Plus size={16} /> Add Rule
                     </button>

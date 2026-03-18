@@ -7,16 +7,15 @@ import {downloadFile} from "../../lib/fileService.js";
 // not when other messages in the list update (e.g., during streaming of the latest message).
 const MessageBubble = memo(function MessageBubble({ msg, getFileIcon }) {
     return (
-        <div className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`flex items-start max-w-[80%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                    msg.sender === 'user' ? 'bg-blue-400 ml-2' : 'bg-green-400 mr-2'
-                }`}>
-                    {msg.sender === 'user' ? <User size={16} className="text-white"/> :
-                        <Bot size={16} className="text-white"/>}
-                </div>
+        <div className={`flex w-full mb-4 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex items-start ${msg.sender === 'user' ? 'max-w-[80%] flex-row-reverse' : 'max-w-full flex-row'} min-w-0`}>
+                {msg.sender === 'user' && (
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-blue-400 ml-2">
+                        <User size={16} className="text-white"/>
+                    </div>
+                )}
 
-                <div className={`p-3 rounded-xl ${
+                <div className={`p-3 rounded-xl overflow-hidden min-w-0 ${
                     msg.sender === 'user'
                         ? 'bg-blue-500 text-white rounded-tr-none'
                         : 'bg-gray-700 text-white rounded-tl-none'
@@ -54,11 +53,8 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon }) {
 
 const TypingIndicator = memo(function TypingIndicator() {
     return (
-        <div className="flex justify-start">
-            <div className="flex items-start flex-row">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-green-400 mr-2">
-                    <Bot size={16} className="text-white"/>
-                </div>
+        <div className="flex w-full mb-4 justify-start">
+            <div className="flex items-start flex-row max-w-full min-w-0">
                 <div className="p-3 rounded-xl bg-gray-700 text-white rounded-tl-none">
                     <div className="flex gap-1 items-center h-5">
                         <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
@@ -177,7 +173,28 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
         <div
             className="flex flex-col h-full bg-secondary-dark-bg rounded-lg shadow-sm border border-dark-border overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2 border-b border-dark-border bg-gray-800/50">
-                <span className="text-sm font-medium text-zinc-300">Chat</span>
+                <div className="relative border border-gray-600 rounded-md bg-gray-700/50 hover:bg-gray-700 transition-colors group">
+                    <select
+                        value={selectedModel}
+                        onChange={(e) => {
+                            setSelectedModel(e.target.value);
+                            localStorage.setItem('selectedModel', e.target.value);
+                        }}
+                        className="text-xs font-medium bg-transparent text-zinc-200 border-none outline-none appearance-none cursor-pointer pl-3 pr-8 py-1.5 w-full block"
+                        title="Select model"
+                    >
+                        {models.map(m => (
+                            <option key={m.id} value={m.id} className="bg-gray-800 text-zinc-200 text-xs">
+                                {m.name}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                        </svg>
+                    </div>
+                </div>
                 <button
                     onClick={clearMessages}
                     className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-zinc-400 hover:text-red-400 hover:cursor-pointer hover:bg-red-400/10 rounded transition-colors"
@@ -220,7 +237,7 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
             )}
 
             <form onSubmit={handleSend}
-                  className="p-4 bg-secondary-dark-bg border-t border-dark-border relative">
+                  className="p-2 md:p-4 bg-secondary-dark-bg border-t border-dark-border relative flex flex-col gap-2">
                 {showSuggestions && (
                     <div className="absolute bottom-full left-0 w-full mb-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10 mx-4">
                         {suggestions.map((file) => (
@@ -235,52 +252,41 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
                         ))}
                     </div>
                 )}
-                <div className="flex items-center gap-2">
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        multiple
-                        onChange={handleFileChange}
-                    />
-                    <button
-                        type="button"
-                        onClick={handleFileClick}
-                        className="p-2 text-zinc-300 hover:text-zinc-100 transition-colors"
-                        title="Attach file"
-                    >
-                        <Paperclip size={20}/>
-                    </button>
-                    <select
-                        value={selectedModel}
-                        onChange={(e) => {
-                            setSelectedModel(e.target.value);
-                            localStorage.setItem('selectedModel', e.target.value);
-                        }}
-                        className="text-xs bg-dark-input-bg text-zinc-300 border border-gray-600 rounded-md px-2 py-2 outline-none appearance-none cursor-pointer hover:border-gray-500 transition-colors"
-                        title="Select model"
-                    >
-                        {models.map(m => (
-                            <option key={m.id} value={m.id}>
-                                {m.name}
-                            </option>
-                        ))}
-                    </select>
-                    <input
-                        type="text"
-                        ref={inputRef}
-                        value={inputText}
-                        onChange={handleInputChange}
-                        placeholder="Type your message... (@ to reference files)"
-                        className="text-sm rounded-lg block w-full p-2.5 bg-dark-input-bg border-gray-600 placeholder-dark-input-placeholder text-white outline-none"
-                    />
-                    <button
-                        type="submit"
-                        disabled={!isConnected || (isConnected && !inputText.trim() && stagedFiles.length === 0)}
-                        className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <Send size={20}/>
-                    </button>
+                <div className="flex flex-wrap md:flex-nowrap items-center gap-2">
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            multiple
+                            onChange={handleFileChange}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleFileClick}
+                            className="p-1.5 md:p-2 shrink-0 text-zinc-300 hover:text-zinc-100 transition-colors"
+                            title="Attach file"
+                        >
+                            <Paperclip size={20}/>
+                        </button>
+                    </div>
+                    <div className="flex items-center w-full md:w-auto flex-1 gap-2">
+                        <input
+                            type="text"
+                            ref={inputRef}
+                            value={inputText}
+                            onChange={handleInputChange}
+                            placeholder="Type your message... (@ to reference files)"
+                            className="text-sm rounded-lg block w-full flex-1 p-2.5 bg-dark-input-bg border-gray-600 placeholder-dark-input-placeholder text-white outline-none min-w-0"
+                        />
+                        <button
+                            type="submit"
+                            disabled={!isConnected || (isConnected && !inputText.trim() && stagedFiles.length === 0)}
+                            className="p-2 sm:px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0 flex-none"
+                        >
+                            <Send size={20}/>
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

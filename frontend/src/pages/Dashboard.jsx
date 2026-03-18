@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Menu } from 'lucide-react';
 import Sidebar from '../components/dashboard/Sidebar';
 import ChatView from '../components/dashboard/ChatView';
 import FileManager from '../components/dashboard/FileManager';
@@ -13,6 +14,7 @@ function Dashboard() {
     const [activeTab, setActiveTab] = useState('chat');
     const { messages, sendMessage, clearMessages, status, isConnected, isTyping } = useChat();
     const [files, setFiles] = useState([]);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     useEffect(() => {
         if (!user?.id) return;
@@ -48,20 +50,28 @@ function Dashboard() {
     };
 
     return (
-        <div className="flex h-screen bg-gray-900 overflow-hidden font-sans">
-            <Sidebar activeTab={activeTab} onTabChange={setActiveTab} user={user} />
+        <div className="flex h-screen bg-gray-900 overflow-hidden font-sans relative">
+            <Sidebar activeTab={activeTab} onTabChange={(tab) => { setActiveTab(tab); setIsMobileMenuOpen(false); }} user={user} isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
 
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <header
-                    className="bg-gray-900 border-b border-gray-800 h-16 flex items-center px-8 justify-between shrink-0">
-                    <h1 className="text-xl font-semibold text-gray-100 capitalize">
-                        {activeTab === 'chat' ? 'Chat Assistant' :
-                            activeTab === 'files' ? 'File Manager' :
-                                activeTab === 'tasks' ? 'Recursive Tasks' : 'Settings'}
-                    </h1>
+                    className="bg-gray-900 border-b border-gray-800 h-16 flex items-center px-4 md:px-8 justify-between shrink-0">
+                    <div className="flex items-center gap-3">
+                        <button 
+                            className="md:hidden p-2 -ml-2 text-gray-400 hover:text-white"
+                            onClick={() => setIsMobileMenuOpen(true)}
+                        >
+                            <Menu size={24} />
+                        </button>
+                        <h1 className="text-lg md:text-xl font-semibold text-gray-100 capitalize truncate">
+                            {activeTab === 'chat' ? 'Chat Assistant' :
+                                activeTab === 'files' ? 'File Manager' :
+                                    activeTab === 'tasks' ? 'Recursive Tasks' : 'Settings'}
+                        </h1>
+                    </div>
                 </header>
 
-                <div className="flex-1 overflow-auto p-8">
+                <div className="flex-1 overflow-auto p-4 md:p-8">
                     <div className="max-w-6xl mx-auto h-full">
                         {renderContent()}
                     </div>
