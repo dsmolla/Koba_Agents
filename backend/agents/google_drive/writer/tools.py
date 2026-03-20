@@ -52,7 +52,8 @@ class UploadFileTool(BaseGoogleTool):
                 {"text": "Uploading File...", "icon": "⬆️"}
             )
             drive = await get_drive_service(config)
-            folder, downloaded_file = await download_to_disk([file_path])
+            user_id = config['configurable'].get('thread_id')
+            folder, downloaded_file = await download_to_disk([file_path], user_id)
             if not downloaded_file:
                 return "Failed to download file from storage."
                 

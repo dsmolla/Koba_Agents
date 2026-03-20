@@ -85,7 +85,8 @@ class SendEmailTool(BaseGoogleTool):
             gmail = await get_gmail_service(config)
             all_attachments = []
             if attachment_paths:
-                supabase_folder, supabase_files = await download_to_disk(attachment_paths)
+                user_id = config['configurable'].get('thread_id')
+                supabase_folder, supabase_files = await download_to_disk(attachment_paths, user_id)
                 all_attachments.extend(supabase_files)
             if drive_file_ids:
                 drive_folder, drive_files = await _download_drive_files(config, drive_file_ids)
@@ -152,7 +153,8 @@ class DraftEmailTool(BaseGoogleTool):
             gmail = await get_gmail_service(config)
             all_attachments = []
             if attachment_paths:
-                supabase_folder, supabase_files = await download_to_disk(attachment_paths)
+                user_id = config['configurable'].get('thread_id')
+                supabase_folder, supabase_files = await download_to_disk(attachment_paths, user_id)
                 all_attachments.extend(supabase_files)
             if drive_file_ids:
                 drive_folder, drive_files = await _download_drive_files(config, drive_file_ids)
@@ -221,7 +223,8 @@ class ReplyEmailTool(BaseGoogleTool):
             gmail = await get_gmail_service(config)
             all_attachments = []
             if attachment_paths:
-                supabase_folder, supabase_files = await download_to_disk(attachment_paths)
+                user_id = config['configurable'].get('thread_id')
+                supabase_folder, supabase_files = await download_to_disk(attachment_paths, user_id)
                 all_attachments.extend(supabase_files)
             if drive_file_ids:
                 drive_folder, drive_files = await _download_drive_files(config, drive_file_ids)
