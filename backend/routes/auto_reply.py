@@ -15,15 +15,15 @@ router = APIRouter(prefix="/auto-reply", tags=["auto-reply"])
 
 class AutoReplyRuleCreate(BaseModel):
     name: str = Field(max_length=255)
-    when_condition: str = Field(min_length=1)
-    do_action: str = Field(min_length=1)
+    when_condition: str = Field(min_length=1, max_length=1000)
+    do_action: str = Field(min_length=1, max_length=1000)
     tone: str = 'Professional'
 
 
 class AutoReplyRuleUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=255)
-    when_condition: str | None = Field(default=None, min_length=1)
-    do_action: str | None = Field(default=None, min_length=1)
+    when_condition: str | None = Field(default=None, min_length=1, max_length=1000)
+    do_action: str | None = Field(default=None, min_length=1, max_length=1000)
     tone: str | None = None
 
 

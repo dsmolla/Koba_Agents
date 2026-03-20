@@ -17,6 +17,7 @@ async def enqueue_notification_task(user_id: str, history_id: int):
             "url": f"{Config.BASE_PROJECT_URL}/internal/gmail/auto-reply/process",
             "oidc_token": {
                 "service_account_email": Config.CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL,
+                "audience": Config.OIDC_AUDIENCE,
             },
             "headers": {
                 "Content-Type": "application/json",

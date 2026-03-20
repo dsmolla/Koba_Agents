@@ -47,15 +47,38 @@ async def get_current_user_http(authorization: str = Header(None)):
         raise HTTPException(401, "Invalid Token")
 
 
-async def verify_google_token(authorization: str = Header(None)):
-    if not authorization:
-        logger.warning("Google token missing Authorization header")
-        raise HTTPException(401, "Missing Token")
-    token = authorization.replace("Bearer ", "")
-    try:
-        id_info = await asyncio.to_thread(id_token.verify_oauth2_token, token, requests.Request())
-        logger.debug("Google token verified")
-        return id_info
-    except Exception as e:
-        logger.error(f"Google token validation failed: {e}")
-        raise HTTPException(401, "Invalid OIDC Token")
+def verify_google_token(audience: str, expected_email: str):
+
+    async def dependency(authorization: str = Header(None)):
+        if not authorization:
+            logger.warning("Google token missing Authorization header")
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing Token")
+        token = authorization.replace("Bearer ", "")
+        try:
+            id_info = await asyncio.to_thread(
+                id_token.verify_oauth2_token, 
+                token, 
+                requests.Request(),
+                audience=audience
+            )
+            
+            if expected_email:
+                token_email = id_info.get("email")
+                if not token_email or token_email.lower() != expected_email.lower():
+                    logger.warning(
+                        "Google token email mismatch", 
+                        extra={"expected": expected_email, "actual": token_email}
+                    )
+                    raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid Issuer/Email")
+
+            logger.debug("Google token verified")
+            return id_info
+        except ValueError as e:
+            logger.warning(f"Google token validation failed: {e}")
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid OIDC Token")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Google token validation failed unexpectedly: {e}")
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid OIDC Token")
+    return dependency

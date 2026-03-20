@@ -44,6 +44,7 @@ class Config:
     # Auto-Reply / Gmail Pub/Sub
     PUBSUB_TOPIC = os.getenv("PUBSUB_TOPIC")
     PUBSUB_WEBHOOK_TOKEN = os.getenv("PUBSUB_WEBHOOK_TOKEN")
+    PUBSUB_SERVICE_ACCOUNT_EMAIL = os.getenv("PUBSUB_SERVICE_ACCOUNT_EMAIL")
     AUTO_REPLY_HOURLY_LIMIT = int(os.getenv("AUTO_REPLY_HOURLY_LIMIT", "20"))
 
     # Cloud Tasks
@@ -54,7 +55,7 @@ class Config:
     CLOUD_TASKS_TOKEN = os.getenv("CLOUD_TASKS_TOKEN")
 
     BASE_PROJECT_URL = os.getenv("BASE_PROJECT_URL")
-
+    OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", BASE_PROJECT_URL)
 
     @classmethod
     def validate(cls):
@@ -76,6 +77,18 @@ class Config:
             errors.append('SUPABASE_KEY environment variable is not set')
         if not cls.SUPABASE_DB_URL:
             errors.append('SUPABASE_DB_URL environment variable is not set')
+        if not cls.OIDC_AUDIENCE:
+            errors.append('OIDC_AUDIENCE or BASE_PROJECT_URL environment variable is not set')
+        
+        if cls.PUBSUB_TOPIC:
+             if not cls.PUBSUB_WEBHOOK_TOKEN:
+                 errors.append('PUBSUB_WEBHOOK_TOKEN is required when PUBSUB_TOPIC is configured')
+        
+        if cls.CLOUD_TASKS_PROJECT:
+             if not cls.CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL:
+                 errors.append('CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL is required when CLOUD_TASKS_PROJECT is configured')
+             if not cls.CLOUD_TASKS_TOKEN:
+                 errors.append('CLOUD_TASKS_TOKEN is required when CLOUD_TASKS_PROJECT is configured')
 
         if errors:
             raise ValueError("Configuration errors:\n" + "\n".join(f"- {e}" for e in errors))

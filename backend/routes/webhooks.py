@@ -1,6 +1,8 @@
 import base64
 import json
 import logging
+import secrets
+import binascii
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Request, Query, HTTPException, Depends
@@ -21,11 +23,15 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 async def gmail_push_notification(
         request: Request,
         background_tasks: BackgroundTasks,
-        id_info: Any = Depends(verify_google_token),
+        id_info: Any = Depends(verify_google_token(
+            audience=Config.OIDC_AUDIENCE, 
+            expected_email=Config.PUBSUB_SERVICE_ACCOUNT_EMAIL
+        )),
         token: str | None = Query(default=None)
 ):
-    if Config.PUBSUB_WEBHOOK_TOKEN and token != Config.PUBSUB_WEBHOOK_TOKEN:
-        logger.warning("Invalid webhook token")
+    expected_token = Config.PUBSUB_WEBHOOK_TOKEN
+    if not expected_token or not token or not secrets.compare_digest(token, expected_token):
+        logger.warning("Invalid or missing webhook token")
         raise HTTPException(status_code=403, detail="Forbidden")
 
     try:
@@ -37,9 +43,13 @@ async def gmail_push_notification(
     message_id = message["message_id"]
     data = message["data"]
 
-    decoded = json.loads(base64.b64decode(data))
-    email_address = decoded["emailAddress"]
-    history_id = int(decoded["historyId"])
+    try:
+        decoded = json.loads(base64.b64decode(data))
+        email_address = decoded["emailAddress"]
+        history_id = int(decoded["historyId"])
+    except (binascii.Error, json.JSONDecodeError, KeyError, ValueError) as e:
+        logger.warning(f"Invalid notification payload: {e}")
+        raise HTTPException(status_code=400, detail="Invalid payload")
 
     if not email_address or not history_id:
         logger.warning("Missing emailAddress or historyId in notification")
