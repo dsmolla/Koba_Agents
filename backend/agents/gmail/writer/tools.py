@@ -75,6 +75,19 @@ class SendEmailTool(BaseGoogleTool):
             attachment_paths: Optional[List[str]] = None,
             drive_file_ids: Optional[List[str]] = None
     ) -> str:
+        from langgraph.types import interrupt
+        approval = interrupt({
+            "confirmation": "Do you want to send the following email?",
+            "data": (
+                f"to: {', '.join(to)}\n" +
+                f"subject: {subject}\n" +
+                f"------------------\n" +
+                f"{body_text}"
+            )
+        })
+        if not approval or not approval.get("approved"):
+            return "Email sending cancelled by user."
+
         supabase_folder = None
         drive_folder = None
         try:
@@ -213,6 +226,15 @@ class ReplyEmailTool(BaseGoogleTool):
             attachment_paths: Optional[List[str]] = None,
             drive_file_ids: Optional[List[str]] = None
     ) -> str:
+        from langgraph.types import interrupt
+        approval = interrupt({
+            "action": "reply_email",
+            "message_id": message_id,
+            "body_text": body_text
+        })
+        if not approval or not approval.get("approved"):
+            return "Email reply cancelled by user."
+
         supabase_folder = None
         drive_folder = None
         try:
@@ -275,6 +297,15 @@ class ForwardEmailTool(BaseGoogleTool):
             to: List[str],
             include_attachments: Optional[bool] = True
     ) -> str:
+        from langgraph.types import interrupt
+        approval = interrupt({
+            "action": "forward_email",
+            "message_id": message_id,
+            "to": to
+        })
+        if not approval or not approval.get("approved"):
+            return "Email forwarding cancelled by user."
+
         await adispatch_custom_event(
             "tool_status",
             {"text": "Forwarding Email...", "icon": "⏩"}

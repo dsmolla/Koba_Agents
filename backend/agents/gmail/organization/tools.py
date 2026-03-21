@@ -200,6 +200,14 @@ class DeleteEmailTool(BaseGoogleTool):
         raise NotImplementedError("Use async execution.")
 
     async def _run_google_task(self, config: RunnableConfig, message_ids: list[str]) -> str:
+        from langgraph.types import interrupt
+        approval = interrupt({
+            "confirmation": "Are you sure you want to delete this email?",
+            "data": ""
+        })
+        if not approval or not approval.get("approved"):
+            return "Email deletion cancelled by user."
+
         await adispatch_custom_event(
             "tool_status",
             {"text": "Deleting Email...", "icon": "🗑️"}

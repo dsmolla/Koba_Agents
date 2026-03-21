@@ -61,5 +61,8 @@ class BaseGoogleTool(BaseTool, ABC):
             return f"An error occurred while accessing {self.provider_name}: {e.reason}"
 
         except Exception as e:
+            from langgraph.errors import GraphBubbleUp
+            if isinstance(e, GraphBubbleUp):
+                raise e
             logger.error(f"Error in {self.name}: {e}", exc_info=True)
             return f"Unable to complete the task due to an internal error."

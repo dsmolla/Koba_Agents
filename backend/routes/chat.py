@@ -8,6 +8,7 @@ from google.genai.errors import APIError as GenAIAPIError
 from langchain_google_genai._common import GoogleGenerativeAIError
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.types import Command
 
 from config import Config
 from core.auth import get_google_service
@@ -64,7 +65,6 @@ async def process_message(
     Returns False if the WebSocket disconnected during processing.
     """
     is_connected = True
-    user_message = UserMessage(**data)
     message_received_at = time.time()
 
     message_config = RunnableConfig(
@@ -76,16 +76,23 @@ async def process_message(
         recursion_limit=50
     )
 
-    full_message = user_message.content
-    if user_message.files:
-        full_message += "\n\n----------- Attached files -----------\n"
-        for file in user_message.files:
-            full_message += "\n"
-            full_message += f"File name: {file.filename}\n"
-            full_message += f"File Path: {file.path}"
+    if data.get("type") == "approval":
+        input_data = Command(resume={"approved": data.get("approved", False)})
+    else:
+        user_message = UserMessage(**data)
+        full_message = user_message.content
+        if user_message.files:
+            full_message += "\n\n----------- Attached files -----------\n"
+            for file in user_message.files:
+                full_message += "\n"
+                full_message += f"File name: {file.filename}\n"
+                full_message += f"File Path: {file.path}"
 
-    input_message = HumanMessage(content=full_message, name='RealUser', additional_kwargs={'message': data})
-    async for event in agent.agent.astream_events({"messages": [input_message]}, config=message_config):
+        input_message = HumanMessage(content=full_message, name='RealUser', additional_kwargs={'message': data})
+        input_data = {"messages": [input_message]}
+
+    interrupt_caught = False
+    async for event in agent.agent.astream_events(input_data, config=message_config):
         kind = event["event"]
         if logger.isEnabledFor(logging.DEBUG):
             log_event(event, user_id)
@@ -105,7 +112,25 @@ async def process_message(
                     is_connected = False
                     logger.debug("User disconnected during status update. Continuing in background.", extra={"user_id": user_id})
 
-        elif kind == 'on_chain_end' and event['name'] == 'SupervisorAgent':
+        elif kind == 'on_chain_stream' and event['name'] == 'SupervisorAgent':
+            chunk = event['data'].get('chunk', {})
+            if '__interrupt__' in chunk:
+                interrupts = chunk['__interrupt__']
+                if interrupts:
+                    interrupt_caught = True
+                    interrupt_data = interrupts[0].value
+                    if is_connected:
+                        try:
+                            # Use .get() to prevent KeyErrors from stale LangGraph checkpoints
+                            await websocket.send_json({
+                                "type": "approval_required",
+                                "confirmation": interrupt_data.get('confirmation', 'Action Approval Required:'),
+                                "data": interrupt_data.get('data', interrupt_data)
+                            })
+                        except (WebSocketDisconnect, RuntimeError):
+                            is_connected = False
+
+        elif kind == 'on_chain_end' and event['name'] == 'SupervisorAgent' and not interrupt_caught:
             bot_message: BotMessage = event['data']['output']['structured_response']
             bot_message_dump = bot_message.model_dump()
             response_time = time.time() - message_received_at
@@ -142,6 +167,19 @@ async def websocket_endpoint(
 
     logger.info("User connected", extra={"user_id": user_id})
     await send_chat_history(websocket, default_agent, config, user_id)
+
+    try:
+        state = await default_agent.agent.aget_state(config)
+        if state.next and state.tasks and state.tasks[0].interrupts:
+            interrupt_value = state.tasks[0].interrupts[0].value
+            if isinstance(interrupt_value, dict):
+                await websocket.send_json({
+                    "type": "approval_required",
+                    "confirmation": interrupt_value['confirmation'],
+                    "data": interrupt_value['data']
+                })
+    except Exception as e:
+        logger.warning(f"Failed to recover interrupt state: {e}", extra={"user_id": user_id})
 
     is_connected = True
     while True:

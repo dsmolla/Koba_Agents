@@ -57,6 +57,20 @@ export const useChat = () => {
                 }
                 break;
 
+            case 'approval_required':
+                setIsTyping(false);
+                setMessages(prev => {
+                    const updated = [...prev, {
+                        type: 'approval_required',
+                        confirmation: data.confirmation,
+                        data: data.data,
+                        timestamp: Date.now()
+                    }];
+                    return updated.length > MAX_MESSAGES ? updated.slice(-MAX_MESSAGES) : updated;
+                });
+                setStatus(null);
+                break;
+
             default:
                 console.warn("Unknown message type:", data.type);
         }
@@ -178,6 +192,18 @@ export const useChat = () => {
         }
     }, [session]);
 
+    const sendApproval = useCallback((isApproved) => {
+        if (ws.current?.readyState === WebSocket.OPEN) {
+            setIsTyping(true);
+            ws.current.send(JSON.stringify({
+                type: 'approval',
+                approved: isApproved
+            }));
+        } else {
+            alert("Connection lost. Please wait...");
+        }
+    }, []);
+
     const clearMessages = useCallback(async () => {
         if (!session?.access_token) return;
 
@@ -201,5 +227,5 @@ export const useChat = () => {
         }
     }, [session]);
 
-    return {messages, sendMessage, clearMessages, status, isConnected, isTyping};
+    return {messages, setMessages, sendMessage, sendApproval, clearMessages, status, isConnected, isTyping};
 };

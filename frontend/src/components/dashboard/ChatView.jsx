@@ -5,7 +5,44 @@ import {downloadFile} from "../../lib/fileService.js";
 
 // Memoized message bubble — only re-renders when its own message data changes,
 // not when other messages in the list update (e.g., during streaming of the latest message).
-const MessageBubble = memo(function MessageBubble({ msg, getFileIcon }) {
+const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApproval }) {
+    if (msg.type === 'approval_required') {
+        return (
+            <div className="flex w-full mb-4 justify-start">
+                <div className="flex items-start flex-row max-w-full min-w-0">
+                    <div className="p-4 rounded-xl bg-gray-800 border border-yellow-600/50 shadow-lg min-w-[300px] max-w-full">
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center shrink-0">
+                                <span className="text-yellow-500 text-lg">⚠️</span>
+                            </div>
+                            <h3 className="text-white font-medium">Action Approval Required</h3>
+                        </div>
+                        <div className="bg-gray-900/50 rounded p-3 mb-4 text-sm text-gray-300">
+                            <p className="font-semibold mb-1 capitalize text-gray-100">{msg.confirmation}</p>
+                            <pre className="whitespace-pre-wrap font-mono text-xs overflow-x-auto text-blue-300">
+                                {msg.data}
+                            </pre>
+                        </div>
+                        <div className="flex gap-3 mt-4">
+                            <button
+                                onClick={() => sendApproval(true)}
+                                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                            >
+                                Approve
+                            </button>
+                            <button
+                                onClick={() => sendApproval(false)}
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                            >
+                                Reject
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={`flex w-full mb-4 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex items-start ${msg.sender === 'user' ? 'max-w-[80%] flex-row-reverse' : 'max-w-full flex-row'} min-w-0`}>
@@ -67,7 +104,7 @@ const TypingIndicator = memo(function TypingIndicator() {
     );
 });
 
-export default function ChatView({ messages, sendMessage, clearMessages, status, isConnected, isTyping = false, files = [] }) {
+export default function ChatView({ messages, sendMessage, sendApproval, clearMessages, status, isConnected, isTyping = false, files = [] }) {
     const [inputText, setInputText] = useState("");
     const [stagedFiles, setStagedFiles] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
@@ -210,6 +247,7 @@ export default function ChatView({ messages, sendMessage, clearMessages, status,
                         key={idx}
                         msg={msg}
                         getFileIcon={getFileIcon}
+                        sendApproval={sendApproval}
                     />
                 ))}
                 {isTyping && <TypingIndicator />}
