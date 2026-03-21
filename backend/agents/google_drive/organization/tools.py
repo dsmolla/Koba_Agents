@@ -4,6 +4,7 @@ from typing import Annotated
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
+from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
 from agents.common.tools import BaseGoogleTool
@@ -88,11 +89,29 @@ class DeleteFileTool(BaseGoogleTool):
         raise NotImplementedError("Use async execution.")
 
     async def _run_google_task(self, config: RunnableConfig, file_ids: list[str]) -> str:
+        drive = await get_drive_service(config)
+
+        try:
+            items = await drive.batch_get(file_ids)
+            data_string = "\n".join([
+                f"• {item.name}" if hasattr(item, 'name') else "• Unknown File"
+                for i, item in enumerate(items)
+            ])
+        except Exception:
+            data_string = f"{len(file_ids)} file(s) that could not be previewed."
+
+        approval = interrupt({
+            "confirmation": f"Are you sure you want to permanently delete these {len(file_ids)} file(s)?",
+            "data": data_string
+        })
+
+        if not approval or not approval.get("approved"):
+            return "File deletion cancelled by user."
+
         await adispatch_custom_event(
             "tool_status",
             {"text": "Deleting File...", "icon": "🗑️"}
         )
-        drive = await get_drive_service(config)
         results = await drive.batch_delete(items=file_ids)
         successes = sum(1 for r in results if r is True)
         errors = sum(1 for r in results if isinstance(r, tuple))

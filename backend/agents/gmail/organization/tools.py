@@ -6,6 +6,7 @@ from typing import Annotated
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import ArgsSchema, InjectedToolArg
+from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
 from agents.common.tools import BaseGoogleTool
@@ -200,11 +201,22 @@ class DeleteEmailTool(BaseGoogleTool):
         raise NotImplementedError("Use async execution.")
 
     async def _run_google_task(self, config: RunnableConfig, message_ids: list[str]) -> str:
-        from langgraph.types import interrupt
+        gmail = await get_gmail_service(config)
+
+        try:
+            emails = await gmail.batch_get_emails(message_ids)
+            data_string = "\n".join([
+                f"• {email.subject or 'No Subject'} (From: {email.sender.email if email.sender else 'Unknown'})"
+                for email in emails
+            ])
+        except Exception:
+            data_string = f"{len(message_ids)} email(s) that could not be previewed."
+
         approval = interrupt({
-            "confirmation": "Are you sure you want to delete this email?",
-            "data": ""
+            "confirmation": f"Are you sure you want to delete these {len(message_ids)} email(s)?",
+            "data": data_string
         })
+        
         if not approval or not approval.get("approved"):
             return "Email deletion cancelled by user."
 
@@ -212,7 +224,6 @@ class DeleteEmailTool(BaseGoogleTool):
             "tool_status",
             {"text": "Deleting Email...", "icon": "🗑️"}
         )
-        gmail = await get_gmail_service(config)
         results = await gmail.batch_delete_emails(emails=message_ids, permanent=False)
         successes = sum(1 for r in results if r is True)
         errors = sum(1 for r in results if isinstance(r, tuple))
