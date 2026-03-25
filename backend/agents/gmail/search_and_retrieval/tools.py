@@ -120,7 +120,7 @@ class GetThreadDetailsTool(BaseGoogleTool):
 
 
 class SearchEmailsInput(BaseModel):
-    include_promotions: Optional[bool] = Field(default=False, description="Include emails from Promotions category")
+    include_promotions: Optional[bool] = Field(default=False, description="Include emails in Promotions folder")
     limit: Optional[int] = Field(default=50, description="Maximum number of emails to retrieve")
     search: Optional[str] = Field(default=None, description="Search thread to filter emails")
     from_sender: Optional[str] = Field(default=None, description="Filter emails from specific sender")

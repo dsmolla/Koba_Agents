@@ -71,7 +71,9 @@ def get_agent(app, model_name: str) -> SupervisorAgent:
 async def lifespan(app: FastAPI):
     await database.connect()
     checkpointer = await database.get_checkpointer()
+    store = await database.get_store()
     app.state.checkpointer = checkpointer
+    app.state.store = store
     default_llm = ChatGoogleGenerativeAI(model=Config.DEFAULT_MODEL)
     app.state.agents = {Config.DEFAULT_MODEL: SupervisorAgent(model=default_llm, checkpointer=checkpointer)}
 

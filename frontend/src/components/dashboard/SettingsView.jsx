@@ -1,5 +1,5 @@
 import {useState, useEffect} from 'react';
-import {User, Mail, Shield, Bell, LogOut, Edit2, Check, X, Share2, Globe} from 'lucide-react';
+import {User, Mail, Shield, Bell, LogOut, Edit2, Check, X, Share2, Globe, Brain, Trash2} from 'lucide-react';
 import {signOutUser, updateUserData, signInWithGoogleProvider, supabase} from '../../lib/supabase';
 import {useNavigate} from 'react-router-dom';
 import toast, {Toaster} from "react-hot-toast";
@@ -38,6 +38,8 @@ export default function SettingsView({user}) {
         email: user?.email || '',
         fullName: user?.user_metadata?.full_name || ''
     });
+    const [memories, setMemories] = useState([]);
+    const [memoriesLoading, setMemoriesLoading] = useState(true);
 
     // Sync from context when it updates
     useEffect(() => {
@@ -65,6 +67,27 @@ export default function SettingsView({user}) {
         fetchTimezone();
     }, [session?.access_token]);
 
+    // Fetch user memories
+    useEffect(() => {
+        if (!session?.access_token) return;
+        const fetchMemories = async () => {
+            try {
+                const res = await fetch(`${API_URL}/settings/memory`, {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setMemories(data.memories || []);
+                }
+            } catch (e) {
+                console.error('Failed to fetch memories:', e);
+            } finally {
+                setMemoriesLoading(false);
+            }
+        };
+        fetchMemories();
+    }, [session?.access_token]);
+
     const handleTimezoneChange = async (e) => {
         const newTz = e.target.value;
         setTimezone(newTz);
@@ -87,6 +110,44 @@ export default function SettingsView({user}) {
             toast.error('Failed to update timezone');
         } finally {
             setTimezoneLoading(false);
+        }
+    };
+
+    const handleDeleteMemory = async (id) => {
+        if (!session?.access_token) return;
+        try {
+            const res = await fetch(`${API_URL}/settings/memory/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            if (res.ok) {
+                setMemories(prev => prev.filter(m => m.id !== id));
+                toast.success('Memory forgotten');
+            } else {
+                toast.error('Failed to delete memory');
+            }
+        } catch {
+            toast.error('Failed to delete memory');
+        }
+    };
+
+    const handleClearMemories = async () => {
+        if (!session?.access_token) return;
+        if (!window.confirm("Are you sure you want to permanently delete all agent memories and preferences?")) return;
+        
+        try {
+            const res = await fetch(`${API_URL}/settings/memory`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            if (res.ok) {
+                setMemories([]);
+                toast.success('All memories cleared');
+            } else {
+                toast.error('Failed to clear memories');
+            }
+        } catch {
+            toast.error('Failed to clear memories');
         }
     };
 
@@ -413,6 +474,55 @@ export default function SettingsView({user}) {
                                 <span className="text-gray-200">Email Notifications for task completions</span>
                             </label>
                         </div>
+                    </div>
+
+                    <div className="p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-medium text-white flex items-center gap-2">
+                                <Brain size={20} className="text-purple-400"/> Agent Knowledge
+                            </h3>
+                            {memories.length > 0 && (
+                                <button
+                                    onClick={handleClearMemories}
+                                    className="text-xs px-3 py-1.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-md transition-colors font-medium border border-red-500/20 cursor-pointer"
+                                >
+                                    Clear All
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-400 mb-4">
+                            Details, relationships, and preferences the AI has securely learned about you across conversational threads.
+                        </p>
+                        
+                        {memoriesLoading ? (
+                            <div className="text-sm text-gray-500 animate-pulse">Loading memories...</div>
+                        ) : memories.length === 0 ? (
+                            <div className="bg-dark-input-bg/30 border border-dark-input-border rounded-lg p-6 text-center">
+                                <Brain size={32} className="mx-auto text-gray-500 mb-3 opacity-50" />
+                                <p className="text-sm text-gray-400">The agent hasn't learned any specific preferences about you yet.</p>
+                                <p className="text-xs text-gray-500 mt-1">Tell it to "remember that I prefer formal emails" during a chat.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                {memories.map(memory => (
+                                    <div key={memory.id} className="group relative bg-dark-input-bg/50 border border-dark-input-border hover:border-purple-500/30 rounded-lg p-3 transition-colors flex justify-between items-start gap-3">
+                                        <div>
+                                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20 uppercase tracking-wider mb-2">
+                                                {memory.category || 'Preference'}
+                                            </span>
+                                            <p className="text-sm text-gray-200 leading-relaxed">{memory.fact}</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => handleDeleteMemory(memory.id)}
+                                            className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-all shrink-0 cursor-pointer" 
+                                            title="Forget this memory"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="p-6">

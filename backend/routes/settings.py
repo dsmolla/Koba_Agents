@@ -40,3 +40,36 @@ async def update_settings(
     except Exception as e:
         logger.error(f"Failed to update settings: {e}", extra={"user_id": user.id}, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update settings")
+
+
+@router.get("/memory")
+async def get_memory(user: Any = Depends(get_current_user_http)):
+    store = await database.get_store()
+    memories_chunk = await store.asearch(("memory", str(user.id)))
+    memories = []
+    if memories_chunk:
+        for mem in memories_chunk:
+            memories.append({
+                "id": mem.key,
+                "fact": mem.value.get("fact"),
+                "category": mem.value.get("category"),
+                "updated_at": mem.updated_at.isoformat() if hasattr(mem, "updated_at") and mem.updated_at else None
+            })
+    return {"memories": memories}
+
+
+@router.delete("/memory/{memory_id}")
+async def delete_memory(memory_id: str, user: Any = Depends(get_current_user_http)):
+    store = await database.get_store()
+    await store.adelete(("memory", str(user.id)), memory_id)
+    return {"status": "success"}
+
+
+@router.delete("/memory")
+async def clear_all_memory(user: Any = Depends(get_current_user_http)):
+    store = await database.get_store()
+    memories_chunk = await store.asearch(("memory", str(user.id)))
+    if memories_chunk:
+        for mem in memories_chunk:
+            await store.adelete(("memory", str(user.id)), mem.key)
+    return {"status": "success"}

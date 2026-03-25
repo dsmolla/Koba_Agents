@@ -12,6 +12,7 @@ from agents.google_drive.agent import DriveAgent
 from agents.google_tasks.agent import TasksAgent
 from core.models import BotMessage
 from .common.tools import CurrentDateTimeTool
+from .memory import CreateMemoryTool, UpdateMemoryTool, DeleteMemoryTool
 
 # Cache the raw prompt text at module level — read from disk once, not per instantiation
 _SYSTEM_PROMPT_TEMPLATE = Path(__file__).parent.joinpath('system_prompt.txt').read_text()
@@ -29,7 +30,7 @@ class SupervisorAgent(BaseAgent):
                 TasksAgent(model),
                 DriveAgent(model),
             ]
-        ] + [CurrentDateTimeTool()]
+        ] + [CurrentDateTimeTool(), CreateMemoryTool(), UpdateMemoryTool(), DeleteMemoryTool()]
 
         tool_descriptions = "\n".join(f"- {tool.name}: {tool.description}" for tool in tools)
         system_prompt = PromptTemplate.from_template(_SYSTEM_PROMPT_TEMPLATE).format(
