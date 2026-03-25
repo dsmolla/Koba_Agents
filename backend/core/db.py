@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.store.postgres.aio import AsyncPostgresStore
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 class Database:
     def __init__(self):
         self._checkpointer = None
+        self._store = None
         self._pool = None
 
     async def connect(self):
@@ -26,11 +28,12 @@ class Database:
                 open=False,
                 check=AsyncConnectionPool.check_connection,
                 kwargs={
+                    "autocommit": True,
                     "keepalives": 1,
                     "keepalives_idle": 30,
                     "keepalives_interval": 10,
                     "keepalives_count": 5,
-                }
+                },
             )
             try:
                 await self._pool.open()
@@ -53,6 +56,14 @@ class Database:
             logger.info("LangGraph checkpointer ready")
 
         return self._checkpointer
+
+    async def get_store(self):
+        if self._store is None:
+            await self.connect()
+            self._store = AsyncPostgresStore(self._pool)
+            await self._store.setup()
+            logger.info("LangGraph store ready")
+        return self._store
 
     async def clear_thread(self, thread_id):
         checkpointer = await self.get_checkpointer()

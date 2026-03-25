@@ -8,6 +8,7 @@ from google.genai.errors import APIError as GenAIAPIError
 from langchain_google_genai._common import GoogleGenerativeAIError
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.store.base import BaseStore
 from langgraph.types import Command
 
 from config import Config
@@ -72,6 +73,8 @@ async def process_message(
             "thread_id": user_id,
             "timezone": config.get("configurable", {}).get("timezone", "UTC"),
             "api_service": api_service,
+            "store": websocket.app.state.store,
+            "session_memories": config.get("configurable", {}).get("session_memories", "")
         },
         recursion_limit=50
     )
@@ -88,8 +91,13 @@ async def process_message(
                 full_message += f"File name: {file.filename}\n"
                 full_message += f"File Path: {file.path}"
 
-        input_message = HumanMessage(content=full_message, name='RealUser', additional_kwargs={'message': data})
-        input_data = {"messages": [input_message]}
+        messages = []
+        memories = message_config.get("configurable", {}).get("session_memories")
+        if memories:
+            messages.append(SystemMessage(content=memories, id="ephemeral_memory_injection"))
+        
+        messages.append(HumanMessage(content=full_message, name='RealUser', additional_kwargs={'message': data}))
+        input_data = {"messages": messages}
 
     interrupt_caught = False
     async for event in agent.agent.astream_events(input_data, config=message_config):
@@ -111,6 +119,24 @@ async def process_message(
                 except (WebSocketDisconnect, RuntimeError):
                     is_connected = False
                     logger.debug("User disconnected during status update. Continuing in background.", extra={"user_id": user_id})
+
+        elif kind == "on_tool_end":
+            if event["name"] in ["create_memory", "update_memory", "delete_memory"]:
+                logger.info("Memory mutation detected, updating session memories cache")
+                store = websocket.app.state.store
+                mem_chunk = await store.asearch(("memory", user_id))
+                updated_memories = ""
+                if mem_chunk:
+                    facts = [f"MEMORY_ID: `{mem.key}` | CATEGORY: {mem.value.get('category')} | FACT: {mem.value.get('fact')}" for mem in mem_chunk if mem.value.get("fact")]
+                    if facts:
+                        updated_memories = "CRITICAL INSTRUCTION: The following are the user's existing saved memories/preferences. " \
+                                           "DO NOT call create_memory to create a new fact if one already exists. " \
+                                           "If a preference changes, you MUST update the existing one by passing its EXACT MEMORY_ID to the update_memory tool. " \
+                                           "If it is no longer relevant, pass the MEMORY_ID to the delete_memory tool.\n" + "\n".join(facts)
+                # Mutate the parent config passed by reference
+                config["configurable"]["session_memories"] = updated_memories
+                message_config["configurable"]["session_memories"] = updated_memories
+                logger.info("Refetched and updated session memories due to tool mutation", extra={"user_id": user_id})
 
         elif kind == 'on_chain_stream' and event['name'] == 'SupervisorAgent':
             chunk = event['data'].get('chunk', {})
@@ -155,7 +181,19 @@ async def websocket_endpoint(
     await websocket.accept()
     user_id = user.id
     timezone = websocket.query_params.get("timezone", "UTC")
-    config = RunnableConfig(configurable={"thread_id": user_id, "timezone": timezone})
+    
+    store = websocket.app.state.store
+    mem_chunk = await store.asearch(("memory", user_id))
+    session_memories = ""
+    if mem_chunk:
+        facts = [f"MEMORY_ID: `{mem.key}` | CATEGORY: {mem.value.get('category')} | FACT: {mem.value.get('fact')}" for mem in mem_chunk if mem.value.get("fact")]
+        if facts:
+            session_memories = "CRITICAL INSTRUCTION: The following are the user's existing saved memories/preferences. " \
+                               "DO NOT call create_memory to create a new fact if one already exists. " \
+                               "If a preference changes, you MUST update the existing one by passing its EXACT MEMORY_ID to the update_memory tool. " \
+                               "If it is no longer relevant, pass the MEMORY_ID to the delete_memory tool.\n" + "\n".join(facts)
+                               
+    config = RunnableConfig(configurable={"thread_id": user_id, "timezone": timezone, "session_memories": session_memories})
 
     from main import get_agent
     default_agent = get_agent(websocket.app, Config.DEFAULT_MODEL)
