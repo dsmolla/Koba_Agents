@@ -10,6 +10,8 @@ from agents.gmail.agent import GmailAgent
 from agents.google_calendar.agent import CalendarAgent
 from agents.google_drive.agent import DriveAgent
 from agents.google_tasks.agent import TasksAgent
+from agents.google_docs.agent import DocsAgent
+from agents.google_sheets.agent import SheetsAgent
 from core.models import BotMessage
 from .common.tools import CurrentDateTimeTool
 from .memory import CreateMemoryTool, UpdateMemoryTool, DeleteMemoryTool
@@ -29,6 +31,8 @@ class SupervisorAgent(BaseAgent):
                 CalendarAgent(model),
                 TasksAgent(model),
                 DriveAgent(model),
+                DocsAgent(model),
+                SheetsAgent(model),
             ]
         ] + [CurrentDateTimeTool(), CreateMemoryTool(), UpdateMemoryTool(), DeleteMemoryTool()]
 

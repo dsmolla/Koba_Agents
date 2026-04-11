@@ -3,6 +3,8 @@ from google_client.services.calendar import AsyncCalendarApiService
 from google_client.services.drive import AsyncDriveApiService
 from google_client.services.gmail import AsyncGmailApiService
 from google_client.services.tasks import AsyncTasksApiService
+from google_client.services.docs import AsyncDocsApiService
+from google_client.services.sheets import AsyncSheetsApiService
 from langchain_core.runnables import RunnableConfig
 
 from core.db import database
@@ -47,3 +49,15 @@ async def get_tasks_service(config: RunnableConfig) -> AsyncTasksApiService:
     if not api_service:
         raise ProviderNotConnectedError('Google')
     return api_service.async_tasks
+
+async def get_docs_service(config: RunnableConfig) -> AsyncDocsApiService:
+    api_service = config['configurable'].get('api_service')
+    if not api_service:
+        raise ProviderNotConnectedError('Google')
+    return api_service.async_docs
+
+async def get_sheets_service(config: RunnableConfig) -> AsyncSheetsApiService:
+    api_service = config['configurable'].get('api_service')
+    if not api_service:
+        raise ProviderNotConnectedError('Google')
+    return api_service.async_sheets

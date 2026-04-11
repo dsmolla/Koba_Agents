@@ -191,8 +191,8 @@ class ExtractFromEmailTool(BaseGoogleTool):
             """
         )
 
-        llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
-        tasks = []
+        llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash', max_retries=3)
+        results = []
 
         for i in range(0, len(emails), 10):
             email_batch = emails[i: min(i + 10, len(emails))]
@@ -205,13 +205,12 @@ class ExtractFromEmailTool(BaseGoogleTool):
                 """
             )
 
-            task = llm.with_structured_output(ExtractedDataOutput).ainvoke([
+            result = await llm.with_structured_output(ExtractedDataOutput).ainvoke([
                 SystemMessage(system_prompt),
                 HumanMessage(extraction_prompt),
             ])
-            tasks.append(task)
+            results.append(result)
 
-        results = await asyncio.gather(*tasks)
         combined = [item for batch in results for item in batch.extracted_data]
 
         return json.dumps(combined)
@@ -286,8 +285,8 @@ class ClassifyEmailTool(BaseGoogleTool):
             """
         )
 
-        llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
-        tasks = []
+        llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash', max_retries=3)
+        results = []
 
         for i in range(0, len(emails), 10):
             email_batch = emails[i: min(i + 10, len(emails))]
@@ -299,13 +298,12 @@ class ClassifyEmailTool(BaseGoogleTool):
                     categories: {json.dumps(classifications)}
                 """)
 
-            task = llm.with_structured_output(ClassifyEmailOutput).ainvoke([
+            result = await llm.with_structured_output(ClassifyEmailOutput).ainvoke([
                 SystemMessage(system_prompt),
                 HumanMessage(classification_prompt),
             ])
-            tasks.append(task)
+            results.append(result)
 
-        results = await asyncio.gather(*tasks)
         combined = [item.model_dump() for batch in results for item in batch.classifications]
 
         return json.dumps(combined)

@@ -6,7 +6,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPExce
 from google.auth.exceptions import RefreshError
 from google.genai.errors import APIError as GenAIAPIError
 from langchain_google_genai._common import GoogleGenerativeAIError
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
 from langgraph.types import Command

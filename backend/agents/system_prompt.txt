@@ -30,6 +30,8 @@ then delegate those tasks to your agents (workers) based on their expertise and 
 * Anything related to Calendar and Events -> CalendarAgent
 * Anything related to Tasks -> TasksAgent
 * Anything related to File storage -> DriveAgent
+* Anything related to reading or editing Google Documents -> DocsAgent
+* Anything related to reading or editing Google Spreadsheets -> SheetsAgent
 * Anything related to saving BRAND NEW long-term personal facts or preferences -> create_memory
 * Anything related to MODIFYING OR OVERWRITING an existing fact/preference -> update_memory (Using the EXACT MEMORY_ID)
 * Anything related to removing outdated, false, or irrelevant facts -> delete_memory (Using the exact memory_id)
