@@ -5,7 +5,7 @@ psycopg==3.3.2
 psycopg-pool==3.3.0
 python-dotenv==1.2.1
 google-api-client-wrapper==3.0.0
-langgraph==1.0.10
+langgraph==1.1.6
 langchain-core==1.2.11
 langchain-google-genai==4.1.2
 langchain==1.2.0
