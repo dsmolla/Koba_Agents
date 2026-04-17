@@ -32,10 +32,6 @@ setup_logging(Config.LOG_LEVEL)
 
 logger = logging.getLogger(__name__)
 
-# Patch googleapiclient discovery cache with an in-memory implementation.
-# Without this, build() logs "file_cache is only supported with oauth2client<4.0.0"
-# and fetches the discovery document from the network on every single API call.
-# With this patch, the document is fetched once and reused for the process lifetime.
 import googleapiclient.discovery_cache
 from googleapiclient.discovery_cache.base import Cache as _DiscoveryCache
 

@@ -1,7 +1,7 @@
-import {useState, useRef, useEffect, memo} from 'react';
-import {Send, Paperclip, Bot, User, FileText, Image, Film, Music, X, Trash2} from 'lucide-react';
+import { useState, useRef, useEffect, memo } from 'react';
+import { Send, Paperclip, Bot, User, FileText, Image, Film, Music, X, Trash2 } from 'lucide-react';
 import Markdown from "react-markdown";
-import {downloadFile} from "../../lib/fileService.js";
+import { downloadFile } from "../../lib/fileService.js";
 
 // Memoized message bubble — only re-renders when its own message data changes,
 // not when other messages in the list update (e.g., during streaming of the latest message).
@@ -48,19 +48,18 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApprov
             <div className={`flex items-start ${msg.sender === 'user' ? 'max-w-[80%] flex-row-reverse' : 'max-w-full flex-row'} min-w-0`}>
                 {msg.sender === 'user' && (
                     <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-blue-400 ml-2">
-                        <User size={16} className="text-white"/>
+                        <User size={16} className="text-white" />
                     </div>
                 )}
 
-                <div className={`p-3 rounded-xl overflow-hidden min-w-0 ${
-                    msg.sender === 'user'
-                        ? 'bg-blue-500 text-white rounded-tr-none'
-                        : 'bg-gray-700 text-white rounded-tl-none'
-                }`}>
+                <div className={`p-4 rounded-xl overflow-hidden min-w-0 ${msg.sender === 'user'
+                        ? 'bg-blue-600 text-white rounded-tr-none shadow-md shadow-blue-500/20'
+                        : 'bg-blue-900/60 border border-blue-800/40 text-blue-50 rounded-tl-none backdrop-blur-sm'
+                    }`}>
                     {msg.content && (
                         <Markdown
                             components={{
-                                p: ({node, children, ...props}) => (
+                                p: ({ node, children, ...props }) => (
                                     <p className="text-sm whitespace-pre-wrap" {...props}>{children}</p>
                                 )
                             }}
@@ -92,7 +91,7 @@ const TypingIndicator = memo(function TypingIndicator() {
     return (
         <div className="flex w-full mb-4 justify-start">
             <div className="flex items-start flex-row max-w-full min-w-0">
-                <div className="p-3 rounded-xl bg-gray-700 text-white rounded-tl-none">
+                <div className="p-4 rounded-xl bg-blue-900/60 border border-blue-800/40 text-blue-50 rounded-tl-none backdrop-blur-sm">
                     <div className="flex gap-1 items-center h-5">
                         <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                         <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
@@ -132,7 +131,7 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
     }, []);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({behavior: "instant"});
+        messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
     }, [messages, isTyping]);
 
     const handleSend = (e) => {
@@ -200,17 +199,17 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
     };
 
     const getFileIcon = (type, size = 24) => {
-        if (type === 'image') return <Image size={size} className="text-purple-500"/>;
-        if (type === 'video') return <Film size={size} className="text-red-500"/>;
-        if (type === 'audio') return <Music size={size} className="text-yellow-500"/>;
-        return <FileText size={size} className="text-blue-500"/>;
+        if (type === 'image') return <Image size={size} className="text-purple-500" />;
+        if (type === 'video') return <Film size={size} className="text-red-500" />;
+        if (type === 'audio') return <Music size={size} className="text-yellow-500" />;
+        return <FileText size={size} className="text-blue-500" />;
     };
 
     return (
         <div
-            className="flex flex-col h-full bg-secondary-dark-bg rounded-lg shadow-sm border border-dark-border overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2 border-b border-dark-border bg-gray-800/50">
-                <div className="relative border border-gray-600 rounded-md bg-gray-700/50 hover:bg-gray-700 transition-colors group">
+            className="flex flex-col h-full bg-secondary-dark-bg backdrop-blur-md rounded-2xl shadow-xl border border-blue-900/30 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-blue-900/30 bg-blue-950/60">
+                <div className="relative border border-blue-800/50 rounded-xl bg-blue-900/40 hover:bg-blue-800/40 transition-colors group">
                     <select
                         value={selectedModel}
                         onChange={(e) => {
@@ -251,7 +250,7 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
                     />
                 ))}
                 {isTyping && <TypingIndicator />}
-                <div ref={messagesEndRef}/>
+                <div ref={messagesEndRef} />
             </div>
 
             {status && (
@@ -275,9 +274,9 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
             )}
 
             <form onSubmit={handleSend}
-                  className="p-2 md:p-4 bg-secondary-dark-bg border-t border-dark-border relative flex flex-col gap-2">
+                className="p-3 md:p-5 bg-slate-950/60 backdrop-blur-md border-t border-blue-900/30 relative flex flex-col gap-2">
                 {showSuggestions && (
-                    <div className="absolute bottom-full left-0 w-full mb-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10 mx-4">
+                    <div className="absolute bottom-full left-0 w-full mb-2 bg-blue-950/90 backdrop-blur-lg border border-blue-800/50 rounded-xl shadow-2xl shadow-blue-900/20 max-h-48 overflow-y-auto z-10 mx-4">
                         {suggestions.map((file) => (
                             <div
                                 key={file.id}
@@ -305,7 +304,7 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
                             className="p-1.5 md:p-2 shrink-0 text-zinc-300 hover:text-zinc-100 transition-colors"
                             title="Attach file"
                         >
-                            <Paperclip size={20}/>
+                            <Paperclip size={20} />
                         </button>
                     </div>
                     <div className="flex items-center w-full md:w-auto flex-1 gap-2">
@@ -322,7 +321,7 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
                             disabled={!isConnected || (isConnected && !inputText.trim() && stagedFiles.length === 0)}
                             className="p-2 sm:px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0 flex-none"
                         >
-                            <Send size={20}/>
+                            <Send size={20} />
                         </button>
                     </div>
                 </div>
