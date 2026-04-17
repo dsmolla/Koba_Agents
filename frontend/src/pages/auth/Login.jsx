@@ -1,6 +1,6 @@
-import React, {useState} from 'react'
-import {useNavigate, Link} from 'react-router-dom'
-import {signInUser, signInWithGoogleProvider} from '../../lib/supabase.js'
+import React, { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { signInUser, signInWithGoogleProvider } from '../../lib/supabase.js'
 import AuthLayout from '../../components/auth/AuthLayout'
 import AuthInput from '../../components/auth/AuthInput'
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton'
@@ -21,7 +21,7 @@ function Login() {
         })
     }
 
-    const signInWithGoogle = async() => {
+    const signInWithGoogle = async () => {
         try {
             await signInWithGoogleProvider()
         } catch (error) {
@@ -85,10 +85,10 @@ function Login() {
                         className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                     />
                 </div>
-                
+
                 <button
                     type='submit'
-                    disabled={ loading }
+                    disabled={loading}
                     className="w-full mt-1 text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-900"
                 >
                     {loading ? 'Logging in...' : 'Login'}
@@ -101,7 +101,7 @@ function Login() {
                         <div className="w-full border-t border-gray-600" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                        <span className="bg-white text-gray-900 px-2 dark:bg-gray-800 dark:text-white">Or continue with</span>
+                        <span className="px-2 bg-secondary-dark-bg text-white">Or continue with</span>
                     </div>
                 </div>
 
