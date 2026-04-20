@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, memo } from 'react';
 import { Send, Paperclip, Bot, User, FileText, Image, Film, Music, X, Trash2 } from 'lucide-react';
 import Markdown from "react-markdown";
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { downloadFile } from "../../lib/fileService.js";
 
 // Memoized message bubble — only re-renders when its own message data changes,
@@ -58,10 +61,54 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApprov
                     }`}>
                     {msg.content && (
                         <Markdown
+                            remarkPlugins={[remarkGfm]}
                             components={{
-                                p: ({ node, children, ...props }) => (
-                                    <p className="text-sm whitespace-pre-wrap" {...props}>{children}</p>
-                                )
+                                p: ({ node, ...props }) => (
+                                    <p className="text-sm my-2 whitespace-pre-wrap leading-relaxed" {...props} />
+                                ),
+                                h1: ({ node, ...props }) => <h1 className="text-2xl font-bold my-4 border-b border-white/10 pb-2" {...props} />,
+                                h2: ({ node, ...props }) => <h2 className="text-xl font-bold my-3 border-b border-white/10 pb-2" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-lg font-bold my-2" {...props} />,
+                                h4: ({ node, ...props }) => <h4 className="text-base font-bold my-2" {...props} />,
+                                ul: ({ node, ...props }) => <ul className="list-disc pl-5 my-3 space-y-1 text-sm marker:text-blue-300/70" {...props} />,
+                                ol: ({ node, ...props }) => <ol className="list-decimal pl-5 my-3 space-y-1 text-sm marker:text-blue-300/70" {...props} />,
+                                li: ({ node, ...props }) => <li className="text-sm leading-relaxed" {...props} />,
+                                a: ({ node, ...props }) => <a className="text-blue-300 hover:text-blue-200 underline underline-offset-2 transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
+                                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-blue-500/50 pl-4 py-1 my-3 bg-black/10 text-gray-300 italic rounded-r-lg" {...props} />,
+                                table: ({ node, ...props }) => (
+                                    <div className="overflow-x-auto my-4 rounded-lg border border-white/10">
+                                        <table className="min-w-full divide-y divide-white/10 bg-black/10 text-sm" {...props} />
+                                    </div>
+                                ),
+                                thead: ({ node, ...props }) => <thead className="bg-black/30" {...props} />,
+                                tbody: ({ node, ...props }) => <tbody className="divide-y divide-white/10" {...props} />,
+                                tr: ({ node, ...props }) => <tr className="hover:bg-black/20 transition-colors" {...props} />,
+                                th: ({ node, ...props }) => <th className="px-4 py-3 text-left font-semibold text-gray-100 uppercase tracking-wider text-xs" {...props} />,
+                                td: ({ node, ...props }) => <td className="px-4 py-3 text-gray-200" {...props} />,
+                                code({ node, inline, className, children, ...props }) {
+                                    const match = /language-(\w+)/.exec(className || '');
+                                    return !inline && match ? (
+                                        <div className="my-4 rounded-xl overflow-hidden shadow-lg border border-white/10">
+                                            <div className="bg-gray-900/90 px-4 py-2 text-xs text-gray-400 font-mono uppercase border-b border-white/10 flex justify-between items-center">
+                                                {match[1]}
+                                            </div>
+                                            <SyntaxHighlighter
+                                                style={vscDarkPlus}
+                                                language={match[1]}
+                                                PreTag="div"
+                                                className="!m-0 !bg-gray-950/80 !p-4 !text-xs custom-scrollbar"
+                                                customStyle={{ background: 'transparent' }}
+                                                {...props}
+                                            >
+                                                {String(children).replace(/\n$/, '')}
+                                            </SyntaxHighlighter>
+                                        </div>
+                                    ) : (
+                                        <code className="bg-black/40 px-1.5 py-0.5 rounded-md text-[0.85em] font-mono text-blue-200 border border-white/5" {...props}>
+                                            {children}
+                                        </code>
+                                    );
+                                }
                             }}
                         >
                             {msg.content}
