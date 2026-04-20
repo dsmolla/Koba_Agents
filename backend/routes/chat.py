@@ -80,7 +80,13 @@ async def process_message(
     )
 
     if data.get("type") == "approval":
-        input_data = Command(resume={"approved": data.get("approved", False)})
+        approved_value = {"approved": data.get("approved", False)}
+        interrupt_id = data.get("interrupt_id")
+        
+        if interrupt_id:
+            input_data = Command(resume={interrupt_id: approved_value})
+        else:
+            input_data = Command(resume=approved_value)
     else:
         user_message = UserMessage(**data)
         full_message = user_message.content
@@ -144,17 +150,19 @@ async def process_message(
                 interrupts = chunk['__interrupt__']
                 if interrupts:
                     interrupt_caught = True
-                    interrupt_data = interrupts[0].value
-                    if is_connected:
-                        try:
-                            # Use .get() to prevent KeyErrors from stale LangGraph checkpoints
-                            await websocket.send_json({
-                                "type": "approval_required",
-                                "confirmation": interrupt_data.get('confirmation', 'Action Approval Required:'),
-                                "data": interrupt_data.get('data', interrupt_data)
-                            })
-                        except (WebSocketDisconnect, RuntimeError):
-                            is_connected = False
+                    for interrupt in interrupts:
+                        interrupt_data = getattr(interrupt, 'value', interrupt[0] if isinstance(interrupt, tuple) else interrupt)
+                        interrupt_id = getattr(interrupt, 'id', None)
+                        if is_connected:
+                            try:
+                                await websocket.send_json({
+                                    "type": "approval_required",
+                                    "id": interrupt_id,
+                                    "confirmation": interrupt_data.get('confirmation', 'Action Approval Required:') if isinstance(interrupt_data, dict) else 'Action Approval Required',
+                                    "data": interrupt_data.get('data', interrupt_data) if isinstance(interrupt_data, dict) else interrupt_data
+                                })
+                            except (WebSocketDisconnect, RuntimeError):
+                                is_connected = False
 
         elif kind == 'on_chain_end' and event['name'] == 'SupervisorAgent' and not interrupt_caught:
             bot_message: BotMessage = event['data']['output']['structured_response']
@@ -209,13 +217,16 @@ async def websocket_endpoint(
     try:
         state = await default_agent.agent.aget_state(config)
         if state.next and state.tasks and state.tasks[0].interrupts:
-            interrupt_value = state.tasks[0].interrupts[0].value
-            if isinstance(interrupt_value, dict):
-                await websocket.send_json({
-                    "type": "approval_required",
-                    "confirmation": interrupt_value['confirmation'],
-                    "data": interrupt_value['data']
-                })
+            for intr in state.tasks[0].interrupts:
+                interrupt_value = getattr(intr, 'value', None) or (intr[0] if isinstance(intr, tuple) else intr)
+                interrupt_id = getattr(intr, 'id', None)
+                if isinstance(interrupt_value, dict):
+                    await websocket.send_json({
+                        "type": "approval_required",
+                        "id": interrupt_id,
+                        "confirmation": interrupt_value.get('confirmation', 'Action Approval Required:'),
+                        "data": interrupt_value.get('data', interrupt_value)
+                    })
     except Exception as e:
         logger.warning(f"Failed to recover interrupt state: {e}", extra={"user_id": user_id})
 

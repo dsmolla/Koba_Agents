@@ -28,13 +28,13 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApprov
                         </div>
                         <div className="flex gap-3 mt-4">
                             <button
-                                onClick={() => sendApproval(true)}
+                                onClick={() => sendApproval(true, msg.id)}
                                 className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
                             >
                                 Approve
                             </button>
                             <button
-                                onClick={() => sendApproval(false)}
+                                onClick={() => sendApproval(false, msg.id)}
                                 className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
                             >
                                 Reject

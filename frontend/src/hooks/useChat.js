@@ -62,6 +62,7 @@ export const useChat = () => {
                 setMessages(prev => {
                     const updated = [...prev, {
                         type: 'approval_required',
+                        id: data.id,
                         confirmation: data.confirmation,
                         data: data.data,
                         timestamp: Date.now()
@@ -192,12 +193,13 @@ export const useChat = () => {
         }
     }, [session]);
 
-    const sendApproval = useCallback((isApproved) => {
+    const sendApproval = useCallback((isApproved, interruptId = null) => {
         if (ws.current?.readyState === WebSocket.OPEN) {
             setIsTyping(true);
             ws.current.send(JSON.stringify({
                 type: 'approval',
-                approved: isApproved
+                approved: isApproved,
+                interrupt_id: interruptId
             }));
         } else {
             alert("Connection lost. Please wait...");

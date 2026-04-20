@@ -1,11 +1,11 @@
-import {supabase} from "./supabase.js";
-import {customAlphabet} from "nanoid";
+import { supabase } from "./supabase.js";
+import { customAlphabet } from "nanoid";
 
 const bucket = import.meta.env.VITE_SUPABASE_USER_FILE_BUCKET;
 const generateShortID = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 4)
 
 export const downloadFile = async (file) => {
-    const {data, error} = await supabase.storage.from(bucket).download(file.path);
+    const { data, error } = await supabase.storage.from(bucket).download(file.path);
 
     if (error) throw error;
 
@@ -37,7 +37,7 @@ export const uploadFiles = async (user_id, files) => {
             filename = `${name}_${short_id}${ext}`
         }
         const filePath = `${user_id}/${filename}`;
-        const {data, error} = await supabase.storage.from(bucket).upload(filePath, file);
+        const { data, error } = await supabase.storage.from(bucket).upload(filePath, file);
         if (error) throw error;
         uploadedFiles.push({
             filename: filename,
@@ -50,7 +50,7 @@ export const uploadFiles = async (user_id, files) => {
 }
 
 export const deleteFile = async (file) => {
-    const {error} = await supabase.storage
+    const { error } = await supabase.storage
         .from(bucket)
         .remove([file.path]);
 
@@ -59,8 +59,8 @@ export const deleteFile = async (file) => {
 
 export const listFiles = async (user_id) => {
     const files = []
-    const {data, error} = await supabase.storage.from(bucket).list(user_id, {sortBy: {column: 'name', order: 'asc'}});
-    
+    const { data, error } = await supabase.storage.from(bucket).list(user_id, { sortBy: { column: 'name', order: 'asc' } });
+
     if (error) {
         throw error;
     }

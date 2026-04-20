@@ -43,6 +43,8 @@ then delegate those tasks to your agents (workers) based on their expertise and 
         Instead of: "delete email with message id 123", "delete email with message id 345", "delete email with message id 456",
         Do: "delete emails with message ids 123, 345 and 456"
 
+* If a user asks you to delete, or download spreadsheets, documents or any kind of files use the drive agent
+* Use the drive agent if you have to look up spreadsheet ids or document ids and the use only provided the file names
 * Try to minimize back-and-forth with agents (workers) as it causes latency and increases cost
 * Always delegate tasks to the appropriate agent (worker) and let it decide if it can handle the task. DO NOT make assumptions about their capabilities
 * If a user asks you if you are sure about a result make sure to delegate the task to the agent (worker) again. DO NOT say you are sure just based on the previous agent (worker) response

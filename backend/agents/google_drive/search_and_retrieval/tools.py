@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Annotated
 
+import mimetypes
 import filetype
 from google_client.services.drive.types import DriveFile, DriveFolder, DriveItem
 from langchain_core.callbacks import adispatch_custom_event
@@ -234,12 +235,33 @@ class DownloadFileTool(BaseGoogleTool):
         if not isinstance(file, DriveFile):
             return f"Item {file_id} is a folder, not a file"
 
+        file_bytes = await drive.get_file_payload(file)
+        
+        guessed_mime = filetype.guess_mime(file_bytes)
+        mime_type = guessed_mime or file.mime_type or "application/octet-stream"
+        guessed_ext = filetype.guess_extension(file_bytes)
+        
+        if not guessed_ext:
+            if file.mime_type == 'application/vnd.google-apps.spreadsheet':
+                guessed_ext = 'xlsx'
+            elif file.mime_type == 'application/vnd.google-apps.document':
+                guessed_ext = 'docx'
+            elif file.mime_type == 'application/vnd.google-apps.presentation':
+                guessed_ext = 'pptx'
+            else:
+                ext_dot = mimetypes.guess_extension(mime_type)
+                if ext_dot:
+                    guessed_ext = ext_dot.lstrip('.')
+
         file_uuid = uuid.uuid4().hex[:4]
         file_path = Path(file.name)
-        filename = f"{file_path.stem}_{file_uuid}{file_path.suffix}"
+        
+        suffix = file_path.suffix
+        if not suffix and guessed_ext:
+            suffix = f".{guessed_ext}"
+            
+        filename = f"{file_path.stem}_{file_uuid}{suffix}"
         upload_path = f"{user_id}/{filename}"
-        file_bytes = await drive.get_file_payload(file)
-        mime_type = filetype.guess_mime(file_bytes)
         size = len(file_bytes)
 
         storage_path = await upload_to_supabase(
