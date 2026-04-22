@@ -14,13 +14,14 @@ export const signInUser = async ({email, password}) => {
     return data
 }
 
-export const signUpUser = async ({email, password, fullName}) => {
+export const signUpUser = async ({email, password, fullName, invitationCode}) => {
     const {data, error} = await supabase.auth.signUp({
         email,
         password,
         options: {
             data: {
                 full_name: fullName,
+                invitation_code: invitationCode,
             },
         },
     })

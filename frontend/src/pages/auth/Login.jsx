@@ -7,6 +7,9 @@ import GoogleSignInButton from '../../components/auth/GoogleSignInButton'
 
 function Login() {
     const navigate = useNavigate()
+    const inviteRequestEmail = import.meta.env.VITE_INVITE_REQUEST_EMAIL;
+    const inviteRequestSubject = import.meta.env.VITE_INVITE_REQUEST_SUBJECT;
+    const inviteRequestBody = import.meta.env.VITE_INVITE_REQUEST_BODY;
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -116,6 +119,16 @@ function Login() {
                 >
                     Sign up!
                 </Link>
+            </p>
+
+            <p className="mt-2 text-center text-sm/6 text-gray-400">
+                Signups are currently by invitation only.{' '}
+                <a
+                    href={`mailto:${inviteRequestEmail}?subject=${encodeURIComponent(inviteRequestSubject)}&body=${encodeURIComponent(inviteRequestBody)}`}
+                    className="font-semibold text-indigo-400 hover:text-indigo-300"
+                >
+                    Request an invite
+                </a>
             </p>
         </AuthLayout>
     )

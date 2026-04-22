@@ -113,7 +113,11 @@ npm install
 ```
 
 **Configure Environment Variables:**
-You will need to configure your `.env.local` to point to the backend API and provide the public Supabase keys for the client.
+Copy the example environment file and fill in your credentials.
+```bash
+cp .env.example .env.local
+```
+You will need to provide the public Supabase keys for the client, and optionally configure your `VITE_INVITE_REQUEST_EMAIL`, `VITE_INVITE_REQUEST_SUBJECT`, and `VITE_INVITE_REQUEST_BODY` to set up the email template sent by users requesting an invitation code.
 
 ### 3. Cloud Provider Setup (GCP & Supabase)
 For production or fully featured local development (specifically background webhooks and Gmail push notifications), you must configure your Google Cloud project according to the infrastructure setup guide:
@@ -158,6 +162,22 @@ Koba_Agents/
 │   └── vite.config.js   # Vite configuration
 └── README.md            # You are here
 ```
+
+---
+
+## Authentication & Invitation System
+
+The platform has been secured to strictly accept new registrations **exclusively via invitation codes**. Even Google SSO attempts must have an underlying pre-approved invitation code registered to the email address. 
+
+**Generating an Invitation Code:**
+As an administrator, you can issue single-use invitation codes safely to your PostgreSQL database by using the bundled helper script.
+
+1. Ensure your backend environment is active and `.env` is configured.
+2. Run the generator script with the target user's email:
+   ```bash
+   python backend/scripts/generate_invite.py targetuser@example.com
+   ```
+3. Provide the generated UUID code to the user. A single-use verification trigger in the database will burn the code upon a successful sign-up.
 
 ---
 

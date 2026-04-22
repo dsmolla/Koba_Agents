@@ -7,9 +7,13 @@ import GoogleSignInButton from '../../components/auth/GoogleSignInButton'
 
 function Signup() {
     const navigate = useNavigate()
+    const inviteRequestEmail = import.meta.env.VITE_INVITE_REQUEST_EMAIL;
+    const inviteRequestSubject = import.meta.env.VITE_INVITE_REQUEST_SUBJECT;
+    const inviteRequestBody = import.meta.env.VITE_INVITE_REQUEST_BODY;
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
+        invitationCode: '',
         password: '',
         confirmPassword: ''
     })
@@ -47,7 +51,8 @@ function Signup() {
             await signUpUser({
                 email: formData.email,
                 password: formData.password,
-                fullName: formData.fullName
+                fullName: formData.fullName,
+                invitationCode: formData.invitationCode
             })
             navigate('/')
         } catch (error) {
@@ -105,6 +110,17 @@ function Signup() {
                     onChange={handleChange}
                 />
 
+                <AuthInput
+                    label="Invitation Code"
+                    id="invitationCode"
+                    name="invitationCode"
+                    type="text"
+                    required
+                    autoComplete="off"
+                    value={formData.invitationCode}
+                    onChange={handleChange}
+                />
+
                 <div>
                     <button
                         type="submit"
@@ -137,6 +153,16 @@ function Signup() {
                 >
                     Login!
                 </Link>
+            </p>
+
+            <p className="mt-2 text-center text-sm/6 text-gray-400">
+                Signups are currently by invitation only.{' '}
+                <a
+                    href={`mailto:${inviteRequestEmail}?subject=${encodeURIComponent(inviteRequestSubject)}&body=${encodeURIComponent(inviteRequestBody)}`}
+                    className="font-semibold text-indigo-400 hover:text-indigo-300"
+                >
+                    Request an invite
+                </a>
             </p>
         </AuthLayout>
     )
