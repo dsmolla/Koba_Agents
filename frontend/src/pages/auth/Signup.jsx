@@ -18,6 +18,7 @@ function Signup() {
         confirmPassword: ''
     })
     const [error, setError] = useState('')
+    const [successMessage, setSuccessMessage] = useState('')
     const [loading, setLoading] = useState(false)
 
     const handleChange = (e) => {
@@ -54,13 +55,29 @@ function Signup() {
                 fullName: formData.fullName,
                 invitationCode: formData.invitationCode
             })
-            navigate('/')
+            setSuccessMessage('Confirmation email sent, please verify your email address to complete signing up.')
         } catch (error) {
             setError(error.message)
             console.error(error)
         } finally {
             setLoading(false)
         }
+    }
+
+    if (successMessage) {
+        return (
+            <AuthLayout title="Check your email" error={''}>
+                <div className="text-center mt-6 space-y-6">
+                    <p className="text-gray-300 text-md">{successMessage}</p>
+                    <Link
+                        to="/login"
+                        className="block w-full text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors"
+                    >
+                        Back to Login
+                    </Link>
+                </div>
+            </AuthLayout>
+        )
     }
 
     return (
