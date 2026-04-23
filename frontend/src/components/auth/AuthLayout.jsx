@@ -2,16 +2,15 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import ErrorAlert from '../ErrorAlert';
 
-export default function AuthLayout({title, children, error}) {
+export default function AuthLayout({ title, children, error }) {
     return (
-        <div className="flex flex-col items-center justify-center px-6 py-8 mx-auto mt-5 lg:py-0 min-h-screen">
+        <div className="flex flex-col items-center justify-center mx-auto lg:py-0 min-h-screen">
             <a href="/" className="flex items-center mb-6 text-2xl font-semibold text-white">
                 <img
                     alt='Koba'
                     src='/logo.png'
-                    className='mx-auto h-20 w-auto'
+                    className='h-50'
                 />
-                KOBA
             </a>
             <div
                 className="
@@ -27,7 +26,7 @@ export default function AuthLayout({title, children, error}) {
                 <h2 className="mb-1 text-xl font-bold leading-tight tracking-tight md:text-2xl text-white text-center">
                     {title}
                 </h2>
-                {error && <ErrorAlert message={error}/>}
+                {error && <ErrorAlert message={error} />}
                 {children}
             </div>
             <div className="mt-8 text-center pb-8">

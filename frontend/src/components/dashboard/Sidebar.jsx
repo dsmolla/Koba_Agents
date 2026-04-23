@@ -1,32 +1,31 @@
-import {useState} from 'react';
-import {MessageSquare, Folder, Calendar, X} from 'lucide-react';
+import { useState } from 'react';
+import { MessageSquare, Folder, Calendar, X } from 'lucide-react';
 
-export default function Sidebar({activeTab, onTabChange, user, isOpen = false, onClose}) {
+export default function Sidebar({ activeTab, onTabChange, user, isOpen = false, onClose }) {
     const [isCollapsed, setIsCollapsed] = useState(true);
 
     const navItems = [
-        {id: 'chat', label: 'Chat Assistant', icon: MessageSquare},
-        {id: 'files', label: 'File Manager', icon: Folder},
-        {id: 'tasks', label: 'Recursive Tasks', icon: Calendar},
+        { id: 'chat', label: 'Chat Assistant', icon: MessageSquare },
+        { id: 'files', label: 'File Manager', icon: Folder },
+        { id: 'tasks', label: 'Recursive Tasks', icon: Calendar },
     ];
 
     return (
         <>
             {/* Mobile Backdrop */}
             {isOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-primary-dark-bg/80 z-40 md:hidden transition-opacity border-none backdrop-blur-sm"
                     onClick={onClose}
                 />
             )}
             <div
-                className={`bg-primary-dark-bg/40 backdrop-blur-md text-primary-50 flex flex-col h-full border-r border-dark-border transition-transform duration-300 fixed inset-y-0 left-0 z-50 md:relative md:translate-x-0 ${
-                    isOpen ? 'translate-x-0' : '-translate-x-full'
-                } w-64 ${isCollapsed ? 'md:w-20' : 'md:w-64'}`}
+                className={`bg-primary-dark-bg/40 backdrop-blur-md text-primary-50 flex flex-col h-full border-r border-dark-border transition-transform duration-300 fixed inset-y-0 left-0 z-50 md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+                    } w-64 ${isCollapsed ? 'md:w-20' : 'md:w-64'}`}
             >
                 {/* Header */}
                 <div className={`p-6 flex items-center justify-between ${isCollapsed ? 'md:justify-center' : ''}`}>
-                    <div 
+                    <div
                         onClick={() => {
                             if (window.innerWidth >= 768) {
                                 setIsCollapsed(!isCollapsed);
@@ -34,8 +33,12 @@ export default function Sidebar({activeTab, onTabChange, user, isOpen = false, o
                         }}
                         className={`flex items-center gap-3 cursor-pointer group ${isCollapsed ? 'md:justify-center md:w-full' : ''}`}
                     >
-                        <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center shrink-0 shadow-lg shadow-primary-500/20 group-hover:scale-105 transition-transform">
-                            <MessageSquare className="w-5 h-5 text-white" />
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                            <img
+                                alt='Koba'
+                                src='/logo.svg'
+                                className=''
+                            />
                         </div>
                         <span className={`font-bold text-xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary-100 to-primary-400 whitespace-nowrap overflow-hidden ${isCollapsed ? 'md:hidden' : ''}`}>
                             KOBA
@@ -54,13 +57,12 @@ export default function Sidebar({activeTab, onTabChange, user, isOpen = false, o
                             key={item.id}
                             onClick={() => onTabChange(item.id)}
                             title={isCollapsed ? item.label : ''}
-                            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${
-                                activeTab === item.id
-                                    ? 'bg-primary-600/20 text-primary-100 shadow-[0_0_15px_rgba(37,99,235,0.15)] border border-primary-500/30'
-                                    : 'text-primary-200/70 hover:bg-primary-900/30 hover:text-primary-100 border border-transparent'
-                            } ${isCollapsed ? 'md:justify-center' : ''}`}
+                            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${activeTab === item.id
+                                ? 'bg-primary-600/20 text-primary-100 shadow-[0_0_15px_rgba(37,99,235,0.15)] border border-primary-500/30'
+                                : 'text-primary-200/70 hover:bg-primary-900/30 hover:text-primary-100 border border-transparent'
+                                } ${isCollapsed ? 'md:justify-center' : ''}`}
                         >
-                            <item.icon size={20} className="shrink-0"/>
+                            <item.icon size={20} className="shrink-0" />
                             <span className={`font-medium whitespace-nowrap overflow-hidden ${isCollapsed ? 'md:hidden' : ''}`}>
                                 {item.label}
                             </span>
@@ -73,14 +75,12 @@ export default function Sidebar({activeTab, onTabChange, user, isOpen = false, o
                     <button
                         onClick={() => onTabChange('settings')}
                         title={isCollapsed ? "Settings" : ""}
-                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl transition-all duration-300 group hover:bg-primary-900/40 ${
-                            isCollapsed ? 'md:justify-center' : ''}`}
+                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl transition-all duration-300 group hover:bg-primary-900/40 ${isCollapsed ? 'md:justify-center' : ''}`}
                     >
-                        <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold shrink-0 shadow-inner ${
-                            activeTab === 'settings' 
-                            ? 'bg-primary-600/30 border-primary-400/50 text-primary-100' 
+                        <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold shrink-0 shadow-inner ${activeTab === 'settings'
+                            ? 'bg-primary-600/30 border-primary-400/50 text-primary-100'
                             : 'bg-secondary-dark-bg border-dark-border text-primary-300 group-hover:border-primary-700/50'
-                        }`}>
+                            }`}>
                             {(user?.user_metadata?.full_name?.[0] || 'U').toUpperCase()}
                         </div>
 
