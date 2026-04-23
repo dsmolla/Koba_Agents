@@ -70,7 +70,7 @@ export default function TaskManager() {
                 <h2 className="text-2xl font-bold text-white">Recursive Tasks</h2>
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-700 transition-colors"
                 >
                     <Plus size={18}/>
                     <span>New Task</span>
@@ -83,21 +83,21 @@ export default function TaskManager() {
                          className="bg-secondary-dark-bg p-6 rounded-lg shadow-sm border border-dark-border flex flex-col justify-between relative">
                         <div className="flex justify-between items-start mb-4">
                             <div
-                                className={`p-2 rounded-lg ${task.status === 'active' ? 'bg-green-800/30 text-green-400' : 'bg-gray-700 text-zinc-300'}`}>
+                                className={`p-2 rounded-lg ${task.status === 'active' ? 'bg-green-800/30 text-green-400' : 'bg-primary-dark-bg text-zinc-300'}`}>
                                 <Clock size={24}/>
                             </div>
                             <div className="relative" onClick={e => e.stopPropagation()}>
-                                <button
-                                    onClick={() => setActiveMenuId(activeMenuId === task.id ? null : task.id)}
-                                    className="text-gray-300 hover:text-gray-100 p-1 rounded-md hover:bg-gray-700 transition-colors"
-                                >
-                                    <MoreVertical size={20}/>
-                                </button>
-                                {activeMenuId === task.id && (
-                                    <div
-                                        className="absolute right-0 mt-2 w-32 bg-gray-700 rounded-md shadow-lg ring-1 ring-gray-600 ring-opacity-5 z-10 border border-gray-600 py-1">
-                                        <button
-                                            className="w-full text-left px-4 py-2 text-sm text-gray-100 hover:bg-gray-600 flex items-center gap-2"
+                                    <button
+                                        onClick={() => setActiveMenuId(activeMenuId === task.id ? null : task.id)}
+                                        className="text-gray-300 hover:text-gray-100 p-1 rounded-md hover:bg-primary-dark-bg transition-colors"
+                                    >
+                                        <MoreVertical size={20}/>
+                                    </button>
+                                    {activeMenuId === task.id && (
+                                        <div
+                                            className="absolute right-0 mt-2 w-32 bg-secondary-dark-bg rounded-md shadow-lg ring-1 ring-dark-border ring-opacity-5 z-10 border border-dark-border py-1">
+                                            <button
+                                                className="w-full text-left px-4 py-2 text-sm text-gray-100 hover:bg-primary-800 flex items-center gap-2"
                                             onClick={() => {
                                                 // Add edit logic here if needed
                                                 setActiveMenuId(null);
@@ -168,7 +168,7 @@ export default function TaskManager() {
                                     value={newTaskName}
                                     onChange={(e) => setNewTaskName(e.target.value)}
                                     placeholder="e.g., Daily Summary"
-                                    className="w-full bg-dark-input-bg border border-dark-input-border placeholder-dark-input-placeholder rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-white"
+                                    className="w-full bg-dark-input-bg border border-dark-input-border placeholder-dark-input-placeholder rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 outline-none text-white"
                                     required
                                 />
                             </div>
@@ -179,7 +179,7 @@ export default function TaskManager() {
                                     value={newTaskSchedule}
                                     onChange={(e) => setNewTaskSchedule(e.target.value)}
                                     placeholder="e.g., Every day at 9am"
-                                    className="w-full bg-dark-input-bg border border-dark-input-border placeholder-dark-input-placeholder rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-white"
+                                    className="w-full bg-dark-input-bg border border-dark-input-border placeholder-dark-input-placeholder rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 outline-none text-white"
                                     required
                                 />
                             </div>

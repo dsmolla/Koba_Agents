@@ -80,7 +80,7 @@ const SortableRuleItem = memo(function SortableRuleItem({ rule, onToggle, onEdit
                     <button
                         onClick={() => onToggle(rule.id)}
                         className={`relative w-9 h-5 rounded-full transition-colors ${
-                            rule.is_enabled ? 'bg-blue-600' : 'bg-gray-600'
+                            rule.is_enabled ? 'bg-primary-600' : 'bg-gray-600'
                         }`}
                         title={rule.is_enabled ? 'Disable' : 'Enable'}
                     >
@@ -90,7 +90,7 @@ const SortableRuleItem = memo(function SortableRuleItem({ rule, onToggle, onEdit
                     </button>
                     <button
                         onClick={() => onEdit(rule)}
-                        className="p-1.5 text-gray-400 hover:text-blue-400 transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-primary-400 transition-colors"
                         title="Edit"
                     >
                         <Edit2 size={14} />
@@ -320,7 +320,7 @@ export default function AutoReplySection({ session }) {
                     {/* Add rule */}
                     <button
                         onClick={() => { setEditingRule(null); setModalOpen(true); }}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-500 text-sm font-medium transition-colors whitespace-nowrap shrink-0"
+                        className="flex items-center gap-1 px-3 py-1.5 bg-primary-600 text-white rounded-md hover:bg-primary-500 text-sm font-medium transition-colors whitespace-nowrap shrink-0"
                     >
                         <Plus size={16} /> Add Rule
                     </button>
@@ -401,7 +401,7 @@ export default function AutoReplySection({ session }) {
                                                         href={`https://mail.google.com/mail/u/0/#sent/${entry.reply_message_id}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="p-1 text-gray-500 hover:text-blue-400 transition-colors"
+                                                        className="p-1 text-gray-500 hover:text-primary-400 transition-colors"
                                                         title="View reply in Gmail"
                                                         onClick={e => e.stopPropagation()}
                                                     >

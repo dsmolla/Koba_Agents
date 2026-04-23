@@ -77,7 +77,7 @@ export default function AutoReplyRuleModal({ isOpen, onClose, onSave, rule }) {
                             onChange={handleChange}
                             placeholder="e.g., Decline recruiter emails"
                             required
-                            className="w-full bg-dark-input-bg border border-gray-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="w-full bg-dark-input-bg border border-dark-input-border text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 outline-none"
                         />
                     </div>
 
@@ -93,7 +93,7 @@ export default function AutoReplyRuleModal({ isOpen, onClose, onSave, rule }) {
                             placeholder="e.g., Sender is a recruiter or mentions job offers, interviews, or hiring"
                             required
                             rows={3}
-                            className="w-full bg-dark-input-bg border border-gray-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none resize-vertical"
+                            className="w-full bg-dark-input-bg border border-dark-input-border text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 outline-none resize-vertical"
                         />
                         <p className="text-xs text-gray-500 mt-1">Describe when this rule should apply.</p>
                     </div>
@@ -110,7 +110,7 @@ export default function AutoReplyRuleModal({ isOpen, onClose, onSave, rule }) {
                             placeholder="e.g., Draft a polite decline explaining I'm not looking for new opportunities"
                             required
                             rows={3}
-                            className="w-full bg-dark-input-bg border border-gray-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none resize-vertical"
+                            className="w-full bg-dark-input-bg border border-dark-input-border text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 outline-none resize-vertical"
                         />
                         <p className="text-xs text-gray-500 mt-1">What the AI should do. Can be a reply, Drive action, Calendar check, etc.</p>
                     </div>
@@ -126,8 +126,8 @@ export default function AutoReplyRuleModal({ isOpen, onClose, onSave, rule }) {
                                     onClick={() => setFormData(prev => ({ ...prev, tone: t }))}
                                     className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                                         formData.tone === t
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-dark-input-bg border border-gray-600 text-gray-300 hover:border-gray-400'
+                                            ? 'bg-primary-600 text-white'
+                                            : 'bg-dark-input-bg border border-dark-input-border text-gray-300 hover:border-dark-border'
                                     }`}
                                 >
                                     {t}
@@ -148,7 +148,7 @@ export default function AutoReplyRuleModal({ isOpen, onClose, onSave, rule }) {
                         <button
                             type="submit"
                             disabled={saving || !formData.name.trim() || !formData.when_condition.trim() || !formData.do_action.trim()}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                         >
                             {saving ? 'Saving...' : (rule ? 'Update Rule' : 'Create Rule')}
                         </button>

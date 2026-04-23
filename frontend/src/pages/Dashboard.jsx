@@ -29,7 +29,7 @@ function Dashboard() {
     if (loading) {
         return (
             <div className="min-h-screen bg-primary-dark-bg flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
             </div>
         );
     }
@@ -52,18 +52,18 @@ function Dashboard() {
     return (
         <div className="flex h-screen bg-primary-dark-bg overflow-hidden font-sans relative text-blue-50">
             <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-700/10 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-900/10 rounded-full blur-[150px]" />
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary-700/10 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary-900/10 rounded-full blur-[150px]" />
             </div>
 
             <Sidebar activeTab={activeTab} onTabChange={(tab) => { setActiveTab(tab); setIsMobileMenuOpen(false); }} user={user} isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
 
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
                 <header
-                    className="bg-slate-950/50 backdrop-blur-md border-b border-blue-900/30 h-16 flex items-center px-4 md:px-8 justify-between shrink-0">
+                    className="bg-primary-dark-bg/50 backdrop-blur-md border-b border-dark-border h-16 flex items-center px-4 md:px-8 justify-between shrink-0">
                     <div className="flex items-center gap-3">
                         <button
-                            className="md:hidden p-2 -ml-2 text-blue-400 hover:text-blue-300"
+                            className="md:hidden p-2 -ml-2 text-primary-400 hover:text-primary-300"
                             onClick={() => setIsMobileMenuOpen(true)}
                         >
                             <Menu size={24} />

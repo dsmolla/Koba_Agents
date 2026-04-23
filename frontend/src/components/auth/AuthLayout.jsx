@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import ErrorAlert from '../ErrorAlert';
 
 export default function AuthLayout({title, children, error}) {
@@ -28,6 +29,14 @@ export default function AuthLayout({title, children, error}) {
                 </h2>
                 {error && <ErrorAlert message={error}/>}
                 {children}
+            </div>
+            <div className="mt-8 text-center pb-8">
+                <p className="text-xs text-gray-500">
+                    By continuing, you agree to our{' '}
+                    <Link to="/privacy/policy" className="text-gray-400 hover:text-white transition-colors underline underline-offset-2">
+                        Privacy Policy
+                    </Link>
+                </p>
             </div>
         </div>
     );

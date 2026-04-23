@@ -15,17 +15,15 @@
     --color-primary-800: #1e40af;
     --color-primary-900: #1e3a8a;
     --color-primary-950: #172554;
-    --color-secondary-dark-bg: #040B29;
     --color-dark-input-bg: #0F1840;
 
     --color-primary-dark-bg: theme(--color-slate-950);
-    /* --color-secondary-dark-bg: theme(--color-blue-950/40); */
+    --color-secondary-dark-bg: #040B29;
     --color-dark-border: theme(--color-gray-700);
 
     --color-primary-dark-btn: theme(--color-primary-600);
     --color-primary-dark-btn-hover: theme(--color-primary-700);
 
-    /* --color-dark-input-bg: theme(--color-gray-700); */
     --color-dark-input-border: theme(--color-gray-600);
     --color-dark-input-placeholder: theme(--color-gray-400);
 }

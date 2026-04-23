@@ -72,7 +72,7 @@ function Login() {
                             Password
                         </label>
                         <div className="text-sm">
-                            <Link to='/reset-password' className="font-semibold text-indigo-400 hover:text-indigo-300">
+                            <Link to='/reset-password' className="font-semibold text-primary-400 hover:text-primary-300">
                                 Forgot password?
                             </Link>
                         </div>
@@ -100,7 +100,7 @@ function Login() {
             <div className="mt-6">
                 <div className="relative">
                     <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-600" />
+                        <div className="w-full border-t border-dark-border" />
                     </div>
                     <div className="relative flex justify-center text-sm">
                         <span className="px-2 bg-secondary-dark-bg text-white">Or continue with</span>
@@ -114,7 +114,7 @@ function Login() {
                 Don't have an account? {' '}
                 <Link
                     to="/signup"
-                    className="font-semibold text-indigo-400 hover:text-indigo-300"
+                    className="font-semibold text-primary-400 hover:text-primary-300"
                 >
                     Sign up!
                 </Link>
@@ -124,7 +124,7 @@ function Login() {
                 Signups are currently by invitation only.{' '}
                 <a
                     href={`mailto:${inviteRequestEmail}?subject=${encodeURIComponent(inviteRequestSubject)}&body=${encodeURIComponent(inviteRequestBody)}`}
-                    className="font-semibold text-indigo-400 hover:text-indigo-300"
+                    className="font-semibold text-primary-400 hover:text-primary-300"
                 >
                     Request an invite
                 </a>

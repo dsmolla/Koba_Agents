@@ -10,13 +10,14 @@ const Login = lazy(() => import('./pages/auth/Login.jsx'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const UpdatePassword = lazy(() => import('./pages/auth/UpdatePassword.jsx'))
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword.jsx'))
+const PrivacyPolicy = lazy(() => import('./pages/legal/PrivacyPolicy.jsx'))
 
 function App() {
     return (
         <BrowserRouter>
             <Suspense fallback={
-                <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="min-h-screen bg-primary-dark-bg flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
                 </div>
             }>
                 <Routes>
@@ -59,6 +60,10 @@ function App() {
                             <ResetPassword/>
                         </AuthRoute>
                         }
+                    />
+                    <Route
+                        path="/privacy/policy"
+                        element={<PrivacyPolicy/>}
                     />
                     <Route path="*" element={<Navigate to="/signup" replace/>}/>
                 </Routes>

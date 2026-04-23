@@ -55,7 +55,7 @@ export default function FileManager({ files, setFiles }) {
         if (type === 'image') return <Image size={size} className="text-purple-500"/>;
         if (type === 'video') return <Film size={size} className="text-red-500"/>;
         if (type === 'audio') return <Music size={size} className="text-yellow-500"/>;
-        return <FileText size={size} className="text-blue-500"/>;
+        return <FileText size={size} className="text-primary-500"/>;
     };
 
     return (
@@ -72,7 +72,7 @@ export default function FileManager({ files, setFiles }) {
                     />
                     <button
                         onClick={handleUploadClick}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors"
                     >
                         <Upload size={18}/>
                         <span>Upload File</span>
@@ -87,7 +87,7 @@ export default function FileManager({ files, setFiles }) {
                         className="group relative bg-secondary-dark-bg border border-dark-border rounded-lg p-6 flex flex-col items-center justify-center gap-4 hover:shadow-md hover:bg-primary-800 hover:cursor-pointer transition-shadow aspect-square"
                         onClick={() => downloadFile(file)}
                     >
-                        <div className="p-4 bg-gray-700 rounded-full">
+                        <div className="p-4 bg-primary-dark-bg rounded-full">
                             {getIcon(file.mime_type.split('/')[0])}
                         </div>
 
@@ -113,7 +113,7 @@ export default function FileManager({ files, setFiles }) {
 
                 {isUploading && (
                     <div className="bg-secondary-dark-bg border border-dark-border rounded-lg p-6 flex flex-col items-center justify-center gap-4 aspect-square">
-                        <Loader2 size={48} className="text-blue-500 animate-spin"/>
+                        <Loader2 size={48} className="text-primary-500 animate-spin"/>
                         <p className="text-xs text-gray-300">Uploading...</p>
                     </div>
                 )}

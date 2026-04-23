@@ -152,7 +152,7 @@ function Signup() {
             <div className="mt-6">
                 <div className="relative">
                     <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-600" />
+                        <div className="w-full border-t border-dark-border" />
                     </div>
                     <div className="relative flex justify-center text-sm">
                         <span className="px-2 bg-secondary-dark-bg text-white">Or continue with</span>
@@ -166,7 +166,7 @@ function Signup() {
                 Have an account? {' '}
                 <Link
                     to="/login"
-                    className="font-semibold text-indigo-400 hover:text-indigo-300"
+                    className="font-semibold text-primary-400 hover:text-primary-300"
                 >
                     Login!
                 </Link>
@@ -176,7 +176,7 @@ function Signup() {
                 Signups are currently by invitation only.{' '}
                 <a
                     href={`mailto:${inviteRequestEmail}?subject=${encodeURIComponent(inviteRequestSubject)}&body=${encodeURIComponent(inviteRequestBody)}`}
-                    className="font-semibold text-indigo-400 hover:text-indigo-300"
+                    className="font-semibold text-primary-400 hover:text-primary-300"
                 >
                     Request an invite
                 </a>

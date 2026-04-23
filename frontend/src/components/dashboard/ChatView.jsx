@@ -13,16 +13,16 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApprov
         return (
             <div className="flex w-full mb-4 justify-start">
                 <div className="flex items-start flex-row max-w-full min-w-0">
-                    <div className="p-4 rounded-xl bg-gray-800 border border-yellow-600/50 shadow-lg min-w-[300px] max-w-full">
+                    <div className="p-4 rounded-xl bg-secondary-dark-bg border border-yellow-600/50 shadow-lg min-w-[300px] max-w-full">
                         <div className="flex items-center gap-2 mb-3">
                             <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center shrink-0">
                                 <span className="text-yellow-500 text-lg">⚠️</span>
                             </div>
                             <h3 className="text-white font-medium">Action Approval Required</h3>
                         </div>
-                        <div className="bg-gray-900/50 rounded p-3 mb-4 text-sm text-gray-300">
+                        <div className="bg-primary-dark-bg/50 rounded p-3 mb-4 text-sm text-gray-300">
                             <p className="font-semibold mb-1 capitalize text-gray-100">{msg.confirmation}</p>
-                            <pre className="whitespace-pre-wrap font-mono text-xs overflow-x-auto text-blue-300">
+                            <pre className="whitespace-pre-wrap font-mono text-xs overflow-x-auto text-primary-300">
                                 {msg.data}
                             </pre>
                         </div>
@@ -50,14 +50,14 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApprov
         <div className={`flex w-full mb-4 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex items-start ${msg.sender === 'user' ? 'max-w-[80%] flex-row-reverse' : 'max-w-full flex-row'} min-w-0`}>
                 {msg.sender === 'user' && (
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-blue-400 ml-2">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary-400 ml-2">
                         <User size={16} className="text-white" />
                     </div>
                 )}
 
                 <div className={`p-4 rounded-xl overflow-hidden min-w-0 ${msg.sender === 'user'
-                        ? 'bg-blue-600 text-white rounded-tr-none shadow-md shadow-blue-500/20'
-                        : 'bg-blue-900/60 border border-blue-800/40 text-blue-50 rounded-tl-none backdrop-blur-sm'
+                        ? 'bg-primary-600 text-white rounded-tr-none shadow-md shadow-primary-500/20'
+                        : 'bg-primary-900/60 border border-primary-800/40 text-primary-50 rounded-tl-none backdrop-blur-sm'
                     }`}>
                     {msg.content && (
                         <Markdown
@@ -70,11 +70,11 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApprov
                                 h2: ({ node, ...props }) => <h2 className="text-xl font-bold my-3 border-b border-white/10 pb-2" {...props} />,
                                 h3: ({ node, ...props }) => <h3 className="text-lg font-bold my-2" {...props} />,
                                 h4: ({ node, ...props }) => <h4 className="text-base font-bold my-2" {...props} />,
-                                ul: ({ node, ...props }) => <ul className="list-disc pl-5 my-3 space-y-1 text-sm marker:text-blue-300/70" {...props} />,
-                                ol: ({ node, ...props }) => <ol className="list-decimal pl-5 my-3 space-y-1 text-sm marker:text-blue-300/70" {...props} />,
+                                ul: ({ node, ...props }) => <ul className="list-disc pl-5 my-3 space-y-1 text-sm marker:text-primary-300/70" {...props} />,
+                                ol: ({ node, ...props }) => <ol className="list-decimal pl-5 my-3 space-y-1 text-sm marker:text-primary-300/70" {...props} />,
                                 li: ({ node, ...props }) => <li className="text-sm leading-relaxed" {...props} />,
-                                a: ({ node, ...props }) => <a className="text-blue-300 hover:text-blue-200 underline underline-offset-2 transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
-                                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-blue-500/50 pl-4 py-1 my-3 bg-black/10 text-gray-300 italic rounded-r-lg" {...props} />,
+                                a: ({ node, ...props }) => <a className="text-primary-300 hover:text-primary-200 underline underline-offset-2 transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
+                                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-primary-500/50 pl-4 py-1 my-3 bg-black/10 text-gray-300 italic rounded-r-lg" {...props} />,
                                 table: ({ node, ...props }) => (
                                     <div className="overflow-x-auto my-4 rounded-lg border border-white/10">
                                         <table className="min-w-full divide-y divide-white/10 bg-black/10 text-sm" {...props} />
@@ -89,14 +89,14 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApprov
                                     const match = /language-(\w+)/.exec(className || '');
                                     return !inline && match ? (
                                         <div className="my-4 rounded-xl overflow-hidden shadow-lg border border-white/10">
-                                            <div className="bg-gray-900/90 px-4 py-2 text-xs text-gray-400 font-mono uppercase border-b border-white/10 flex justify-between items-center">
+                                            <div className="bg-secondary-dark-bg/90 px-4 py-2 text-xs text-dark-input-placeholder font-mono uppercase border-b border-white/10 flex justify-between items-center">
                                                 {match[1]}
                                             </div>
                                             <SyntaxHighlighter
                                                 style={vscDarkPlus}
                                                 language={match[1]}
                                                 PreTag="div"
-                                                className="!m-0 !bg-gray-950/80 !p-4 !text-xs custom-scrollbar"
+                                                className="!m-0 !bg-primary-dark-bg/80 !p-4 !text-xs custom-scrollbar"
                                                 customStyle={{ background: 'transparent' }}
                                                 {...props}
                                             >
@@ -104,7 +104,7 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApprov
                                             </SyntaxHighlighter>
                                         </div>
                                     ) : (
-                                        <code className="bg-black/40 px-1.5 py-0.5 rounded-md text-[0.85em] font-mono text-blue-200 border border-white/5" {...props}>
+                                        <code className="bg-black/40 px-1.5 py-0.5 rounded-md text-[0.85em] font-mono text-primary-200 border border-white/5" {...props}>
                                             {children}
                                         </code>
                                     );
@@ -138,7 +138,7 @@ const TypingIndicator = memo(function TypingIndicator() {
     return (
         <div className="flex w-full mb-4 justify-start">
             <div className="flex items-start flex-row max-w-full min-w-0">
-                <div className="p-4 rounded-xl bg-blue-900/60 border border-blue-800/40 text-blue-50 rounded-tl-none backdrop-blur-sm">
+                <div className="p-4 rounded-xl bg-primary-900/60 border border-primary-800/40 text-primary-50 rounded-tl-none backdrop-blur-sm">
                     <div className="flex gap-1 items-center h-5">
                         <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                         <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
@@ -254,9 +254,9 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
 
     return (
         <div
-            className="flex flex-col h-full bg-secondary-dark-bg backdrop-blur-md rounded-2xl shadow-xl border border-blue-900/30 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-blue-900/30 bg-blue-950/60">
-                <div className="relative border border-blue-800/50 rounded-xl bg-blue-900/40 hover:bg-blue-800/40 transition-colors group">
+            className="flex flex-col h-full bg-secondary-dark-bg backdrop-blur-md rounded-2xl shadow-xl border border-dark-border overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-dark-border bg-primary-950/60">
+                <div className="relative border border-primary-800/50 rounded-xl bg-primary-900/40 hover:bg-primary-800/40 transition-colors group">
                     <select
                         value={selectedModel}
                         onChange={(e) => {
@@ -267,7 +267,7 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
                         title="Select model"
                     >
                         {models.map(m => (
-                            <option key={m.id} value={m.id} className="bg-gray-800 text-zinc-200 text-xs">
+                            <option key={m.id} value={m.id} className="bg-dark-input-bg text-zinc-200 text-xs">
                                 {m.name}
                             </option>
                         ))}
@@ -310,7 +310,7 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
             {stagedFiles.length > 0 && (
                 <div className="px-4 py-2 flex flex-wrap gap-2 border-t border-dark-border bg-secondary-dark-bg">
                     {stagedFiles.map((file, index) => (
-                        <div key={index} className="flex items-center gap-2 bg-gray-700 px-3 py-1 rounded-full text-white text-xs border border-gray-600">
+                        <div key={index} className="flex items-center gap-2 bg-dark-input-bg px-3 py-1 rounded-full text-white text-xs border border-dark-input-border">
                             <span className="truncate max-w-37.5">{file.name}</span>
                             <button onClick={() => removeFile(index)} className="hover:text-red-400">
                                 <X size={14} />
@@ -321,13 +321,13 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
             )}
 
             <form onSubmit={handleSend}
-                className="p-3 md:p-5 bg-slate-950/60 backdrop-blur-md border-t border-blue-900/30 relative flex flex-col gap-2">
+                className="p-3 md:p-5 bg-primary-dark-bg/60 backdrop-blur-md border-t border-dark-border relative flex flex-col gap-2">
                 {showSuggestions && (
-                    <div className="absolute bottom-full left-0 w-full mb-2 bg-blue-950/90 backdrop-blur-lg border border-blue-800/50 rounded-xl shadow-2xl shadow-blue-900/20 max-h-48 overflow-y-auto z-10 mx-4">
+                    <div className="absolute bottom-full left-0 w-full mb-2 bg-primary-950/90 backdrop-blur-lg border border-primary-800/50 rounded-xl shadow-2xl shadow-primary-900/20 max-h-48 overflow-y-auto z-10 mx-4">
                         {suggestions.map((file) => (
                             <div
                                 key={file.id}
-                                className="flex items-center gap-2 p-2 hover:bg-gray-700 cursor-pointer text-gray-200"
+                                className="flex items-center gap-2 p-2 hover:bg-dark-input-bg cursor-pointer text-gray-200"
                                 onClick={() => insertSuggestion(file.filename)}
                             >
                                 {getFileIcon(file.mime_type?.split('/')[0], 16)}
@@ -361,12 +361,12 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
                             value={inputText}
                             onChange={handleInputChange}
                             placeholder="Type your message... (@ to reference files)"
-                            className="text-sm rounded-lg block w-full flex-1 p-2.5 bg-dark-input-bg border-gray-600 placeholder-dark-input-placeholder text-white outline-none min-w-0"
+                            className="text-sm rounded-lg block w-full flex-1 p-2.5 bg-dark-input-bg border-dark-input-border placeholder-dark-input-placeholder text-white outline-none min-w-0"
                         />
                         <button
                             type="submit"
                             disabled={!isConnected || (isConnected && !inputText.trim() && stagedFiles.length === 0)}
-                            className="p-2 sm:px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0 flex-none"
+                            className="p-2 sm:px-3 bg-primary-500 text-white rounded-md hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0 flex-none"
                         >
                             <Send size={20} />
                         </button>
