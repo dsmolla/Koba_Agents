@@ -12,7 +12,7 @@ import { listFiles } from "../lib/fileService.js";
 function Dashboard() {
     const { user, loading } = useAuth();
     const [activeTab, setActiveTab] = useState('chat');
-    const { messages, sendMessage, sendApproval, clearMessages, status, isConnected, isTyping } = useChat();
+    const { messages, sendMessage, sendApproval, sendContinue, clearMessages, status, isConnected, isTyping } = useChat();
     const [files, setFiles] = useState([]);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -37,7 +37,7 @@ function Dashboard() {
     const renderContent = () => {
         switch (activeTab) {
             case 'chat':
-                return <ChatView messages={messages} sendMessage={sendMessage} sendApproval={sendApproval} clearMessages={clearMessages} status={status} isConnected={isConnected} isTyping={isTyping} files={files} />;
+                return <ChatView messages={messages} sendMessage={sendMessage} sendApproval={sendApproval} sendContinue={sendContinue} clearMessages={clearMessages} status={status} isConnected={isConnected} isTyping={isTyping} files={files} />;
             case 'files':
                 return <FileManager files={files} setFiles={setFiles} />;
             case 'tasks':

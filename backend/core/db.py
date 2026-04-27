@@ -29,6 +29,7 @@ class Database:
                 check=AsyncConnectionPool.check_connection,
                 kwargs={
                     "autocommit": True,
+                    "prepare_threshold": None,
                     "keepalives": 1,
                     "keepalives_idle": 30,
                     "keepalives_interval": 10,

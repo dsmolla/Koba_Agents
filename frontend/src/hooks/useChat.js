@@ -47,14 +47,20 @@ export const useChat = () => {
 
             case 'error':
                 setIsTyping(false);
-                if (data.code === 'AUTH_REQUIRED') {
-                    console.error("Auth required:", data.content);
-                    alert(`Authentication Session Expired: ${data.content}`);
-                    setStatus(null);
-                } else {
-                    alert(`Error: ${data.content}`);
-                    setStatus(null);
+                if (data.code === 'AUTH_REQUIRED' || data.code === 'AUTH_EXPIRED') {
+                    console.error("Auth error:", data.content);
                 }
+                setMessages(prev => {
+                    const updated = [...prev, {
+                        type: 'error',
+                        code: data.code,
+                        content: data.content,
+                        provider: data.provider,
+                        timestamp: Date.now()
+                    }];
+                    return updated.length > MAX_MESSAGES ? updated.slice(-MAX_MESSAGES) : updated;
+                });
+                setStatus(null);
                 break;
 
             case 'approval_required':
@@ -206,6 +212,18 @@ export const useChat = () => {
         }
     }, []);
 
+    const sendContinue = useCallback(() => {
+        if (ws.current?.readyState === WebSocket.OPEN) {
+            setMessages(prev => prev.filter(msg => msg.type !== 'error'));
+            setIsTyping(true);
+            ws.current.send(JSON.stringify({
+                type: 'continue'
+            }));
+        } else {
+            alert("Connection lost. Please wait...");
+        }
+    }, []);
+
     const clearMessages = useCallback(async () => {
         if (!session?.access_token) return;
 
@@ -229,5 +247,5 @@ export const useChat = () => {
         }
     }, [session]);
 
-    return {messages, setMessages, sendMessage, sendApproval, clearMessages, status, isConnected, isTyping};
+    return {messages, setMessages, sendMessage, sendApproval, sendContinue, clearMessages, status, isConnected, isTyping};
 };

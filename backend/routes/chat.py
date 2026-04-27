@@ -87,6 +87,8 @@ async def process_message(
             input_data = Command(resume={interrupt_id: approved_value})
         else:
             input_data = Command(resume=approved_value)
+    elif data.get("type") == "continue":
+        input_data = None
     else:
         user_message = UserMessage(**data)
         full_message = user_message.content
@@ -170,7 +172,8 @@ async def process_message(
             response_time = time.time() - message_received_at
 
             logger.debug(f"Agent Response content: {bot_message_dump}", extra={"user_id": user_id, "response_time": response_time})
-
+            
+            # raise Exception("Test")
             if is_connected:
                 try:
                     await websocket.send_json(bot_message_dump)

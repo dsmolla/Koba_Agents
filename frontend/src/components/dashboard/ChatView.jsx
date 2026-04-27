@@ -8,7 +8,7 @@ import { downloadFile } from "../../lib/fileService.js";
 
 // Memoized message bubble — only re-renders when its own message data changes,
 // not when other messages in the list update (e.g., during streaming of the latest message).
-const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApproval }) {
+const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApproval, sendContinue }) {
     if (msg.type === 'approval_required') {
         return (
             <div className="flex w-full mb-4 justify-start">
@@ -40,6 +40,40 @@ const MessageBubble = memo(function MessageBubble({ msg, getFileIcon, sendApprov
                                 Reject
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (msg.type === 'error') {
+        const isAuthError = msg.code === 'AUTH_REQUIRED' || msg.code === 'AUTH_EXPIRED';
+        return (
+            <div className="flex w-full mb-4 justify-start">
+                <div className="flex items-start flex-row max-w-full min-w-0">
+                    <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/30 shadow-lg min-w-[300px] max-w-[80%]">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                                <X size={14} className="text-red-400" />
+                            </div>
+                            <h3 className="text-red-100 font-medium text-sm">System Interruption</h3>
+                        </div>
+                        <div className="text-sm text-red-200/80 mb-4 whitespace-pre-wrap">
+                            {msg.content}
+                        </div>
+                        {!isAuthError && (
+                            <button
+                                onClick={sendContinue}
+                                className="w-full bg-red-600/20 hover:bg-red-600/40 border border-red-500/30 text-red-100 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer flex items-center justify-center gap-2"
+                            >
+                                Continue Execution
+                            </button>
+                        )}
+                        {isAuthError && (
+                            <div className="text-xs text-red-300 italic">
+                                Please navigate to Settings to re-authenticate.
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -150,7 +184,7 @@ const TypingIndicator = memo(function TypingIndicator() {
     );
 });
 
-export default function ChatView({ messages, sendMessage, sendApproval, clearMessages, status, isConnected, isTyping = false, files = [] }) {
+export default function ChatView({ messages, sendMessage, sendApproval, sendContinue, clearMessages, status, isConnected, isTyping = false, files = [] }) {
     const [inputText, setInputText] = useState("");
     const [stagedFiles, setStagedFiles] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
@@ -294,6 +328,7 @@ export default function ChatView({ messages, sendMessage, sendApproval, clearMes
                         msg={msg}
                         getFileIcon={getFileIcon}
                         sendApproval={sendApproval}
+                        sendContinue={sendContinue}
                     />
                 ))}
                 {isTyping && <TypingIndicator />}
