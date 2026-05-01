@@ -42,20 +42,33 @@ class Config:
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
     # Auto-Reply / Gmail Pub/Sub
-    PUBSUB_TOPIC = os.getenv("PUBSUB_TOPIC")
-    PUBSUB_WEBHOOK_TOKEN = os.getenv("PUBSUB_WEBHOOK_TOKEN")
-    PUBSUB_SERVICE_ACCOUNT_EMAIL = os.getenv("PUBSUB_SERVICE_ACCOUNT_EMAIL")
+    GMAIL_WATCH_PUBSUB_TOPIC = os.getenv("GMAIL_WATCH_PUBSUB_TOPIC")
+    GMAIL_WATCH_PUBSUB_WEBHOOK_TOKEN = os.getenv("GMAIL_WATCH_PUBSUB_WEBHOOK_TOKEN")
+    GMAIL_WATCH_PUBSUB_SERVICE_ACCOUNT_EMAIL = os.getenv("GMAIL_WATCH_PUBSUB_SERVICE_ACCOUNT_EMAIL")
+
     AUTO_REPLY_HOURLY_LIMIT = int(os.getenv("AUTO_REPLY_HOURLY_LIMIT", "20"))
 
     # Cloud Tasks
     CLOUD_TASKS_PROJECT = os.getenv("CLOUD_TASKS_PROJECT")
     CLOUD_TASKS_LOCATION = os.getenv("CLOUD_TASKS_LOCATION")
-    CLOUD_TASKS_QUEUE_NAME = os.getenv("CLOUD_TASKS_QUEUE_NAME")
     CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL=os.getenv("CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL")
-    CLOUD_TASKS_TOKEN = os.getenv("CLOUD_TASKS_TOKEN")
+
+    CLOUD_TASKS_GMAIL_WATCH_QUEUE_NAME = os.getenv("CLOUD_TASKS_GMAIL_WATCH_QUEUE_NAME")
+    CLOUD_TASKS_GMAIL_WATCH_TOKEN = os.getenv("CLOUD_TASKS_GMAIL_WATCH_TOKEN")
+    CLOUD_TASKS_GMAIL_WATCH_OIDC_AUDIENCE = os.getenv("CLOUD_TASKS_GMAIL_WATCH_OIDC_AUDIENCE")
+
+    CLOUD_TASKS_RECURRING_TASKS_TOKEN = os.getenv("CLOUD_TASKS_RECURRING_TASKS_TOKEN")
+    CLOUD_TASKS_RECURRING_TASKS_QUEUE_NAME = os.getenv("CLOUD_TASKS_RECURRING_TASKS_QUEUE_NAME")
+    CLOUD_TASKS_RECURRING_TASKS_OIDC_AUDIENCE = os.getenv("CLOUD_TASKS_RECURRING_TASKS_OIDC_AUDIENCE")
+
+    CLOUD_SCHEDULER_SERVICE_ACCOUNT_EMAIL=os.getenv("CLOUD_SCHEDULER_SERVICE_ACCOUNT_EMAIL")
+    CLOUD_SCHEDULER_RECURRING_TASKS_TOKEN = os.getenv("CLOUD_SCHEDULER_RECURRING_TASKS_TOKEN")
+    CLOUD_SCHEDULER_RECURRING_TASKS_OIDC_AUDIENCE = os.getenv("CLOUD_SCHEDULER_RECURRING_TASKS_OIDC_AUDIENCE")
 
     BASE_PROJECT_URL = os.getenv("BASE_PROJECT_URL")
-    OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", BASE_PROJECT_URL)
+
+    # Recursive Tasks
+    MIN_RECURSIVE_TASK_INTERVAL_SECONDS = int(os.getenv("MIN_RECURSIVE_TASK_INTERVAL_SECONDS", "3600"))
 
     @classmethod
     def validate(cls):
@@ -77,17 +90,17 @@ class Config:
             errors.append('SUPABASE_KEY environment variable is not set')
         if not cls.SUPABASE_DB_URL:
             errors.append('SUPABASE_DB_URL environment variable is not set')
-        if not cls.OIDC_AUDIENCE:
+        if not cls.CLOUD_TASKS_GMAIL_WATCH_OIDC_AUDIENCE:
             errors.append('OIDC_AUDIENCE or BASE_PROJECT_URL environment variable is not set')
         
-        if cls.PUBSUB_TOPIC:
-             if not cls.PUBSUB_WEBHOOK_TOKEN:
+        if cls.GMAIL_WATCH_PUBSUB_TOPIC:
+             if not cls.GMAIL_WATCH_PUBSUB_WEBHOOK_TOKEN:
                  errors.append('PUBSUB_WEBHOOK_TOKEN is required when PUBSUB_TOPIC is configured')
         
         if cls.CLOUD_TASKS_PROJECT:
              if not cls.CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL:
                  errors.append('CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL is required when CLOUD_TASKS_PROJECT is configured')
-             if not cls.CLOUD_TASKS_TOKEN:
+             if not cls.CLOUD_TASKS_GMAIL_WATCH_TOKEN:
                  errors.append('CLOUD_TASKS_TOKEN is required when CLOUD_TASKS_PROJECT is configured')
 
         if errors:

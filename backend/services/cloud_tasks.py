@@ -1,6 +1,7 @@
 import json
 import logging
 
+import asyncio
 from google.api_core.exceptions import AlreadyExists
 from google.cloud import tasks_v2
 
@@ -10,27 +11,27 @@ logger = logging.getLogger(__name__)
 
 
 async def enqueue_notification_task(user_id: str, history_id: int):
-    client = tasks_v2.CloudTasksAsyncClient()
     task = {
         "http_request": {
             "http_method": tasks_v2.HttpMethod.POST,
             "url": f"{Config.BASE_PROJECT_URL}/internal/gmail/auto-reply/process",
             "oidc_token": {
                 "service_account_email": Config.CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL,
-                "audience": Config.OIDC_AUDIENCE,
+                "audience": Config.CLOUD_TASKS_GMAIL_WATCH_OIDC_AUDIENCE,
             },
             "headers": {
                 "Content-Type": "application/json",
-                "X-Cloud-Tasks-Token": Config.CLOUD_TASKS_TOKEN,
+                "X-Cloud-Tasks-Token": Config.CLOUD_TASKS_GMAIL_WATCH_TOKEN,
             },
             "body": json.dumps({"user_id": user_id, "history_id": history_id}).encode(),
         },
     }
 
     try:
+        client = tasks_v2.CloudTasksAsyncClient()
         project = Config.CLOUD_TASKS_PROJECT
         location = Config.CLOUD_TASKS_LOCATION
-        queue = Config.CLOUD_TASKS_QUEUE_NAME
+        queue = Config.CLOUD_TASKS_GMAIL_WATCH_QUEUE_NAME
 
         await client.create_task(request={"parent": client.queue_path(project, location, queue), "task": task})
         logger.debug("Cloud Task enqueued", extra={"user_id": user_id, "history_id": history_id})
@@ -39,3 +40,44 @@ async def enqueue_notification_task(user_id: str, history_id: int):
     except Exception as e:
         logger.error(f"Failed to enqueue Cloud Task: {e}", extra={"user_id": user_id}, exc_info=True)
         raise
+
+async def _enqueue_single_recursive_task(task_id: str):
+    task = {
+        "http_request": {
+            "http_method": tasks_v2.HttpMethod.POST,
+            "url": f"{Config.BASE_PROJECT_URL}/internal/tasks/execute/{task_id}",
+            "oidc_token": {
+                "service_account_email": Config.CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL,
+                "audience": Config.CLOUD_TASKS_RECURRING_TASKS_OIDC_AUDIENCE,
+            },
+            "headers": {
+                "Content-Type": "application/json",
+                "X-Cloud-Tasks-Token": Config.CLOUD_TASKS_RECURRING_TASKS_TOKEN,
+            },
+            "body": json.dumps({"task_id": task_id}).encode(),
+        },
+    }
+
+    try:
+        client = tasks_v2.CloudTasksAsyncClient()
+        project = Config.CLOUD_TASKS_PROJECT
+        location = Config.CLOUD_TASKS_LOCATION
+        queue = Config.CLOUD_TASKS_RECURRING_TASKS_QUEUE_NAME
+
+        await client.create_task(request={"parent": client.queue_path(project, location, queue), "task": task})
+        logger.debug(f"Cloud Task enqueued for recursive task {task_id}")
+    except AlreadyExists:
+        logger.debug(f"Duplicate Cloud Task skipped for recursive task {task_id}")
+    except Exception as e:
+        logger.error(f"Failed to enqueue Cloud Task for recursive task {task_id}: {e}", exc_info=True)
+
+async def enqueue_recursive_tasks_bulk(task_ids: list[str]):
+    if not task_ids:
+        return
+    
+    coroutines = [
+        _enqueue_single_recursive_task(task_id)
+        for task_id in task_ids
+    ]
+
+    await asyncio.gather(*coroutines)

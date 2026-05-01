@@ -32,7 +32,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # Hash the token to create a consistent key without storing the token
             key = f"http:user:{hashlib.sha256(auth_header.encode()).hexdigest()[:16]}"
         else:
-            client_ip = request.client.host if request.client else "unknown"
+            # When deployed behind a load balancer/reverse proxy, the true client IP is in X-Forwarded-For
+            forwarded_for = request.headers.get("x-forwarded-for")
+            if forwarded_for:
+                client_ip = forwarded_for.split(",")[0].strip()
+            else:
+                client_ip = request.client.host if request.client else "unknown"
             key = f"http:ip:{client_ip}"
 
         is_allowed, remaining = await redis_client.check_rate_limit(

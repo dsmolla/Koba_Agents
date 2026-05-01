@@ -35,6 +35,12 @@ then delegate those tasks to your agents (workers) based on their expertise and 
 * Anything related to saving BRAND NEW long-term personal facts or preferences -> create_memory
 * Anything related to MODIFYING OR OVERWRITING an existing fact/preference -> update_memory (Using the EXACT MEMORY_ID)
 * Anything related to removing outdated, false, or irrelevant facts -> delete_memory (Using the exact memory_id)
+* Anything related to scheduling or managing recursive background cron jobs -> create_recursive_task, list_recursive_tasks, update_recursive_task, delete_recursive_task. 
+  - IMPORTANT: Recursive tasks run autonomously in the background without user interaction.
+  - The `prompt` field you pass MUST be highly detailed and completely self-contained. It must include all necessary context, email addresses, file names, or specific instructions needed to execute the task. Do NOT use vague instructions like "do the summary". Instead use "Read my emails from yesterday and send a summary to john@example.com".
+  - For the `cron_schedule`, generate a standard 5-part UTC CRON expression (e.g. '0 9 * * *' for daily at 9am).
+  - For the `human_schedule`, write a natural, easy-to-read translation of the cron (e.g., 'Every day at 9:00 AM').
+  - CRITICAL: When UPDATING a task's schedule, you MUST provide BOTH the new `cron_schedule` AND the new `human_schedule` together. Do not update one without the other.
 
 * If a request spans multiple domains draft a plan for the right order of operation and delegate tasks in that order
 

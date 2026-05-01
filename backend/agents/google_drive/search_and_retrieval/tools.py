@@ -230,7 +230,7 @@ class DownloadFileTool(BaseGoogleTool):
             {"text": "Downloading File...", "icon": "⬇️"}
         )
         drive = await get_drive_service(config)
-        user_id = config['configurable'].get('thread_id')
+        user_id = config['configurable'].get('user_id')
         file = await drive.get(file_id)
         if not isinstance(file, DriveFile):
             return f"Item {file_id} is a folder, not a file"

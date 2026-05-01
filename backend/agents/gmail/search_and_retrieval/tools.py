@@ -313,7 +313,7 @@ class DownloadAttachmentTool(BaseGoogleTool):
         )
         gmail = await get_gmail_service(config)
         email_cache = get_email_cache(config)
-        user_id = config['configurable'].get('thread_id')
+        user_id = config['configurable'].get('user_id')
 
         email = email_cache.get(message_id)
         if email is None:

@@ -128,6 +128,11 @@ class Database:
             async with conn.cursor() as cur:
                 await cur.execute(query, params)
 
+    async def execute_many(self, query: str, params_seq: list):
+        async with self._pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.executemany(query, params_seq)
+
     async def get_user_timezone(self, user_id: str) -> str:
         row = await self.fetch_one(
             "SELECT timezone FROM public.user_settings WHERE user_id = %s",

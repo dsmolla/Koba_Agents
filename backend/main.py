@@ -4,11 +4,11 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from langchain_google_genai import ChatGoogleGenerativeAI
 from starlette.requests import ClientDisconnect
 from starlette.responses import Response
-from fastapi.middleware.cors import CORSMiddleware
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from agents.supervisor import SupervisorAgent
 from config import Config
@@ -20,9 +20,10 @@ from routes.auto_reply import router as auto_reply_router
 from routes.chat import router as chat_router
 from routes.health import router as health_router
 from routes.integrations import router as integrations_router
+from routes.internal import router as internal_router
 from routes.models import router as models_router
 from routes.settings import router as settings_router
-from routes.internal import router as internal_router
+from routes.tasks import router as tasks_router
 from routes.webhooks import router as webhooks_router
 from services.gmail_watch import renew_all_watches
 
@@ -35,10 +36,14 @@ logger = logging.getLogger(__name__)
 import googleapiclient.discovery_cache
 from googleapiclient.discovery_cache.base import Cache as _DiscoveryCache
 
+
 class _MemoryCache(_DiscoveryCache):
     _store: dict = {}
+
     def get(self, url): return self._store.get(url)
+
     def set(self, url, content): self._store[url] = content
+
 
 googleapiclient.discovery_cache.autodetect = lambda: _MemoryCache()
 
@@ -75,7 +80,7 @@ async def lifespan(app: FastAPI):
 
     # Start APScheduler for auto-reply background jobs
     scheduler = AsyncIOScheduler()
-    if Config.PUBSUB_TOPIC:
+    if Config.GMAIL_WATCH_PUBSUB_TOPIC:
         scheduler.add_job(_renew_watches_job, 'interval', hours=6, id='renew_gmail_watches')
     scheduler.start()
     app.state.scheduler = scheduler
@@ -105,6 +110,7 @@ app.include_router(models_router)
 app.include_router(settings_router)
 app.include_router(internal_router)
 app.include_router(webhooks_router)
+app.include_router(tasks_router)
 app.include_router(chat_router)
 
 

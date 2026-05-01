@@ -12,6 +12,7 @@ from agents.google_drive.agent import DriveAgent
 from agents.google_tasks.agent import TasksAgent
 from agents.google_docs.agent import DocsAgent
 from agents.google_sheets.agent import SheetsAgent
+from agents.recurring_tasks.tools import CreateRecursiveTaskTool, ListRecursiveTasksTool, DeleteRecursiveTaskTool, UpdateRecursiveTaskTool
 from core.models import BotMessage
 from .common.tools import CurrentDateTimeTool
 from .memory import CreateMemoryTool, UpdateMemoryTool, DeleteMemoryTool
@@ -34,7 +35,11 @@ class SupervisorAgent(BaseAgent):
                 DocsAgent(model),
                 SheetsAgent(model),
             ]
-        ] + [CurrentDateTimeTool(), CreateMemoryTool(), UpdateMemoryTool(), DeleteMemoryTool()]
+        ] + [
+            CurrentDateTimeTool(), 
+            CreateMemoryTool(), UpdateMemoryTool(), DeleteMemoryTool(),
+            CreateRecursiveTaskTool(), ListRecursiveTasksTool(), DeleteRecursiveTaskTool(), UpdateRecursiveTaskTool()
+        ]
 
         tool_descriptions = "\n".join(f"- {tool.name}: {tool.description}" for tool in tools)
         system_prompt = PromptTemplate.from_template(_SYSTEM_PROMPT_TEMPLATE).format(

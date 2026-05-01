@@ -49,6 +49,8 @@ colorama==0.4.6
     # via
     #   click
     #   uvicorn
+croniter==5.0.1
+    # via -r requirements.in
 cryptography==46.0.7
     # via
     #   -r requirements.in

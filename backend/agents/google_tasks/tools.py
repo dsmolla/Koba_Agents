@@ -344,4 +344,4 @@ class ListTaskListsTool(BaseGoogleTool):
         )
         tasks_service = await get_tasks_service(config)
         task_lists = await tasks_service.list_task_lists()
-        return json.dumps(task_lists)
+        return json.dumps([task_list.to_dict() for task_list in task_lists])

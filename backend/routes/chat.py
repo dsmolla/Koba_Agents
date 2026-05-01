@@ -2,13 +2,12 @@ import logging
 import time
 from typing import Any
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request
 from google.auth.exceptions import RefreshError
 from google.genai.errors import APIError as GenAIAPIError
 from langchain_google_genai._common import GoogleGenerativeAIError
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-from langgraph.store.base import BaseStore
 from langgraph.types import Command
 
 from config import Config
@@ -71,6 +70,7 @@ async def process_message(
     message_config = RunnableConfig(
         configurable={
             "thread_id": user_id,
+            "user_id": user_id,
             "timezone": config.get("configurable", {}).get("timezone", "UTC"),
             "api_service": api_service,
             "store": websocket.app.state.store,

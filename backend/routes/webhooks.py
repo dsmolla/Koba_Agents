@@ -24,12 +24,12 @@ async def gmail_push_notification(
         request: Request,
         background_tasks: BackgroundTasks,
         id_info: Any = Depends(verify_google_token(
-            audience=Config.OIDC_AUDIENCE, 
-            expected_email=Config.PUBSUB_SERVICE_ACCOUNT_EMAIL
+            audience=Config.CLOUD_TASKS_GMAIL_WATCH_OIDC_AUDIENCE,
+            expected_email=Config.GMAIL_WATCH_PUBSUB_SERVICE_ACCOUNT_EMAIL
         )),
         token: str | None = Query(default=None)
 ):
-    expected_token = Config.PUBSUB_WEBHOOK_TOKEN
+    expected_token = Config.GMAIL_WATCH_PUBSUB_WEBHOOK_TOKEN
     if not expected_token or not token or not secrets.compare_digest(token, expected_token):
         logger.warning("Invalid or missing webhook token")
         raise HTTPException(status_code=403, detail="Forbidden")
