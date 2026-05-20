@@ -30,12 +30,14 @@ class TaskUpdate(BaseModel):
 
 from services.recursive_tasks import RecursiveTaskService
 
-@router.get("/")
+@router.get("")
 async def list_tasks(user: Any = Depends(get_current_user_http)):
+    logger.debug("Listing recursive tasks", extra={"user_id": str(user.id)})
     return await RecursiveTaskService.list_tasks(str(user.id))
 
-@router.post("/")
+@router.post("")
 async def create_task(task: TaskCreate, user: Any = Depends(get_current_user_http)):
+    logger.debug(f"Creating recursive task: {task.name} with schedule {task.cron_schedule}", extra={"user_id": str(user.id)})
     try:
         record = await RecursiveTaskService.create_task(
             user_id=str(user.id),
@@ -50,6 +52,7 @@ async def create_task(task: TaskCreate, user: Any = Depends(get_current_user_htt
 
 @router.patch("/{task_id}")
 async def update_task(task_id: str, updates: TaskUpdate, user: Any = Depends(get_current_user_http)):
+    logger.debug(f"Updating task {task_id}", extra={"user_id": str(user.id), "updates": updates.model_dump(exclude_unset=True)})
     try:
         updated_record = await RecursiveTaskService.update_task(
             task_id=task_id,
@@ -64,6 +67,7 @@ async def update_task(task_id: str, updates: TaskUpdate, user: Any = Depends(get
 
 @router.delete("/{task_id}")
 async def delete_task(task_id: str, user: Any = Depends(get_current_user_http)):
+    logger.debug(f"Deleting task {task_id}", extra={"user_id": str(user.id)})
     deleted = await RecursiveTaskService.delete_task(task_id, str(user.id))
     if not deleted:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -71,6 +75,7 @@ async def delete_task(task_id: str, user: Any = Depends(get_current_user_http)):
 
 @router.get("/{task_id}/logs")
 async def get_task_logs(task_id: str, user: Any = Depends(get_current_user_http)):
+    logger.debug(f"Fetching logs for task {task_id}", extra={"user_id": str(user.id)})
     query = "SELECT id FROM recursive_tasks WHERE id = %s AND user_id = %s"
     task = await database.fetch_one(query, (task_id, user.id))
     if not task:
@@ -82,6 +87,7 @@ async def get_task_logs(task_id: str, user: Any = Depends(get_current_user_http)
 
 @router.post("/{task_id}/run")
 async def run_task(task_id: str, request: Request, user: Any = Depends(get_current_user_http)):
+    logger.debug(f"Manual run triggered for task {task_id}", extra={"user_id": str(user.id)})
     query = "SELECT * FROM recursive_tasks WHERE id = %s AND user_id = %s"
     task = await database.fetch_one(query, (task_id, user.id))
     if not task:

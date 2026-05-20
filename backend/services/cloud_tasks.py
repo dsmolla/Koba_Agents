@@ -74,6 +74,8 @@ async def _enqueue_single_recursive_task(task_id: str):
 async def enqueue_recursive_tasks_bulk(task_ids: list[str]):
     if not task_ids:
         return
+        
+    logger.debug(f"Starting bulk enqueue of {len(task_ids)} recursive tasks to Cloud Tasks")
     
     coroutines = [
         _enqueue_single_recursive_task(task_id)
@@ -81,3 +83,4 @@ async def enqueue_recursive_tasks_bulk(task_ids: list[str]):
     ]
 
     await asyncio.gather(*coroutines)
+    logger.debug(f"Completed bulk enqueue of {len(task_ids)} recursive tasks")

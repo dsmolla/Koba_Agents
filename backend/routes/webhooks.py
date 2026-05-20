@@ -30,6 +30,8 @@ async def gmail_push_notification(
         token: str | None = Query(default=None)
 ):
     expected_token = Config.GMAIL_WATCH_PUBSUB_WEBHOOK_TOKEN
+    logger.debug("Received raw Gmail Push Notification webhook from Pub/Sub")
+    
     if not expected_token or not token or not secrets.compare_digest(token, expected_token):
         logger.warning("Invalid or missing webhook token")
         raise HTTPException(status_code=403, detail="Forbidden")

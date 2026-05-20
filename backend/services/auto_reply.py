@@ -132,6 +132,7 @@ async def process_notification(user_id: str, notification_history_id: int):
         gmail_service = api_service.async_gmail
 
         new_message_ids = await get_history_changes(gmail_service, stored_history_id)
+        logger.debug(f"Found {len(new_message_ids)} new messages since history_id {stored_history_id}", extra={"user_id": user_id})
 
         rules_text = "\n".join(
             f"{i}. When: {r['when_condition']}\n   Do: {r['do_action']}\n   Tone: {r['tone']}"
@@ -170,6 +171,7 @@ async def process_notification(user_id: str, notification_history_id: int):
 
             try:
                 prompt = f"<rules>\n{rules_text}\n</rules>\n<email_id>{message_id}</email_id>"
+                logger.debug(f"Sending email {message_id} to auto-reply agent", extra={"user_id": user_id})
                 response = await _auto_reply_agent.arun(prompt, config)
                 result = response.content.strip()
 

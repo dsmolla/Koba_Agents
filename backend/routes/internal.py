@@ -58,6 +58,8 @@ async def process_due_tasks(
         logger.warning("Invalid or missing Cloud Tasks token")
         raise HTTPException(status_code=403, detail="Forbidden")
 
+    logger.debug("Running serverless batch polling for due tasks")
+
     query = """
     UPDATE recursive_tasks
     SET next_run_at = NULL, last_run_at = NOW()
@@ -71,7 +73,10 @@ async def process_due_tasks(
     """
     records = await database.fetch_all(query)
     if not records:
+        logger.debug("No due tasks found in this polling cycle")
         return {"status": "ok", "message": "No tasks due"}
+        
+    logger.debug(f"Fetched {len(records)} due tasks for processing")
 
     task_ids_to_enqueue = []
 
@@ -90,6 +95,7 @@ async def process_due_tasks(
         await database.execute_many(update_query, update_params)
 
     await enqueue_recursive_tasks_bulk(task_ids_to_enqueue)
+    logger.debug(f"Successfully dispatched {len(records)} tasks to Cloud Tasks")
 
     return {"status": "ok", "processed": len(records)}
 
@@ -113,6 +119,8 @@ async def execute_task(
     if not task:
         logger.error(f"Task {task_id} not found for execution")
         return {"status": "not_found"}
+        
+    logger.debug(f"Executing cloud task worker for task_id: {task_id}")
         
     await RecursiveTaskService.execute_agent_for_task(dict(task), request.app)
     return {"status": "ok"}

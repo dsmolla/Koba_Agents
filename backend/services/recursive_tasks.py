@@ -37,9 +37,11 @@ class RecursiveTaskService:
         interval_seconds = (second_run - first_run).total_seconds()
         
         if interval_seconds < Config.MIN_RECURSIVE_TASK_INTERVAL_SECONDS:
+            logger.warning(f"Rejected CRON schedule due to interval check: {interval_seconds}s")
             raise ValueError(f"Schedule is too frequent. Minimum allowed interval is {Config.MIN_RECURSIVE_TASK_INTERVAL_SECONDS // 60} minutes.")
             
         next_run = first_run.replace(tzinfo=tz)
+        logger.debug(f"Calculated next run: {next_run} (interval: {interval_seconds}s)")
         return next_run.astimezone(zoneinfo.ZoneInfo("UTC"))
 
     @staticmethod
@@ -140,6 +142,7 @@ class RecursiveTaskService:
             "api_service": await get_google_service(user_id, timezone),
         }}
 
+        logger.debug(f"Initializing AI agent for recursive task {task_id}", extra={"user_id": user_id, "thread_id": thread_id})
         agent = get_agent(app, Config.DEFAULT_MODEL)
 
         messages = {
@@ -148,11 +151,14 @@ class RecursiveTaskService:
                 HumanMessage(content=prompt),
             ]
         }
+        
+        logger.debug(f"Injecting prompt into LangGraph for task {task_id}: {prompt}", extra={"user_id": user_id})
 
         try:
             final_output = await agent.agent.ainvoke(messages, config)
             structured_output: BotMessage = final_output['structured_response']
             text_content = structured_output.content
+            logger.debug(f"Agent execution completed successfully for task {task_id}", extra={"user_id": user_id, "output_snippet": text_content[:100]})
             status = "success"
         except Exception as e:
             logger.error(f"Execution failed for task {task_id}: {e}")
