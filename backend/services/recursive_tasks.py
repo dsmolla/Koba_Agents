@@ -164,6 +164,10 @@ class RecursiveTaskService:
             logger.error(f"Execution failed for task {task_id}: {e}")
             text_content = f"Error: {str(e)}"
             status = "failed"
+            # We must remember to raise this at the end so Cloud Tasks retries it
+            agent_exception = e
+        else:
+            agent_exception = None
             
         log_query = """
         INSERT INTO recursive_task_logs (task_id, user_id, status, output, thread_id)
@@ -176,3 +180,6 @@ class RecursiveTaskService:
             (text_content[:150] + "...") if text_content and len(text_content) > 150 else (text_content if text_content else "Finished successfully."),
             thread_id
         ))
+
+        if agent_exception:
+            raise agent_exception

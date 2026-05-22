@@ -57,6 +57,11 @@ async def _enqueue_single_recursive_task(task_id: str):
             "body": json.dumps({"task_id": task_id}).encode(),
         },
     }
+    
+    from google.protobuf import duration_pb2
+    duration = duration_pb2.Duration()
+    duration.FromSeconds(1800) # 30 mins
+    task["dispatch_deadline"] = duration
 
     try:
         client = tasks_v2.CloudTasksAsyncClient()
