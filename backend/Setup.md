@@ -8,9 +8,21 @@
     * Endpoint URL = [cloud run endpoint]/webhooks/gmail?token=[SECRET_TOKEN]
     * Enable authentication
 
-3. Create a Cloud Tasks Queue
+3. Create Cloud Tasks Queues
+    * You will need two separate queues:
+        * **Gmail Watch Queue**: Handles push notifications for background email processing.
+        * **Recurring Tasks Queue**: Handles execution of agent workloads. Set the maximum attempts and configure the queue as needed.
 
-4. Create a Redis Instance
+4. Create a Cloud Scheduler Job
+    * This job polls the database for due tasks and dispatches them to the Cloud Tasks queue.
+    * **Frequency**: `* * * * *` (Every minute)
+    * **Target**: HTTP
+    * **URL**: `[cloud run endpoint]/internal/tasks/process-due`
+    * **HTTP Method**: POST
+    * **Auth**: Add OIDC token (use the `CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL`)
+    * **Headers**: Add `X-Cloud-Tasks-Token` with the `CLOUD_SCHEDULER_RECURRING_TASKS_TOKEN` value.
+
+5. Create a Redis Instance
 
     ```cli
     gcloud redis instances create --project=[PROJECT ID] \
@@ -22,10 +34,10 @@
 
     * Download and save SSL Certificate
 
-5. Add SSL Certificate to Secrets
+6. Add SSL Certificate to Secrets
     * Upload SSL Certificate for the secret value
 
-6. Create Cloud Run Service
+7. Create Cloud Run Service
     * Continuously deploy from a repository
     * Set up with Cloud Build
         * Authenticate Github
@@ -42,10 +54,11 @@
             * Send traffic directly to a VPC
                 * Choose the network and subnet specified when setting up redis
             * Route only requests to private IPs to the VPC
-    * Add Environment Variables
+    * Add Environment Variables (Ensure you add the new tokens and queue names for Recurring Tasks)
+    * **IMPORTANT**: Change Request Timeout to 1800 seconds (30 minutes) to allow long-running agent tasks to complete without Cloud Run dropping the connection and causing Cloud Tasks to retry concurrently.
     * Change port to 8000
 
-7. Update triggers for build
+8. Update triggers for build
     * Go to cloud build/triggers
         * Change **included files** to backend/**
 
