@@ -8,6 +8,7 @@ import AuthRoute from './components/AuthRoute'
 const Signup = lazy(() => import('./pages/auth/Signup.jsx'))
 const Login = lazy(() => import('./pages/auth/Login.jsx'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Landing = lazy(() => import('./pages/landing/Landing.jsx'))
 const UpdatePassword = lazy(() => import('./pages/auth/UpdatePassword.jsx'))
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword.jsx'))
 const PrivacyPolicy = lazy(() => import('./pages/legal/PrivacyPolicy.jsx'))
@@ -39,6 +40,10 @@ function App() {
                     />
                     <Route
                         path="/"
+                        element={<Landing/>}
+                    />
+                    <Route
+                        path="/dashboard/*"
                         element={
                             <ProtectedRoute>
                                 <Dashboard/>
@@ -65,7 +70,7 @@ function App() {
                         path="/privacy/policy"
                         element={<PrivacyPolicy/>}
                     />
-                    <Route path="*" element={<Navigate to="/signup" replace/>}/>
+                    <Route path="*" element={<Navigate to="/" replace/>}/>
                 </Routes>
             </Suspense>
         </BrowserRouter>
