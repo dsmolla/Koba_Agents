@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import {BrowserRouter, Routes, Route, Navigate} from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import AuthRoute from './components/AuthRoute'
+import { Analytics } from '@vercel/analytics/react'
 
 // Route-level code splitting — each page chunk is downloaded only when first visited.
 // Users on /login no longer download Dashboard, dnd-kit, react-markdown, etc.
@@ -73,6 +74,7 @@ function App() {
                     <Route path="*" element={<Navigate to="/" replace/>}/>
                 </Routes>
             </Suspense>
+            <Analytics />
         </BrowserRouter>
     )
 }
